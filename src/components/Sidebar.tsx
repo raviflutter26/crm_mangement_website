@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
-import { FiGrid, FiUsers, FiClock, FiCalendar, FiDollarSign, FiBriefcase, FiSettings, FiHelpCircle, FiZap } from "react-icons/fi";
+import {
+    FiGrid, FiUsers, FiClock, FiCalendar, FiDollarSign, FiBriefcase,
+    FiSettings, FiHelpCircle, FiZap, FiLayers, FiUserPlus, FiTarget,
+    FiFileText, FiPackage, FiUser, FiBarChart2, FiShield, FiLock
+} from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
 interface SidebarProps {
@@ -10,27 +14,63 @@ interface SidebarProps {
     setActivePage: (page: string) => void;
 }
 
-const menuItemsBase: { id: string; label: string; icon: any; badge?: string }[] = [
-    { id: "dashboard", label: "Dashboard", icon: FiGrid },
-    { id: "employees", label: "Employees", icon: FiUsers },
-    { id: "attendance", label: "Attendance", icon: FiClock },
-    { id: "leaves", label: "Leave Management", icon: FiCalendar },
-    { id: "payroll", label: "Payroll", icon: FiDollarSign },
+interface MenuItem {
+    id: string;
+    label: string;
+    icon: any;
+    badge?: string;
+    roles: string[];
+}
+
+const menuItemsBase: MenuItem[] = [
+    { id: "dashboard", label: "Dashboard", icon: FiGrid, roles: ["admin", "hr", "manager", "employee"] },
+    { id: "employees", label: "Employees", icon: FiUsers, roles: ["admin", "hr"] },
+    { id: "attendance", label: "Attendance", icon: FiClock, roles: ["admin", "hr", "manager", "employee"] },
+    { id: "leaves", label: "Leave Management", icon: FiCalendar, roles: ["admin", "hr", "manager", "employee"] },
+    { id: "permissions", label: "Permissions", icon: FiClock, roles: ["admin", "hr", "manager", "employee"] },
+    { id: "payroll", label: "Payroll", icon: FiDollarSign, roles: ["admin", "hr"] },
 ];
 
-const secondaryItems = [
-    { id: "departments", label: "Departments", icon: FiBriefcase },
-    { id: "settings", label: "Settings", icon: FiSettings },
-    { id: "help", label: "Help & Support", icon: FiHelpCircle },
+const moduleItems: MenuItem[] = [
+    { id: "organization", label: "Organization", icon: FiLayers, roles: ["admin", "hr"] },
+    { id: "departments", label: "Departments", icon: FiBriefcase, roles: ["admin", "hr"] },
+    { id: "recruitment", label: "Recruitment", icon: FiUserPlus, roles: ["admin", "hr"] },
+    { id: "performance", label: "Performance", icon: FiTarget, roles: ["admin", "hr", "manager"] },
+    { id: "expenses", label: "Expenses", icon: FiFileText, roles: ["admin", "hr", "manager", "employee"] },
+    { id: "compliance", label: "Compliance", icon: FiShield, roles: ["admin"] },
+    { id: "assets", label: "Assets", icon: FiPackage, roles: ["admin", "hr"] },
+];
+
+const selfServiceItems: MenuItem[] = [
+    { id: "self-service", label: "Self Service", icon: FiUser, roles: ["admin", "hr", "manager", "employee"] },
+    { id: "reports", label: "Reports", icon: FiBarChart2, roles: ["admin", "hr", "manager"] },
+    { id: "roles", label: "Role Management", icon: FiLock, roles: ["admin"] },
+];
+
+const secondaryItems: MenuItem[] = [
+    { id: "settings", label: "Settings", icon: FiSettings, roles: ["admin", "hr", "manager", "employee"] },
+    { id: "help", label: "Help & Support", icon: FiHelpCircle, roles: ["admin", "hr", "manager", "employee"] },
 ];
 
 export default function Sidebar({ activePage, setActivePage }: SidebarProps) {
     const [empCount, setEmpCount] = useState<string>("");
     const [leaveCount, setLeaveCount] = useState<string>("");
+    const [userRole, setUserRole] = useState<string>("employee");
 
     useEffect(() => {
         const fetchCounts = async () => {
             const token = localStorage.getItem('ravi_zoho_token');
+            const userStr = localStorage.getItem('ravi_zoho_user');
+
+            if (userStr) {
+                try {
+                    const user = JSON.parse(userStr);
+                    if (user.role) setUserRole(user.role);
+                } catch (e) {
+                    console.error("Failed to parse user", e);
+                }
+            }
+
             if (!token) return;
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.DASHBOARD);
@@ -45,11 +85,34 @@ export default function Sidebar({ activePage, setActivePage }: SidebarProps) {
         fetchCounts();
     }, []);
 
-    const menuItems = menuItemsBase.map(item => {
+    const filterByRole = (items: MenuItem[]) => items.filter(item => item.roles.includes(userRole));
+
+    const menuItems = filterByRole(menuItemsBase).map(item => {
         if (item.id === "employees" && empCount) return { ...item, badge: empCount };
         if (item.id === "leaves" && leaveCount && leaveCount !== "0") return { ...item, badge: leaveCount };
         return item;
     });
+
+    const renderSection = (title: string, items: MenuItem[]) => {
+        if (items.length === 0) return null;
+
+        return (
+            <>
+                <div className="sidebar-section-title">{title}</div>
+                {items.map((item) => (
+                    <div
+                        key={item.id}
+                        className={`sidebar-item ${activePage === item.id ? "active" : ""}`}
+                        onClick={() => setActivePage(item.id)}
+                    >
+                        <span className="sidebar-item-icon"><item.icon /></span>
+                        {item.label}
+                        {item.badge && <span className="sidebar-badge">{item.badge}</span>}
+                    </div>
+                ))}
+            </>
+        );
+    };
 
     return (
         <aside className="sidebar">
@@ -64,30 +127,10 @@ export default function Sidebar({ activePage, setActivePage }: SidebarProps) {
             </div>
 
             <nav className="sidebar-nav">
-                <div className="sidebar-section-title">Main Menu</div>
-                {menuItems.map((item) => (
-                    <div
-                        key={item.id}
-                        className={`sidebar-item ${activePage === item.id ? "active" : ""}`}
-                        onClick={() => setActivePage(item.id)}
-                    >
-                        <span className="sidebar-item-icon"><item.icon /></span>
-                        {item.label}
-                        {item.badge && <span className="sidebar-badge">{item.badge}</span>}
-                    </div>
-                ))}
-
-                <div className="sidebar-section-title">Others</div>
-                {secondaryItems.map((item) => (
-                    <div
-                        key={item.id}
-                        className={`sidebar-item ${activePage === item.id ? "active" : ""}`}
-                        onClick={() => setActivePage(item.id)}
-                    >
-                        <span className="sidebar-item-icon"><item.icon /></span>
-                        {item.label}
-                    </div>
-                ))}
+                {renderSection("Main Menu", menuItems)}
+                {renderSection("Modules", filterByRole(moduleItems))}
+                {renderSection("Portal", filterByRole(selfServiceItems))}
+                {renderSection("Others", filterByRole(secondaryItems))}
 
                 {/* Sync Card */}
                 <div style={{

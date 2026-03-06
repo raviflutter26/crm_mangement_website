@@ -23,6 +23,7 @@ export default function EmployeesPage() {
         department: "",
         designation: "",
         phone: "",
+        reportingManager: "",
         status: "Active"
     });
 
@@ -65,7 +66,7 @@ export default function EmployeesPage() {
         setIsEditing(false);
         setFormData({
             firstName: "", lastName: "", email: "", employeeId: "",
-            department: "", designation: "", phone: "", status: "Active"
+            department: "", designation: "", phone: "", reportingManager: "", status: "Active"
         });
         setShowModal(true);
     };
@@ -81,6 +82,7 @@ export default function EmployeesPage() {
             department: emp.department || "",
             designation: emp.designation || "",
             phone: emp.phone || "",
+            reportingManager: emp.reportingManager || "",
             status: emp.status || "Active"
         });
         setShowModal(true);
@@ -138,6 +140,7 @@ export default function EmployeesPage() {
             `"${e.employeeId || ""}"`,
             `"${e.department || ""}"`,
             `"${e.designation || ""}"`,
+            `"${e.reportingManager || ""}"`,
             `"${e.phone || ""}"`,
             `"${e.status || ""}"`
         ]);
@@ -237,6 +240,7 @@ export default function EmployeesPage() {
                                     <th>Employee ID</th>
                                     <th>Department</th>
                                     <th>Designation</th>
+                                    <th>Reporting Manager</th>
                                     <th>Phone</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -271,6 +275,7 @@ export default function EmployeesPage() {
                                             <td style={{ fontFamily: "monospace", color: "var(--text-secondary)" }}>{emp.employeeId}</td>
                                             <td>{emp.department}</td>
                                             <td>{emp.designation}</td>
+                                            <td>{emp.reportingManager || "-"}</td>
                                             <td style={{ color: "var(--text-secondary)" }}>{emp.phone}</td>
                                             <td>
                                                 <span className={`badge ${emp.status === "Active" ? "active" : emp.status === "Inactive" ? "inactive" : "leave"}`}>
@@ -356,14 +361,27 @@ export default function EmployeesPage() {
                                 </div>
                             </div>
 
-                            <div>
-                                <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Status</label>
-                                <select name="status" value={formData.status} onChange={handleInputChange} className="form-input">
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
-                                    <option value="Terminated">Terminated</option>
-                                    <option value="On Leave">On Leave</option>
-                                </select>
+                            <div style={{ display: "flex", gap: "10px" }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Reporting Manager</label>
+                                    <select name="reportingManager" value={formData.reportingManager} onChange={handleInputChange} className="form-input">
+                                        <option value="">No Manager</option>
+                                        {employees.map(e => (
+                                            <option key={e._id} value={`${e.firstName} ${e.lastName}`}>
+                                                {e.firstName} {e.lastName}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Status</label>
+                                    <select name="status" value={formData.status} onChange={handleInputChange} className="form-input">
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                        <option value="Terminated">Terminated</option>
+                                        <option value="On Leave">On Leave</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>

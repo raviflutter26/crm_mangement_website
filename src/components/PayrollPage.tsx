@@ -1,382 +1,416 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
-import { FiDollarSign, FiDownload, FiFilter, FiTrendingUp, FiCheckCircle, FiClock, FiFileText, FiAlertCircle } from "react-icons/fi";
+import {
+    FiDollarSign, FiDownload, FiTrendingUp, FiCheckCircle, FiClock,
+    FiFileText, FiAlertCircle, FiPlay, FiThumbsUp, FiCreditCard,
+    FiUsers, FiXCircle, FiChevronRight, FiShield
+} from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const STATUS_BADGE: any = {
+    draft: "pending", processing: "processing", review: "pending",
+    approved: "active", paid: "paid", failed: "rejected",
+    Pending: "pending", Paid: "paid", Processing: "processing", Failed: "rejected",
+};
+
 export default function PayrollPage() {
+    const [activeTab, setActiveTab] = useState<"runs" | "records" | "payslip">("runs");
+    const [payrollRuns, setPayrollRuns] = useState<any[]>([]);
+    const [payrollRecords, setPayrollRecords] = useState<any[]>([]);
     const [summary, setSummary] = useState<any>(null);
-    const [records, setRecords] = useState<any[]>([]);
-    const [employees, setEmployees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [toast, setToast] = useState("");
+    const [showRunModal, setShowRunModal] = useState(false);
+    const [runMonth, setRunMonth] = useState(new Date().getMonth() + 1);
+    const [runYear, setRunYear] = useState(new Date().getFullYear());
+    const [runningPayroll, setRunningPayroll] = useState(false);
+    const [selectedRun, setSelectedRun] = useState<any>(null);
+    const [showPayslipModal, setShowPayslipModal] = useState(false);
+    const [payslipData, setPayslipData] = useState<any>(null);
 
-    const [showFilters, setShowFilters] = useState(false);
-    const [filterMonth, setFilterMonth] = useState("");
-    const [filterYear, setFilterYear] = useState("");
+    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
-    // Modal state for Running Payroll
-    const [showModal, setShowModal] = useState(false);
-    const [formData, setFormData] = useState({
-        employee: "",
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
-        basicSalary: 0,
-        taxDeductions: 0
-    });
-    const [dialogState, setDialogState] = useState<{ show: boolean, type: "success" | "error" | "", title: string, message: string }>({ show: false, type: "", title: "", message: "" });
-
-    const getToken = async () => {
-        let token = localStorage.getItem('ravi_zoho_token');
-        if (!token) { window.location.reload(); throw new Error("No token"); }
-        return token;
-    };
-
-    const fetchPayroll = async () => {
+    const fetchAll = useCallback(async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const token = await getToken();
-
-            const [summaryRes, recordsRes, employeesRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.PAYROLL_SUMMARY),
-                axiosInstance.get(API_ENDPOINTS.PAYROLL),
-                axiosInstance.get(API_ENDPOINTS.EMPLOYEES)
+            const [runsRes, recordsRes, summaryRes] = await Promise.all([
+                axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS).catch(() => ({ data: { data: [] } })),
+                axiosInstance.get(API_ENDPOINTS.PAYROLL).catch(() => ({ data: { data: [] } })),
+                axiosInstance.get(API_ENDPOINTS.PAYROLL_SUMMARY).catch(() => ({ data: { data: {} } })),
             ]);
-
-            setSummary(summaryRes.data.data);
-            setRecords(recordsRes.data.data || []);
-            setEmployees(employeesRes.data.data || []);
-        } catch (err: any) {
-            if (err.response?.status === 401) {
-                localStorage.removeItem('ravi_zoho_token');
-            }
-            console.error("Failed to fetch payroll data", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchPayroll();
+            setPayrollRuns(runsRes.data.data || []);
+            setPayrollRecords(recordsRes.data.data || []);
+            setSummary(summaryRes.data.data || {});
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
     }, []);
 
-    const handleInputChange = (e: any) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+    useEffect(() => { fetchAll(); }, [fetchAll]);
 
-    const handleRunPayrollSubmit = async (e: any) => {
-        e.preventDefault();
+    const handleInitiateRun = async () => {
+        setRunningPayroll(true);
         try {
-            const token = await getToken();
-            const payload = {
-                employee: formData.employee,
-                month: Number(formData.month),
-                year: Number(formData.year),
-                earnings: {
-                    basic: Number(formData.basicSalary) || 0,
-                    hra: 0, da: 0, ta: 0, specialAllowance: 0, bonus: 0, overtime: 0, otherEarnings: 0
-                },
-                deductions: {
-                    tax: Number(formData.taxDeductions) || 0,
-                    pf: 0, esi: 0, professionalTax: 0, loanDeduction: 0, otherDeductions: 0
-                },
-                paymentStatus: "Paid" // Defaulting to Paid to show success on UI easily
-            };
-
-            await axiosInstance.post(API_ENDPOINTS.PAYROLL, payload);
-
-            setShowModal(false);
-            setFormData({ ...formData, basicSalary: 0, taxDeductions: 0 }); // reset
-            setDialogState({ show: true, type: "success", title: "Payroll Generated", message: "Payroll has been successfully processed for this user." });
-            fetchPayroll();
+            const res = await axiosInstance.post(API_ENDPOINTS.PAYROLL_RUNS_INITIATE, { month: runMonth, year: runYear });
+            showToast(res.data.message || "Payroll processed!");
+            setShowRunModal(false);
+            fetchAll();
         } catch (err: any) {
-            if (err.response?.status === 401) {
-                localStorage.removeItem('ravi_zoho_token');
-                setDialogState({ show: true, type: "error", title: "Session Expired", message: "Your session has expired. Please log in again." });
-            } else {
-                console.error("Payroll Error", err);
-                let errMsg = err.response?.data?.message || err.message;
-                if (errMsg.includes("Duplicate value")) {
-                    errMsg = "Payroll already exists for this employee for the selected month and year.";
-                }
-                setDialogState({ show: true, type: "error", title: "Action Failed", message: errMsg });
-            }
-        }
+            alert(err.response?.data?.message || "Failed to initiate payroll run");
+        } finally { setRunningPayroll(false); }
     };
 
-    const handleDownloadPayslip = (rec: any) => {
-        const empName = `${rec.employee?.firstName || ""} ${rec.employee?.lastName || ""}`.trim();
-        const content = `======================================\n` +
-            `                 PAYSLIP\n` +
-            `======================================\n` +
-            `Employee Name:  ${empName}\n` +
-            `Designation:    ${rec.employee?.designation || ""}\n` +
-            `Month / Year:   ${months[rec.month - 1]} ${rec.year}\n` +
-            `--------------------------------------\n` +
-            `Gross Earnings: Rs ${parseFloat(rec.totalEarnings || 0).toLocaleString()}\n` +
-            `Tax Deductions: Rs ${parseFloat(rec.totalDeductions || 0).toLocaleString()}\n` +
-            `--------------------------------------\n` +
-            `NET PAY:        Rs ${parseFloat(rec.netPay || 0).toLocaleString()}\n` +
-            `--------------------------------------\n` +
-            `Status:         ${rec.paymentStatus}\n` +
-            `======================================`;
-
-        const encodedUri = encodeURI(`data:text/plain;charset=utf-8,${content}`);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Payslip_${empName.replace(/ /g, "_")}_${rec.month}_${rec.year}.txt`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handleApprove = async (id: string) => {
+        try {
+            await axiosInstance.patch(`${API_ENDPOINTS.PAYROLL_RUNS}/${id}/approve`);
+            showToast("Payroll approved! ✅");
+            fetchAll();
+        } catch (err: any) { alert(err.response?.data?.message || "Approval failed"); }
     };
 
-    const handleExportBankFormat = () => {
-        if (records.length === 0) {
-            setDialogState({ show: true, type: "error", title: "Export Failed", message: "No payroll records to export." });
-            return;
-        }
-
-        const headers = ["Beneficiary Name", "Account Number", "IFSC", "Amount", "Remarks"];
-        const rows = records.map(rec => [
-            `${rec.employee?.firstName || ""} ${rec.employee?.lastName || ""}`.trim(),
-            "000000000000", // Placeholder for actual account number
-            "ZOHO0000001", // Placeholder for IFSC
-            rec.netPay || 0,
-            `Salary ${months[rec.month - 1]} ${rec.year}`
-        ]);
-
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Bank_Export_${new Date().getTime()}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handlePay = async (id: string) => {
+        try {
+            await axiosInstance.patch(`${API_ENDPOINTS.PAYROLL_RUNS}/${id}/pay`, { paymentMode: "bank_transfer" });
+            showToast("Payroll disbursed! 💰");
+            fetchAll();
+        } catch (err: any) { alert(err.response?.data?.message || "Payment failed"); }
     };
 
+    const viewRunDetails = async (run: any) => {
+        try {
+            const res = await axiosInstance.get(`${API_ENDPOINTS.PAYROLL_RUNS}/${run._id}`);
+            setSelectedRun(res.data.data);
+        } catch (err) { setSelectedRun(run); }
+    };
 
-    if (loading) {
-        return <div style={{ padding: "40px", textAlign: "center" }}>Loading Payroll...</div>;
-    }
+    const openPayslip = (rec: any) => {
+        setPayslipData(rec);
+        setShowPayslipModal(true);
+    };
 
-    const payrollStats = [
-        { label: "Total Payroll", value: `₹${(summary?.totalNetPay || 0).toLocaleString()}`, icon: FiDollarSign, color: "blue" },
-        { label: "Total Earnings", value: `₹${(summary?.totalEarnings || 0).toLocaleString()}`, icon: FiTrendingUp, color: "green" },
-        { label: "Pending Payments", value: summary?.pending || 0, icon: FiClock, color: "orange" },
-        { label: "Processed", value: summary?.paid || 0, icon: FiCheckCircle, color: "purple" },
-    ];
+    const downloadPayslipHTML = () => {
+        if (!payslipData) return;
+        const emp = payslipData.employee || {};
+        const html = `<!DOCTYPE html><html><head><title>Payslip - ${emp.firstName} ${emp.lastName}</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px} table{width:100%;border-collapse:collapse;margin:10px 0} td,th{border:1px solid #ddd;padding:8px;text-align:left} th{background:#f0f0f0} .header{text-align:center;margin-bottom:20px} .total{font-weight:bold;background:#f8f8f8} .amount{text-align:right;font-family:monospace}</style></head><body>
+<div class="header"><h2>PAYSLIP</h2><p>Month: ${MONTHS[(payslipData.month || 1) - 1]} ${payslipData.year}</p></div>
+<table><tr><th>Employee Name</th><td>${emp.firstName || ""} ${emp.lastName || ""}</td><th>Employee ID</th><td>${emp.employeeId || "-"}</td></tr>
+<tr><th>Department</th><td>${emp.department || "-"}</td><th>Designation</th><td>${emp.designation || "-"}</td></tr>
+<tr><th>Working Days</th><td>${payslipData.workingDays || 0}</td><th>Present Days</th><td>${payslipData.presentDays || 0}</td></tr></table>
+<table><tr><th colspan="2">Earnings</th><th colspan="2">Deductions</th></tr>
+<tr><td>Basic</td><td class="amount">${fmt(payslipData.earnings?.basic)}</td><td>PF</td><td class="amount">${fmt(payslipData.deductions?.pf)}</td></tr>
+<tr><td>HRA</td><td class="amount">${fmt(payslipData.earnings?.hra)}</td><td>ESI</td><td class="amount">${fmt(payslipData.deductions?.esi)}</td></tr>
+<tr><td>DA</td><td class="amount">${fmt(payslipData.earnings?.da)}</td><td>Prof. Tax</td><td class="amount">${fmt(payslipData.deductions?.professionalTax)}</td></tr>
+<tr><td>TA</td><td class="amount">${fmt(payslipData.earnings?.ta)}</td><td>TDS</td><td class="amount">${fmt(payslipData.deductions?.tax)}</td></tr>
+<tr><td>Spl. Allowance</td><td class="amount">${fmt(payslipData.earnings?.specialAllowance)}</td><td>Loan</td><td class="amount">${fmt(payslipData.deductions?.loanDeduction)}</td></tr>
+<tr class="total"><td>Total Earnings</td><td class="amount">${fmt(payslipData.totalEarnings)}</td><td>Total Deductions</td><td class="amount">${fmt(payslipData.totalDeductions)}</td></tr></table>
+<table><tr class="total"><td><b>NET PAY</b></td><td class="amount" style="font-size:18px"><b>${fmt(payslipData.netPay)}</b></td></tr></table>
+<p style="text-align:center;margin-top:40px;font-size:12px;color:#999">This is a computer-generated payslip. No signature required.</p></body></html>`;
 
-    const months = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    ];
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `payslip_${emp.employeeId || "emp"}_${payslipData.month}_${payslipData.year}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("Payslip downloaded! 📄");
+    };
+
+    const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN")}`;
+
+    if (loading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading Payroll...</div>;
 
     return (
         <>
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Payroll Management</h1>
-                    <p className="page-subtitle">Manage salaries, taxes, and pay slips</p>
+                    <p className="page-subtitle">Process payroll, manage compliance, and generate payslips</p>
                 </div>
-                <div style={{ display: "flex", gap: "10px" }}>
-                    <button className="btn btn-secondary" onClick={() => setShowFilters(!showFilters)}><FiFilter /> Filter</button>
-                    <button className="btn btn-secondary" onClick={handleExportBankFormat}><FiDownload /> Export Bank Format</button>
-                    <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                        <FiDollarSign /> Run Payroll
-                    </button>
-                </div>
+                <button className="btn btn-primary" onClick={() => setShowRunModal(true)}>
+                    <FiPlay /> Run Payroll
+                </button>
             </div>
 
-            {/* Filter Section */}
-            {showFilters && (
-                <div className="card" style={{ padding: "15px", marginBottom: "20px", display: "flex", gap: "10px" }}>
-                    <div style={{ flex: 1 }}>
-                        <select className="form-input" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}>
-                            <option value="">All Months</option>
-                            {months.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-                        </select>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <select className="form-input" value={filterYear} onChange={(e) => setFilterYear(e.target.value)}>
-                            <option value="">All Years</option>
-                            <option value="2026">2026</option>
-                            <option value="2025">2025</option>
-                            <option value="2024">2024</option>
-                        </select>
-                    </div>
-                    <button className="btn btn-secondary" onClick={() => { setFilterMonth(""); setFilterYear(""); }}>Clear Filters</button>
-                </div>
-            )}
-
-            {/* Stats */}
+            {/* Summary Cards */}
             <div className="stats-grid">
-                {payrollStats.map((stat, i) => (
-                    <div key={i} className={`stat-card ${stat.color}`}>
-                        <div className="stat-card-header">
-                            <div className={`stat-card-icon ${stat.color}`}><stat.icon /></div>
-                        </div>
-                        <div className="stat-card-value">{stat.value}</div>
-                        <div className="stat-card-label">{stat.label}</div>
-                    </div>
-                ))}
+                <div className="stat-card blue">
+                    <div className="stat-card-header"><div className="stat-card-icon blue"><FiDollarSign /></div></div>
+                    <div className="stat-card-value">{fmt(summary?.totalNetPay || 0)}</div>
+                    <div className="stat-card-label">Net Payroll</div>
+                </div>
+                <div className="stat-card green">
+                    <div className="stat-card-header"><div className="stat-card-icon green"><FiTrendingUp /></div></div>
+                    <div className="stat-card-value">{fmt(summary?.totalEarnings || 0)}</div>
+                    <div className="stat-card-label">Gross Earnings</div>
+                </div>
+                <div className="stat-card orange">
+                    <div className="stat-card-header"><div className="stat-card-icon orange"><FiShield /></div></div>
+                    <div className="stat-card-value">{fmt(summary?.totalDeductions || 0)}</div>
+                    <div className="stat-card-label">Total Deductions</div>
+                </div>
+                <div className="stat-card purple">
+                    <div className="stat-card-header"><div className="stat-card-icon purple"><FiUsers /></div></div>
+                    <div className="stat-card-value">{summary?.employeeCount || 0}</div>
+                    <div className="stat-card-label">Employees Processed</div>
+                </div>
             </div>
 
-            {/* Payroll Table */}
-            <div className="card">
-                <div className="card-header">
-                    <h3 className="card-title">Recent Pay Runs</h3>
-                </div>
-                <div className="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Employee Name</th>
-                                <th>Month/Year</th>
-                                <th>Gross Pay</th>
-                                <th>Deductions</th>
-                                <th>Net Pay</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {records
-                                .filter(rec => filterMonth ? rec.month === Number(filterMonth) : true)
-                                .filter(rec => filterYear ? rec.year === Number(filterYear) : true)
-                                .map((rec, i) => (
-                                    <tr key={i}>
-                                        <td style={{ fontWeight: 600 }}>
-                                            {rec.employee?.firstName} {rec.employee?.lastName}
-                                        </td>
-                                        <td>{rec.month} / {rec.year}</td>
-                                        <td style={{ color: "var(--success)" }}>₹{(rec.totalEarnings || 0).toLocaleString()}</td>
-                                        <td style={{ color: "var(--error)" }}>₹{(rec.totalDeductions || 0).toLocaleString()}</td>
-                                        <td style={{ fontWeight: 800 }}>₹{(rec.netPay || 0).toLocaleString()}</td>
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+                <button className={`btn ${activeTab === "runs" ? "btn-primary" : "btn-secondary"}`} onClick={() => { setActiveTab("runs"); setSelectedRun(null); }}>
+                    <FiPlay /> Payroll Runs
+                </button>
+                <button className={`btn ${activeTab === "records" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveTab("records")}>
+                    <FiFileText /> Individual Records
+                </button>
+            </div>
+
+            {/* Payroll Runs OR Selected Run Detail */}
+            {activeTab === "runs" && !selectedRun && (
+                <div className="card">
+                    <div className="card-header"><h3 className="card-title">Payroll Runs</h3></div>
+                    <div className="table-wrapper">
+                        <table>
+                            <thead><tr><th>Run ID</th><th>Month</th><th>Employees</th><th>Gross Pay</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {payrollRuns.map((run: any) => (
+                                    <tr key={run._id}>
+                                        <td style={{ fontFamily: "monospace", fontWeight: 600 }}>{run.runId}</td>
+                                        <td>{MONTHS[(run.month || 1) - 1]} {run.year}</td>
+                                        <td>{run.totalEmployees}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(run.totalGrossPay)}</td>
+                                        <td style={{ fontFamily: "monospace", color: "var(--error)" }}>{fmt(run.totalDeductions)}</td>
+                                        <td style={{ fontWeight: 700, fontFamily: "monospace" }}>{fmt(run.totalNetPay)}</td>
+                                        <td><span className={`badge ${STATUS_BADGE[run.status]}`}>{run.status}</span></td>
                                         <td>
-                                            <span className={`badge ${rec.paymentStatus?.toLowerCase()}`}>
-                                                {rec.paymentStatus}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button className="btn btn-secondary btn-sm" style={{ display: "flex", alignItems: "center", gap: "5px" }} onClick={() => handleDownloadPayslip(rec)}>
-                                                <FiFileText size={14} /> Payslip
-                                            </button>
+                                            <div style={{ display: "flex", gap: "6px" }}>
+                                                <button className="btn btn-secondary btn-sm" onClick={() => viewRunDetails(run)} title="View details"><FiChevronRight size={14} /></button>
+                                                {run.status === "review" && <button className="btn btn-primary btn-sm" onClick={() => handleApprove(run._id)} title="Approve"><FiThumbsUp size={14} /></button>}
+                                                {run.status === "approved" && <button className="btn btn-primary btn-sm" onClick={() => handlePay(run._id)} title="Disburse"><FiCreditCard size={14} /></button>}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
-                        </tbody>
-                    </table>
-
-                    {records.filter(rec => filterMonth ? rec.month === Number(filterMonth) : true)
-                        .filter(rec => filterYear ? rec.year === Number(filterYear) : true).length === 0 && (
-                            <div className="empty-state">
-                                <FiDollarSign className="empty-state-icon" style={{ opacity: 0.5 }} />
-                                <h3>No Payroll Records Found</h3>
-                                <p>It looks like payroll hasn't been run for this period yet.</p>
-                                <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                                    <FiDollarSign /> Run First Payroll
-                                </button>
-                            </div>
-                        )}
-                </div>
-            </div>
-
-            {/* Run Payroll Modal Validation */}
-            {showModal && (
-                <div style={{
-                    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000,
-                    display: "flex", alignItems: "center", justifyContent: "center"
-                }}>
-                    <div className="card animate-in" style={{ width: "500px", padding: "25px" }}>
-                        <h2 style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div style={{ padding: "8px", background: "var(--primary)", color: "white", borderRadius: "8px", display: "flex" }}><FiDollarSign /></div>
-                            Run Employee Payroll
-                        </h2>
-
-                        <p style={{ color: "var(--text-secondary)", marginBottom: "20px", fontSize: "14px", lineHeight: "1.5" }}>
-                            Easily generate a payslip record. The system will automatically calculate the Gross and Net Pay metrics for you!
-                        </p>
-
-                        <form onSubmit={handleRunPayrollSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-
-                            <div>
-                                <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Select Employee</label>
-                                <select required name="employee" value={formData.employee} onChange={handleInputChange} className="form-input">
-                                    <option value="">-- Choose Employee --</option>
-                                    {employees.map((emp) => (
-                                        <option key={emp._id} value={emp._id}>{emp.firstName} {emp.lastName} ({emp.designation || 'Staff'})</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div style={{ display: "flex", gap: "15px" }}>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Payroll Month</label>
-                                    <select required name="month" value={formData.month} onChange={handleInputChange} className="form-input">
-                                        {months.map((m, index) => (
-                                            <option key={index + 1} value={index + 1}>{m}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Year</label>
-                                    <input type="number" required name="year" value={formData.year} onChange={handleInputChange} className="form-input" min="2020" max="2030" />
-                                </div>
-                            </div>
-
-                            <div style={{ display: "flex", gap: "15px", marginTop: "10px" }}>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Basic Salary (₹)</label>
-                                    <input type="number" required name="basicSalary" value={formData.basicSalary} onChange={handleInputChange} className="form-input" placeholder="e.g. 50000" min="0" />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Tax Deductions (₹)</label>
-                                    <input type="number" required name="taxDeductions" value={formData.taxDeductions} onChange={handleInputChange} className="form-input" placeholder="e.g. 2000" min="0" />
-                                </div>
-                            </div>
-
-                            <div style={{ padding: "12px", background: "var(--bg-primary)", borderRadius: "8px", marginTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontSize: "14px", color: "var(--text-secondary)" }}>Estimated Net Pay:</span>
-                                <span style={{ fontSize: "20px", fontWeight: "bold", color: "var(--success)" }}>
-                                    ₹{Math.max(0, Number(formData.basicSalary || 0) - Number(formData.taxDeductions || 0)).toLocaleString()}
-                                </span>
-                            </div>
-
-                            <div style={{ display: "flex", gap: "10px", marginTop: "15px" }}>
-                                <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: "center" }} onClick={() => setShowModal(false)}>Cancel</button>
-                                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }}>Process Payroll</button>
-                            </div>
-                        </form>
+                                {payrollRuns.length === 0 && <tr><td colSpan={8} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No payroll runs yet. Click &quot;Run Payroll&quot; to start.</td></tr>}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
 
-            {/* Success/Error Dialog */}
-            {dialogState.show && (
-                <div style={{
-                    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.6)", zIndex: 2000,
-                    display: "flex", alignItems: "center", justifyContent: "center"
-                }}>
-                    <div className="card animate-in" style={{ width: "400px", padding: "25px", textAlign: "center" }}>
-                        <div style={{
-                            width: "60px", height: "60px", borderRadius: "30px",
-                            background: dialogState.type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)",
-                            color: dialogState.type === "success" ? "var(--success)" : "var(--error)",
-                            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px"
-                        }}>
-                            {dialogState.type === "success" ? <FiCheckCircle size={30} /> : <FiAlertCircle size={30} />}
-                        </div>
-                        <h2 style={{ marginBottom: "10px", fontSize: "18px" }}>{dialogState.title}</h2>
-                        <p style={{ color: "var(--text-secondary)", marginBottom: "25px", lineHeight: "1.5" }}>
-                            {dialogState.message}
-                        </p>
-                        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => setDialogState({ ...dialogState, show: false })}>
-                            OK
-                        </button>
+            {/* Selected Run Details */}
+            {activeTab === "runs" && selectedRun && (
+                <div className="card">
+                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <h3 className="card-title">Run: {selectedRun.runId} — {MONTHS[(selectedRun.month || 1) - 1]} {selectedRun.year}</h3>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setSelectedRun(null)}>← Back</button>
                     </div>
+
+                    {/* Compliance Summary */}
+                    <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                        <div style={{ padding: "14px 16px", background: "rgba(26,115,232,0.08)", borderRadius: "10px" }}>
+                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total PF</div>
+                            <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "monospace" }}>{fmt(selectedRun.totalPF)}</div>
+                        </div>
+                        <div style={{ padding: "14px 16px", background: "rgba(52,168,83,0.08)", borderRadius: "10px" }}>
+                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total ESI</div>
+                            <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "monospace" }}>{fmt(selectedRun.totalESI)}</div>
+                        </div>
+                        <div style={{ padding: "14px 16px", background: "rgba(255,109,0,0.08)", borderRadius: "10px" }}>
+                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total PT</div>
+                            <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "monospace" }}>{fmt(selectedRun.totalPT)}</div>
+                        </div>
+                        <div style={{ padding: "14px 16px", background: "rgba(234,67,53,0.08)", borderRadius: "10px" }}>
+                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total TDS</div>
+                            <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "monospace" }}>{fmt(selectedRun.totalTDS)}</div>
+                        </div>
+                    </div>
+
+                    <div className="table-wrapper">
+                        <table>
+                            <thead><tr><th>Employee</th><th>Basic</th><th>HRA</th><th>PF</th><th>ESI</th><th>PT</th><th>TDS</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Payslip</th></tr></thead>
+                            <tbody>
+                                {(selectedRun.payrollRecords || []).map((rec: any) => (
+                                    <tr key={rec._id}>
+                                        <td style={{ fontWeight: 600 }}>{rec.employee?.firstName} {rec.employee?.lastName}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.earnings?.basic)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.earnings?.hra)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.deductions?.pf)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.deductions?.esi)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.deductions?.professionalTax)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.deductions?.tax)}</td>
+                                        <td style={{ fontFamily: "monospace", fontWeight: 600 }}>{fmt(rec.totalEarnings)}</td>
+                                        <td style={{ fontFamily: "monospace", color: "var(--error)" }}>{fmt(rec.totalDeductions)}</td>
+                                        <td style={{ fontWeight: 700, fontFamily: "monospace", color: "var(--secondary)" }}>{fmt(rec.netPay)}</td>
+                                        <td><button className="btn btn-secondary btn-sm" onClick={() => openPayslip(rec)}><FiDownload size={14} /></button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Individual Records Tab */}
+            {activeTab === "records" && (
+                <div className="card">
+                    <div className="card-header"><h3 className="card-title">Individual Payroll Records</h3></div>
+                    <div className="table-wrapper">
+                        <table>
+                            <thead><tr><th>Employee</th><th>Month/Year</th><th>Gross</th><th>PF</th><th>ESI</th><th>PT</th><th>TDS</th><th>Net Pay</th><th>Status</th><th>Payslip</th></tr></thead>
+                            <tbody>
+                                {payrollRecords.map((rec: any) => (
+                                    <tr key={rec._id}>
+                                        <td style={{ fontWeight: 600 }}>{rec.employee?.firstName} {rec.employee?.lastName}</td>
+                                        <td>{MONTHS[(rec.month || 1) - 1]} {rec.year}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.totalEarnings)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.deductions?.pf)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.deductions?.esi)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.deductions?.professionalTax)}</td>
+                                        <td style={{ fontFamily: "monospace" }}>{fmt(rec.deductions?.tax)}</td>
+                                        <td style={{ fontWeight: 700, fontFamily: "monospace" }}>{fmt(rec.netPay)}</td>
+                                        <td><span className={`badge ${STATUS_BADGE[rec.paymentStatus]}`}>{rec.paymentStatus}</span></td>
+                                        <td><button className="btn btn-secondary btn-sm" onClick={() => openPayslip(rec)}><FiDownload size={14} /></button></td>
+                                    </tr>
+                                ))}
+                                {payrollRecords.length === 0 && <tr><td colSpan={10} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No payroll records.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Run Payroll Modal */}
+            {showRunModal && (
+                <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div className="card animate-in" style={{ width: "520px", padding: "0" }}>
+                        <div style={{ padding: "24px 24px 0", borderBottom: "1px solid var(--border)" }}>
+                            <h2 style={{ marginBottom: "4px" }}>🚀 Run Payroll</h2>
+                            <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginBottom: "16px" }}>Process monthly salaries with automated PF, ESI, PT, TDS calculations</p>
+                        </div>
+                        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <div className="grid-2">
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", fontWeight: 600 }}>Month</label>
+                                    <select className="form-input" value={runMonth} onChange={e => setRunMonth(parseInt(e.target.value))}>
+                                        {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", fontWeight: 600 }}>Year</label>
+                                    <select className="form-input" value={runYear} onChange={e => setRunYear(parseInt(e.target.value))}>
+                                        {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={{ background: "rgba(26,115,232,0.06)", borderRadius: "10px", padding: "16px", border: "1px solid rgba(26,115,232,0.15)" }}>
+                                <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: "var(--primary)" }}>Payroll will automatically calculate:</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", fontSize: "13px" }}>
+                                    <div>✅ PF (Employee + Employer 12%)</div>
+                                    <div>✅ ESI (0.75% + 3.25%)</div>
+                                    <div>✅ Professional Tax (state-wise)</div>
+                                    <div>✅ TDS (as per tax regime)</div>
+                                    <div>✅ Attendance-based pro-rata</div>
+                                    <div>✅ Overtime calculations</div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", paddingTop: "8px" }}>
+                                <button className="btn btn-secondary" onClick={() => setShowRunModal(false)} disabled={runningPayroll}>Cancel</button>
+                                <button className="btn btn-primary" onClick={handleInitiateRun} disabled={runningPayroll}
+                                    style={{ minWidth: "160px" }}>
+                                    {runningPayroll ? (
+                                        <><FiClock className="spin" /> Processing...</>
+                                    ) : (
+                                        <><FiPlay /> Process Payroll</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Payslip Modal */}
+            {showPayslipModal && payslipData && (
+                <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div className="card animate-in" style={{ width: "600px", maxHeight: "80vh", overflow: "auto" }}>
+                        <div style={{ padding: "24px" }}>
+                            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                                <h2 style={{ fontSize: "20px" }}>Payslip</h2>
+                                <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>{MONTHS[(payslipData.month || 1) - 1]} {payslipData.year}</p>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px", fontSize: "13px" }}>
+                                <div><strong>Name:</strong> {payslipData.employee?.firstName} {payslipData.employee?.lastName}</div>
+                                <div><strong>Employee ID:</strong> {payslipData.employee?.employeeId}</div>
+                                <div><strong>Department:</strong> {payslipData.employee?.department || "-"}</div>
+                                <div><strong>Designation:</strong> {payslipData.employee?.designation || "-"}</div>
+                                <div><strong>Working Days:</strong> {payslipData.workingDays}</div>
+                                <div><strong>Present Days:</strong> {payslipData.presentDays}</div>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                                {/* Earnings */}
+                                <div>
+                                    <h4 style={{ color: "var(--secondary)", marginBottom: "10px", fontSize: "14px" }}>💰 Earnings</h4>
+                                    {[
+                                        { l: "Basic", v: payslipData.earnings?.basic },
+                                        { l: "HRA", v: payslipData.earnings?.hra },
+                                        { l: "DA", v: payslipData.earnings?.da },
+                                        { l: "TA", v: payslipData.earnings?.ta },
+                                        { l: "Spl. Allowance", v: payslipData.earnings?.specialAllowance },
+                                    ].map((r, i) => (
+                                        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "13px", borderBottom: "1px solid var(--border)" }}>
+                                            <span>{r.l}</span><span style={{ fontFamily: "monospace" }}>{fmt(r.v)}</span>
+                                        </div>
+                                    ))}
+                                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontWeight: 700, color: "var(--secondary)" }}>
+                                        <span>Total Earnings</span><span style={{ fontFamily: "monospace" }}>{fmt(payslipData.totalEarnings)}</span>
+                                    </div>
+                                </div>
+                                {/* Deductions */}
+                                <div>
+                                    <h4 style={{ color: "var(--error)", marginBottom: "10px", fontSize: "14px" }}>📉 Deductions</h4>
+                                    {[
+                                        { l: "PF", v: payslipData.deductions?.pf },
+                                        { l: "ESI", v: payslipData.deductions?.esi },
+                                        { l: "Prof. Tax", v: payslipData.deductions?.professionalTax },
+                                        { l: "TDS", v: payslipData.deductions?.tax },
+                                        { l: "Loan", v: payslipData.deductions?.loanDeduction },
+                                    ].map((r, i) => (
+                                        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "13px", borderBottom: "1px solid var(--border)" }}>
+                                            <span>{r.l}</span><span style={{ fontFamily: "monospace" }}>{fmt(r.v)}</span>
+                                        </div>
+                                    ))}
+                                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontWeight: 700, color: "var(--error)" }}>
+                                        <span>Total Deductions</span><span style={{ fontFamily: "monospace" }}>{fmt(payslipData.totalDeductions)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop: "16px", padding: "16px", background: "linear-gradient(135deg, rgba(26,115,232,0.08), rgba(52,168,83,0.08))", borderRadius: "12px", textAlign: "center" }}>
+                                <div style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Net Pay</div>
+                                <div style={{ fontSize: "28px", fontWeight: 800, fontFamily: "monospace", color: "var(--primary)" }}>{fmt(payslipData.netPay)}</div>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+                                <button className="btn btn-secondary" onClick={() => setShowPayslipModal(false)}>Close</button>
+                                <button className="btn btn-primary" onClick={downloadPayslipHTML}><FiDownload /> Download Payslip</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div style={{ position: "fixed", bottom: "20px", right: "20px", background: "rgba(34, 197, 94, 0.9)", color: "white", padding: "12px 20px", borderRadius: "8px", zIndex: 3000, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)", display: "flex", alignItems: "center", gap: "10px", fontWeight: 600, animation: "fadeInUp 0.3s ease-out" }}>
+                    <FiCheckCircle size={20} /> {toast}
                 </div>
             )}
         </>

@@ -12,6 +12,8 @@ export default function LeavePage() {
 
     const [showFilters, setShowFilters] = useState(false);
     const [filterStatus, setFilterStatus] = useState("");
+    const [userRole, setUserRole] = useState("employee");
+    const [currentUserId, setCurrentUserId] = useState("");
 
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({
@@ -39,6 +41,10 @@ export default function LeavePage() {
             ]);
             setLeaves(leavesRes.data?.data || []);
             setEmployees(empRes.data?.data || []);
+            
+            const user = JSON.parse(localStorage.getItem("ravi_zoho_user") || "{}");
+            setUserRole(user.role || "employee");
+            setCurrentUserId(user._id || user.id || "");
         } catch (err) {
             console.error("Failed to fetch data", err);
         } finally {
@@ -159,7 +165,7 @@ export default function LeavePage() {
                                 <th>To Date</th>
                                 <th>Days</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                {userRole !== 'employee' && <th>Actions</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -178,16 +184,18 @@ export default function LeavePage() {
                                                 {leave.status}
                                             </span>
                                         </td>
-                                        <td>
-                                            {leave.status === "Pending" ? (
-                                                <div style={{ display: "flex", gap: "8px" }}>
-                                                    <button className="btn btn-success btn-sm" onClick={() => handleStatusUpdate(leave._id, "Approved")}>Approve</button>
-                                                    <button className="btn btn-secondary btn-sm" style={{ borderColor: "var(--error)", color: "var(--error)" }} onClick={() => handleStatusUpdate(leave._id, "Rejected")}>Reject</button>
-                                                </div>
-                                            ) : (
-                                                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Processed</span>
-                                            )}
-                                        </td>
+                                        {userRole !== 'employee' && (
+                                            <td>
+                                                {leave.status === "Pending" ? (
+                                                    <div style={{ display: "flex", gap: "8px" }}>
+                                                        <button className="btn btn-success btn-sm" onClick={() => handleStatusUpdate(leave._id, "Approved")}>Approve</button>
+                                                        <button className="btn btn-secondary btn-sm" style={{ borderColor: "var(--error)", color: "var(--error)" }} onClick={() => handleStatusUpdate(leave._id, "Rejected")}>Reject</button>
+                                                    </div>
+                                                ) : (
+                                                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Processed</span>
+                                                )}
+                                            </td>
+                                        )}
                                     </tr>
                                 )) : (
                                     <tr>
@@ -215,15 +223,19 @@ export default function LeavePage() {
                         </h2>
 
                         <form onSubmit={handleApplyLeaveSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                            <div>
-                                <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Employee</label>
-                                <select required name="employee" value={formData.employee} onChange={handleInputChange} className="form-input">
-                                    <option value="">-- Choose Employee --</option>
-                                    {employees.map(emp => (
-                                        <option key={emp._id} value={emp._id}>{emp.firstName} {emp.lastName}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {userRole !== 'employee' ? (
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Employee</label>
+                                    <select required name="employee" value={formData.employee} onChange={handleInputChange} className="form-input">
+                                        <option value="">-- Choose Employee --</option>
+                                        {employees.map(emp => (
+                                            <option key={emp._id} value={emp._id}>{emp.firstName} {emp.lastName}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ) : (
+                                <input type="hidden" name="employee" value={currentUserId} />
+                            )}
                             <div>
                                 <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Leave Type</label>
                                 <select required name="leaveType" value={formData.leaveType} onChange={handleInputChange} className="form-input">
