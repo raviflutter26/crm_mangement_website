@@ -54,7 +54,7 @@ export default function DashboardLayout({
       )}
 
       {/* Sidebar and Topbar now part of the persistent layout */}
-      <Sidebar activePage="" setActivePage={() => {}} /> 
+      <Sidebar /> 
       <div className="main-content">
         <Topbar />
         <div className="page-content animate-in">
