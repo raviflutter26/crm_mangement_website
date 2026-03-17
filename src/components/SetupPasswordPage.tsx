@@ -60,7 +60,7 @@ export default function SetupPasswordPage({ token, onSuccess, showNotify }: Setu
 
             setSuccess(true);
             if (showNotify) showNotify('success', 'Password set successfully! Logging you in...');
-            
+
             // Wait 2 seconds then login
             setTimeout(() => {
                 const { token: authToken, user } = res.data.data;
@@ -149,64 +149,64 @@ export default function SetupPasswordPage({ token, onSuccess, showNotify }: Setu
                                 style={{ paddingLeft: "45px", height: "45px", backgroundColor: "#f9fafb", cursor: "not-allowed" }}
                             />
                         </div>
-                    <div style={{ position: "relative" }}>
-                        <FiLock style={{ position: "absolute", left: "15px", top: "14px", color: "var(--text-muted)" }} />
-                        <input
-                            type={showPassword ? "text" : "password"}
-                            required
-                            placeholder="New Password"
-                            className="form-input"
-                            style={{ paddingLeft: "45px", paddingRight: "45px", height: "45px" }}
-                            value={formData.password}
-                            onChange={e => setFormData({ ...formData, password: e.target.value })}
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            style={{
-                                position: "absolute",
-                                right: "15px",
-                                top: "14px",
-                                background: "none",
-                                border: "none",
-                                color: "var(--text-muted)",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center"
-                            }}
-                        >
-                            {showPassword ? <FiEyeOff /> : <FiEye />}
-                        </button>
-                    </div>
-                    <div style={{ position: "relative" }}>
-                        <FiLock style={{ position: "absolute", left: "15px", top: "14px", color: "var(--text-muted)" }} />
-                        <input
-                            type={showConfirmPassword ? "text" : "password"}
-                            required
-                            placeholder="Confirm Password"
-                            className="form-input"
-                            style={{ paddingLeft: "45px", paddingRight: "45px", height: "45px" }}
-                            value={formData.confirmPassword}
-                            onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            style={{
-                                position: "absolute",
-                                right: "15px",
-                                top: "14px",
-                                background: "none",
-                                border: "none",
-                                color: "var(--text-muted)",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center"
-                            }}
-                        >
-                            {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-                        </button>
-                    </div>
+                        <div style={{ position: "relative" }}>
+                            <FiLock style={{ position: "absolute", left: "15px", top: "14px", color: "var(--text-muted)" }} />
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                required
+                                placeholder="New Password"
+                                className="form-input"
+                                style={{ paddingLeft: "45px", paddingRight: "45px", height: "45px" }}
+                                value={formData.password}
+                                onChange={e => setFormData({ ...formData, password: e.target.value })}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: "absolute",
+                                    right: "15px",
+                                    top: "14px",
+                                    background: "none",
+                                    border: "none",
+                                    color: "var(--text-muted)",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center"
+                                }}
+                            >
+                                {showPassword ? <FiEyeOff /> : <FiEye />}
+                            </button>
+                        </div>
+                        <div style={{ position: "relative" }}>
+                            <FiLock style={{ position: "absolute", left: "15px", top: "14px", color: "var(--text-muted)" }} />
+                            <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                required
+                                placeholder="Confirm Password"
+                                className="form-input"
+                                style={{ paddingLeft: "45px", paddingRight: "45px", height: "45px" }}
+                                value={formData.confirmPassword}
+                                onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                style={{
+                                    position: "absolute",
+                                    right: "15px",
+                                    top: "14px",
+                                    background: "none",
+                                    border: "none",
+                                    color: "var(--text-muted)",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center"
+                                }}
+                            >
+                                {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                            </button>
+                        </div>
 
                         <button type="submit" className="btn btn-primary" disabled={loading} style={{ height: "45px", justifyContent: "center", marginTop: "10px", fontWeight: 600 }}>
                             {loading ? "Processing..." : "Set Password"}
