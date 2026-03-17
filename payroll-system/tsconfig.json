@@ -1,0 +1,74 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "lib": [
+            "ES2020"
+        ],
+        "outDir": "./backend/dist",
+        "rootDir": "./backend/src",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "moduleResolution": "node",
+        "allowUnusedLabels": false,
+        "allowUnreachableCode": false,
+        "exactOptionalPropertyTypes": false,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "baseUrl": "./",
+        "paths": {
+            "@/*": [
+                "backend/src/*"
+            ],
+            "@models/*": [
+                "backend/src/models/*"
+            ],
+            "@services/*": [
+                "backend/src/services/*"
+            ],
+            "@controllers/*": [
+                "backend/src/controllers/*"
+            ],
+            "@middleware/*": [
+                "backend/src/middleware/*"
+            ],
+            "@routes/*": [
+                "backend/src/routes/*"
+            ],
+            "@utils/*": [
+                "backend/src/utils/*"
+            ],
+            "@config/*": [
+                "backend/src/config/*"
+            ],
+            "@types/*": [
+                "backend/src/types/*"
+            ],
+            "@webhooks/*": [
+                "backend/src/webhooks/*"
+            ],
+            "@queues/*": [
+                "backend/src/queues/*"
+            ]
+        }
+    },
+    "include": [
+        "backend/src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "backend/dist",
+        "**/*.test.ts"
+    ]
+}

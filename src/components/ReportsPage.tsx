@@ -83,6 +83,80 @@ export default function ReportsPage() {
         { id: "cost", label: "Cost Analysis", icon: FiTrendingUp, color: "#FBBC04" },
     ];
 
+    const handleExport = () => {
+        let headers: string[] = [];
+        let rows: string[][] = [];
+        let filename = `report_${activeReport}_${new Date().toISOString().split('T')[0]}.csv`;
+
+        if (activeReport === "overview" || activeReport === "headcount") {
+            headers = ["First Name", "Last Name", "Email", "Employee ID", "Department", "Designation", "Joining Date", "Status", "Manager"];
+            rows = employees.map(e => [
+                `"${e.firstName}"`,
+                `"${e.lastName}"`,
+                `"${e.email}"`,
+                `"${e.employeeId || ""}"`,
+                `"${e.department || ""}"`,
+                `"${e.designation || ""}"`,
+                `"${e.dateOfJoining ? new Date(e.dateOfJoining).toLocaleDateString() : ""}"`,
+                `"${e.status || ""}"`,
+                `"${e.manager || ""}"`
+            ]);
+        } else if (activeReport === "attendance") {
+            headers = ["Employee Name", "Date", "Check-In", "Check-Out", "Status", "Total Hours", "Late Duration", "Is Late", "Regularized"];
+            rows = attendance.map(a => [
+                `"${a.employee?.firstName || ""} ${a.employee?.lastName || ""}"`,
+                `"${new Date(a.date).toLocaleDateString()}"`,
+                `"${a.checkIn ? new Date(a.checkIn).toLocaleTimeString() : "-"}"`,
+                `"${a.checkOut ? new Date(a.checkOut).toLocaleTimeString() : "-"}"`,
+                `"${a.status}"`,
+                `"${a.totalHours || 0}"`,
+                `"${a.lateDuration || 0}"`,
+                `"${a.isLate ? "Yes" : "No"}"`,
+                `"${a.isRegularized ? "Yes" : "No"}"`
+            ]);
+        } else if (activeReport === "leave") {
+            headers = ["Employee Name", "Leave Type", "From Date", "To Date", "Total Days", "Reason", "Status", "Applied On"];
+            rows = leaves.map(l => [
+                `"${l.employee?.firstName || ""} ${l.employee?.lastName || ""}"`,
+                `"${l.leaveType || ""}"`,
+                `"${new Date(l.startDate).toLocaleDateString()}"`,
+                `"${new Date(l.endDate).toLocaleDateString()}"`,
+                `"${l.days || 1}"`,
+                `"${(l.reason || "").replace(/"/g, '""')}"`,
+                `"${l.status}"`,
+                `"${new Date(l.createdAt).toLocaleDateString()}"`
+            ]);
+        } else if (activeReport === "payroll" || activeReport === "cost") {
+            headers = ["Employee Name", "Month/Year", "Basic", "HRA", "Allowances", "Gross Earnings", "PF Deduction", "ESI Deduction", "TDS", "Other Deductions", "Total Deductions", "Net Pay", "Status"];
+            rows = payroll.map(p => [
+                `"${p.employee?.firstName || ""} ${p.employee?.lastName || ""}"`,
+                `"${p.month}/${p.year}"`,
+                `"${p.basic || 0}"`,
+                `"${p.hra || 0}"`,
+                `"${p.allowances || 0}"`,
+                `"${p.totalEarnings || 0}"`,
+                `"${p.pf || 0}"`,
+                `"${p.esi || 0}"`,
+                `"${p.tds || 0}"`,
+                `"${p.otherDeductions || 0}"`,
+                `"${p.totalDeductions || 0}"`,
+                `"${p.netPay || 0}"`,
+                `"${p.status}"`
+            ]);
+        }
+
+        const csvContent = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     if (loading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading Reports...</div>;
 
     return (
@@ -92,15 +166,28 @@ export default function ReportsPage() {
                     <h1 className="page-title">Reports & Analytics</h1>
                     <p className="page-subtitle">Comprehensive HR analytics and data-driven insights</p>
                 </div>
-                <button className="btn btn-secondary"><FiDownload /> Export Report</button>
+                <button className="btn btn-secondary" onClick={handleExport}><FiDownload /> Export Report</button>
             </div>
 
             {/* Report Selector */}
-            <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
                 {reports.map(r => (
-                    <button key={r.id} className={`btn ${activeReport === r.id ? "btn-primary" : "btn-secondary"}`}
-                        onClick={() => setActiveReport(r.id)} style={{ fontSize: "13px" }}>
-                        <r.icon /> {r.label}
+                    <button 
+                        key={r.id} 
+                        className={`btn ${activeReport === r.id ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setActiveReport(r.id)} 
+                        style={{ 
+                            fontSize: "13px", 
+                            fontWeight: 600,
+                            padding: "10px 20px",
+                            borderRadius: "10px",
+                            background: activeReport === r.id ? "#FF6D00" : "var(--bg-secondary)",
+                            color: activeReport === r.id ? "white" : "var(--text-primary)",
+                            border: activeReport === r.id ? "none" : "1px solid var(--border)",
+                            boxShadow: activeReport === r.id ? "0 4px 12px rgba(255, 109, 0, 0.2)" : "none"
+                        }}
+                    >
+                        <r.icon style={{ marginRight: "8px" }} /> {r.label}
                     </button>
                 ))}
             </div>
@@ -108,50 +195,71 @@ export default function ReportsPage() {
             {/* Overview Dashboard */}
             {activeReport === "overview" && (
                 <>
-                    <div className="stats-grid">
-                        <div className="stat-card blue">
-                            <div className="stat-card-header"><div className="stat-card-icon blue"><FiUsers /></div></div>
-                            <div className="stat-card-value">{employees.length}</div>
-                            <div className="stat-card-label">Total Employees</div>
-                        </div>
-                        <div className="stat-card green">
-                            <div className="stat-card-header"><div className="stat-card-icon green"><FiClock /></div></div>
-                            <div className="stat-card-value">{attendance.length}</div>
-                            <div className="stat-card-label">Attendance Records</div>
-                        </div>
-                        <div className="stat-card orange">
-                            <div className="stat-card-header"><div className="stat-card-icon orange"><FiCalendar /></div></div>
-                            <div className="stat-card-value">{leaves.length}</div>
-                            <div className="stat-card-label">Leave Requests</div>
-                        </div>
-                        <div className="stat-card purple">
-                            <div className="stat-card-header"><div className="stat-card-icon purple"><FiDollarSign /></div></div>
-                            <div className="stat-card-value">{payroll.length}</div>
-                            <div className="stat-card-label">Payroll Records</div>
-                        </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px", marginBottom: "30px" }}>
+                        {[
+                            { label: "Total Employees", value: employees.length, icon: FiUsers, color: "#1A73E8" },
+                            { label: "Attendance Records", value: attendance.length, icon: FiClock, color: "#34A853" },
+                            { label: "Leave Requests", value: leaves.length, icon: FiCalendar, color: "#FF6D00" },
+                            { label: "Payroll Records", value: payroll.length, icon: FiDollarSign, color: "#7C3AED" },
+                        ].map((stat, i) => (
+                            <div key={i} className="card" style={{ 
+                                padding: "24px", 
+                                borderTop: `4px solid ${stat.color}`,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "20px"
+                            }}>
+                                <div style={{ 
+                                    width: "48px", 
+                                    height: "48px", 
+                                    borderRadius: "12px", 
+                                    background: `${stat.color}15`, 
+                                    display: "flex", 
+                                    alignItems: "center", 
+                                    justifyContent: "center",
+                                    color: stat.color,
+                                    fontSize: "22px"
+                                }}>
+                                    <stat.icon />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: "28px", fontWeight: 800 }}>{stat.value}</div>
+                                    <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 500 }}>{stat.label}</div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
 
-                    <div className="grid-2">
-                        <div className="card" style={{ padding: "20px" }}>
-                            <h3 style={{ marginBottom: "16px", fontWeight: 700 }}>Department Distribution</h3>
-                            <ResponsiveContainer width="100%" height={280}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+                        <div className="card" style={{ padding: "24px" }}>
+                            <h3 style={{ marginBottom: "20px", fontWeight: 700, fontSize: "16px" }}>Department Distribution</h3>
+                            <ResponsiveContainer width="100%" height={320}>
                                 <PieChart>
-                                    <Pie data={deptDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, value }) => `${name}: ${value}`}>
+                                    <Pie 
+                                        data={deptDistribution} 
+                                        dataKey="value" 
+                                        nameKey="name" 
+                                        cx="50%" 
+                                        cy="50%" 
+                                        innerRadius={60}
+                                        outerRadius={100} 
+                                        label={({ name, value }) => `${name}: ${value}`}
+                                    >
                                         {deptDistribution.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                                     </Pie>
-                                    <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }} />
+                                    <Tooltip contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "var(--shadow-lg)" }} />
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
-                        <div className="card" style={{ padding: "20px" }}>
-                            <h3 style={{ marginBottom: "16px", fontWeight: 700 }}>Leave Status Overview</h3>
-                            <ResponsiveContainer width="100%" height={280}>
+                        <div className="card" style={{ padding: "24px" }}>
+                            <h3 style={{ marginBottom: "20px", fontWeight: 700, fontSize: "16px" }}>Leave Status Overview</h3>
+                            <ResponsiveContainer width="100%" height={320}>
                                 <BarChart data={leaveStatusData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
-                                    <YAxis stroke="var(--text-muted)" fontSize={12} />
-                                    <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }} />
-                                    <Bar dataKey="value" fill="#7C3AED" radius={[6, 6, 0, 0]} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} axisLine={false} tickLine={false} />
+                                    <YAxis stroke="var(--text-muted)" fontSize={12} axisLine={false} tickLine={false} />
+                                    <Tooltip cursor={{ fill: 'var(--bg-secondary)' }} contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "var(--shadow-lg)" }} />
+                                    <Bar dataKey="value" fill="#7C3AED" radius={[6, 6, 0, 0]} barSize={40} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>

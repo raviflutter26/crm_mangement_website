@@ -12,7 +12,7 @@ export default function LeavePage() {
 
     const [showFilters, setShowFilters] = useState(false);
     const [filterStatus, setFilterStatus] = useState("");
-    const [userRole, setUserRole] = useState("employee");
+    const [userRole, setUserRole] = useState("");
     const [currentUserId, setCurrentUserId] = useState("");
 
     const [showModal, setShowModal] = useState(false);
@@ -98,14 +98,28 @@ export default function LeavePage() {
         }
     };
 
+    const isEmployeeRole = userRole.toLowerCase() === 'employee';
+
+    const filteredLeaves = leaves.filter(l => {
+        const empId = l.employee?._id || l.employee;
+        const matchesUser = isEmployeeRole ? empId === currentUserId : true;
+        const matchesStatus = filterStatus ? l.status === filterStatus : true;
+        return matchesUser && matchesStatus;
+    });
+
+    const statsLeaves = leaves.filter(l => {
+        const empId = l.employee?._id || l.employee;
+        return isEmployeeRole ? empId === currentUserId : true;
+    });
+
     const leaveStats = [
-        { label: "Pending Requests", value: leaves.filter(l => l.status === "Pending").length, icon: FiClock, color: "orange" },
-        { label: "Approved Leaves", value: leaves.filter(l => l.status === "Approved").length, icon: FiCheckCircle, color: "green" },
-        { label: "Rejected Leaves", value: leaves.filter(l => l.status === "Rejected").length, icon: FiXCircle, color: "red" },
-        { label: "Total Leaves", value: leaves.length, icon: FiCalendar, color: "blue" },
+        { label: "Pending Requests", value: statsLeaves.filter(l => l.status === "Pending").length, icon: FiClock, color: "orange" },
+        { label: "Approved Leaves", value: statsLeaves.filter(l => l.status === "Approved").length, icon: FiCheckCircle, color: "green" },
+        { label: "Rejected Leaves", value: statsLeaves.filter(l => l.status === "Rejected").length, icon: FiXCircle, color: "red" },
+        { label: "Total Leaves", value: statsLeaves.length, icon: FiCalendar, color: "blue" },
     ];
 
-    if (loading) {
+    if (loading || !userRole) {
         return <div style={{ padding: "40px", textAlign: "center" }}>Loading Leaves...</div>;
     }
 
@@ -165,12 +179,12 @@ export default function LeavePage() {
                                 <th>To Date</th>
                                 <th>Days</th>
                                 <th>Status</th>
-                                {userRole !== 'employee' && <th>Actions</th>}
+                                {!isEmployeeRole && <th>Actions</th>}
                             </tr>
                         </thead>
                         <tbody>
-                            {leaves.filter(l => filterStatus ? l.status === filterStatus : true).length > 0 ?
-                                leaves.filter(l => filterStatus ? l.status === filterStatus : true).map((leave, i) => (
+                            {filteredLeaves.length > 0 ?
+                                filteredLeaves.map((leave, i) => (
                                     <tr key={i}>
                                         <td style={{ fontWeight: 600 }}>
                                             {leave.employee?.firstName} {leave.employee?.lastName}
@@ -184,7 +198,7 @@ export default function LeavePage() {
                                                 {leave.status}
                                             </span>
                                         </td>
-                                        {userRole !== 'employee' && (
+                                        {!isEmployeeRole && (
                                             <td>
                                                 {leave.status === "Pending" ? (
                                                     <div style={{ display: "flex", gap: "8px" }}>
@@ -223,7 +237,7 @@ export default function LeavePage() {
                         </h2>
 
                         <form onSubmit={handleApplyLeaveSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                            {userRole !== 'employee' ? (
+                            {!isEmployeeRole ? (
                                 <div>
                                     <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Employee</label>
                                     <select required name="employee" value={formData.employee} onChange={handleInputChange} className="form-input">

@@ -1,12 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiSearch, FiBell, FiMoon, FiChevronDown, FiLogOut } from "react-icons/fi";
+import { FiSearch, FiBell, FiMoon, FiSun, FiChevronDown, FiLogOut } from "react-icons/fi";
 
 export default function Topbar() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [userName, setUserName] = useState("Admin User");
     const [userRole, setUserRole] = useState("Administrator");
+    const [isDark, setIsDark] = useState(false);
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('ravi_zoho_theme');
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            setIsDark(true);
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            setIsDark(false);
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        const newTheme = isDark ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('ravi_zoho_theme', newTheme);
+        setIsDark(!isDark);
+    };
 
     useEffect(() => {
         try {
@@ -14,7 +35,7 @@ export default function Topbar() {
             if (raw) {
                 const pb = JSON.parse(raw);
                 if (pb.name) setUserName(pb.name);
-                if (pb.role) setUserRole(pb.role === "admin" ? "Administrator" : "Employee");
+                if (pb.role) setUserRole(pb.role);
             }
         } catch (e) { }
     }, []);
@@ -35,8 +56,8 @@ export default function Topbar() {
             </div>
 
             <div className="topbar-right">
-                <button className="topbar-btn" title="Toggle Dark Mode">
-                    <FiMoon />
+                <button className="topbar-btn" onClick={toggleTheme} title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+                    {isDark ? <FiSun /> : <FiMoon />}
                 </button>
                 <button className="topbar-btn" title="Notifications">
                     <FiBell />

@@ -9,10 +9,10 @@ import {
 import { API_ENDPOINTS } from "@/config/api";
 
 const ROLES = [
-    { value: "admin", label: "Admin", color: "#EA4335", desc: "Full access to all modules" },
-    { value: "hr", label: "HR", color: "#1A73E8", desc: "Manage employees, payroll, compliance" },
-    { value: "manager", label: "Manager", color: "#FF6D00", desc: "View team, approve leaves & attendance" },
-    { value: "employee", label: "Employee", color: "#34A853", desc: "Self-service portal access" },
+    { value: "Admin", label: "Admin", color: "#EA4335", desc: "Full access to all modules" },
+    { value: "HR", label: "HR", color: "#1A73E8", desc: "Manage employees, payroll, compliance" },
+    { value: "Manager", label: "Manager", color: "#FF6D00", desc: "View team, approve leaves & attendance" },
+    { value: "Employee", label: "Employee", color: "#34A853", desc: "Self-service portal access" },
 ];
 
 export default function RoleManagementPage() {
@@ -22,6 +22,8 @@ export default function RoleManagementPage() {
     const [toast, setToast] = useState("");
     const [editingUser, setEditingUser] = useState<any>(null);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [modulePermissions, setModulePermissions] = useState<any[]>([]);
+    const [savingPermissions, setSavingPermissions] = useState(false);
 
     const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
@@ -33,7 +35,17 @@ export default function RoleManagementPage() {
         finally { setLoading(false); }
     }, []);
 
-    useEffect(() => { fetchUsers(); }, [fetchUsers]);
+    const fetchPermissions = useCallback(async () => {
+        try {
+            const res = await axiosInstance.get(API_ENDPOINTS.ROLE_PERMISSIONS);
+            setModulePermissions(res.data.data || []);
+        } catch (err) { console.error(err); }
+    }, []);
+
+    useEffect(() => { 
+        fetchUsers(); 
+        fetchPermissions();
+    }, [fetchUsers, fetchPermissions]);
 
     const handleUpdateRole = async () => {
         try {
@@ -56,6 +68,31 @@ export default function RoleManagementPage() {
         ...r,
         count: users.filter(u => u.role === r.value).length,
     }));
+
+    const togglePermission = (moduleName: string, role: string) => {
+        setModulePermissions(prev => prev.map(p => {
+            if (p.module === moduleName) {
+                const newRoles = p.roles.includes(role) 
+                    ? p.roles.filter((r: string) => r !== role)
+                    : [...p.roles, role];
+                return { ...p, roles: newRoles };
+            }
+            return p;
+        }));
+    };
+
+    const handleSavePermissions = async () => {
+        setSavingPermissions(true);
+        try {
+            await axiosInstance.put(API_ENDPOINTS.ROLE_PERMISSIONS, { permissions: modulePermissions });
+            showToast("Permissions updated successfully!");
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save permissions");
+        } finally {
+            setSavingPermissions(false);
+        }
+    };
 
     if (loading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading Users...</div>;
 
@@ -141,33 +178,42 @@ export default function RoleManagementPage() {
                 </div>
             </div>
 
-            {/* Role Permissions Reference */}
+            {/* Role Permissions Matrix */}
             <div className="card" style={{ marginTop: "16px" }}>
-                <div className="card-header"><h3 className="card-title">Role Permissions Matrix</h3></div>
+                <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <h3 className="card-title">Role Permissions Matrix</h3>
+                    <button 
+                        className="btn btn-primary btn-sm" 
+                        onClick={handleSavePermissions}
+                        disabled={savingPermissions}
+                    >
+                        {savingPermissions ? "Saving..." : "Save Matrix"}
+                    </button>
+                </div>
                 <div className="table-wrapper">
                     <table>
                         <thead>
                             <tr><th>Module</th><th style={{ textAlign: "center" }}>Admin</th><th style={{ textAlign: "center" }}>HR</th><th style={{ textAlign: "center" }}>Manager</th><th style={{ textAlign: "center" }}>Employee</th></tr>
                         </thead>
                         <tbody>
-                            {[
-                                { module: "Dashboard", admin: true, hr: true, manager: true, employee: true },
-                                { module: "Employee Management", admin: true, hr: true, manager: false, employee: false },
-                                { module: "Attendance Management", admin: true, hr: true, manager: true, employee: false },
-                                { module: "Leave Approval", admin: true, hr: true, manager: true, employee: false },
-                                { module: "Payroll Processing", admin: true, hr: true, manager: false, employee: false },
-                                { module: "Compliance Settings", admin: true, hr: true, manager: false, employee: false },
-                                { module: "Reports & Analytics", admin: true, hr: true, manager: true, employee: false },
-                                { module: "Role Management", admin: true, hr: false, manager: false, employee: false },
-                                { module: "Self-Service Portal", admin: true, hr: true, manager: true, employee: true },
-                            ].map((row, i) => (
+                            {modulePermissions.map((row, i) => (
                                 <tr key={i}>
-                                    <td style={{ fontWeight: 600 }}>{row.module}</td>
-                                    {["admin", "hr", "manager", "employee"].map(role => {
-                                        const hasAccess = (row as any)[role];
+                                    <td style={{ fontWeight: 600, textTransform: 'capitalize' }}>{row.module.replace(/([A-Z])/g, ' $1').trim()}</td>
+                                    {["Admin", "HR", "Manager", "Employee"].map(role => {
+                                        const hasAccess = row.roles.includes(role);
+                                        const isRestricted = role === "Admin" && row.module === "roles"; // Admin must have access to role management
                                         return (
                                             <td key={role} style={{ textAlign: "center" }}>
-                                                {hasAccess ? <FiCheckCircle style={{ color: "#34A853" }} /> : <FiXCircle style={{ color: "#ccc" }} />}
+                                                <button 
+                                                    onClick={() => !isRestricted && togglePermission(row.module, role)}
+                                                    style={{ 
+                                                        background: 'none', border: 'none', cursor: isRestricted ? 'default' : 'pointer',
+                                                        color: hasAccess ? "#34A853" : "#ccc",
+                                                        fontSize: '20px'
+                                                    }}
+                                                >
+                                                    {hasAccess ? <FiCheckCircle /> : <FiXCircle />}
+                                                </button>
                                             </td>
                                         );
                                     })}
@@ -176,6 +222,11 @@ export default function RoleManagementPage() {
                         </tbody>
                     </table>
                 </div>
+                {modulePermissions.length === 0 && (
+                    <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>
+                        No permission data found. Initializing module permissions might be required.
+                    </div>
+                )}
             </div>
 
             {/* Edit Role Modal */}

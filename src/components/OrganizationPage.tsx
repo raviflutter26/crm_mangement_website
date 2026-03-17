@@ -246,7 +246,7 @@ export default function OrganizationPage() {
             {showModal && (
                 <div style={{
                     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000,
+                    backgroundColor: "var(--overlay-bg)", zIndex: 1000,
                     display: "flex", alignItems: "center", justifyContent: "center"
                 }}>
                     <div className="card animate-in" style={{ width: "520px", maxHeight: "80vh", overflow: "auto", padding: "24px" }}>
@@ -300,13 +300,12 @@ export default function OrganizationPage() {
                 </div>
             )}
 
-            {/* Toast */}
             {toast && (
                 <div style={{
                     position: "fixed", bottom: "20px", right: "20px",
-                    background: "rgba(34, 197, 94, 0.9)", color: "white",
+                    background: "var(--success-bg)", color: "white",
                     padding: "12px 20px", borderRadius: "8px", zIndex: 3000,
-                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)", display: "flex", alignItems: "center", gap: "10px",
+                    boxShadow: "var(--shadow-lg)", display: "flex", alignItems: "center", gap: "10px",
                     fontWeight: 600, animation: "fadeInUp 0.3s ease-out"
                 }}>
                     <FiCheckCircle size={20} /> {toast}

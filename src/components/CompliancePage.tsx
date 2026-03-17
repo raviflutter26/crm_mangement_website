@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
-import { FiShield, FiSave, FiCheckCircle, FiAlertTriangle, FiPercent, FiDollarSign } from "react-icons/fi";
+import { FiShield, FiSave, FiCheckCircle, FiAlertTriangle, FiPercent, FiDollarSign, FiClock } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
 export default function CompliancePage() {
@@ -43,11 +43,12 @@ export default function CompliancePage() {
     };
 
     const sections = [
-        { id: "pf", label: "Provident Fund (PF)", icon: FiShield, color: "#1A73E8" },
-        { id: "esi", label: "ESI", icon: FiPercent, color: "#34A853" },
-        { id: "pt", label: "Professional Tax", icon: FiDollarSign, color: "#FF6D00" },
-        { id: "tds", label: "TDS / Income Tax", icon: FiAlertTriangle, color: "#7C3AED" },
-        { id: "company", label: "Company Info", icon: FiShield, color: "#EA4335" },
+        { id: "pf", label: "Provident Fund (PF)", icon: FiShield, color: "var(--primary)" },
+        { id: "esi", label: "ESI", icon: FiPercent, color: "var(--secondary)" },
+        { id: "pt", label: "Professional Tax", icon: FiDollarSign, color: "var(--accent)" },
+        { id: "tds", label: "TDS / Income Tax", icon: FiAlertTriangle, color: "var(--error)" },
+        { id: "attendance", label: "Attendance & Permission", icon: FiClock, color: "var(--primary)" },
+        { id: "company", label: "Company Info", icon: FiShield, color: "var(--error)" },
     ];
 
     if (loading || !settings) return <div style={{ padding: "40px", textAlign: "center" }}>Loading Compliance Settings...</div>;
@@ -64,7 +65,7 @@ export default function CompliancePage() {
         return (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
                 <span style={{ fontWeight: 600 }}>{label}</span>
-                <div onClick={() => updateNested(path, !val)} style={{ width: "44px", height: "24px", borderRadius: "12px", background: val ? "#34A853" : "var(--border)", cursor: "pointer", position: "relative", transition: "0.3s" }}>
+                <div onClick={() => updateNested(path, !val)} style={{ width: "44px", height: "24px", borderRadius: "12px", background: val ? "var(--primary)" : "var(--border)", cursor: "pointer", position: "relative", transition: "0.3s" }}>
                     <div style={{ width: "20px", height: "20px", borderRadius: "10px", background: "white", position: "absolute", top: "2px", left: val ? "22px" : "2px", transition: "0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                 </div>
             </div>
@@ -189,6 +190,22 @@ export default function CompliancePage() {
                         </>
                     )}
 
+                    {activeSection === "attendance" && (
+                        <>
+                            <h3 style={{ marginBottom: "16px", fontWeight: 700 }}>🕒 Attendance & Permission Settings</h3>
+                            <p style={{ color: "var(--text-secondary)", fontSize: "13px", marginBottom: "20px" }}>
+                                Configure office timings, late cut-off, and monthly permission limits.
+                            </p>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                                {renderField("Office Check-In Time", "attendanceSettings.checkInTime", "text", "HH:MM")}
+                                {renderField("Office Check-Out Time", "attendanceSettings.checkOutTime", "text", "HH:MM")}
+                                {renderField("Absent Threshold (Minutes)", "attendanceSettings.absentThresholdMinutes", "number", "mins after check-in")}
+                                {renderField("Monthly Permission Hours", "attendanceSettings.monthlyPermissionHours", "number", "total hours/month")}
+                                {renderField("Max Permission Applications", "attendanceSettings.maxPermissionCount", "number", "count/month")}
+                            </div>
+                        </>
+                    )}
+
                     {activeSection === "company" && (
                         <>
                             <h3 style={{ marginBottom: "16px", fontWeight: 700 }}>🏢 Company Registration Details</h3>
@@ -205,7 +222,7 @@ export default function CompliancePage() {
             </div>
 
             {toast && (
-                <div style={{ position: "fixed", bottom: "20px", right: "20px", background: "rgba(34, 197, 94, 0.9)", color: "white", padding: "12px 20px", borderRadius: "8px", zIndex: 3000, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)", display: "flex", alignItems: "center", gap: "10px", fontWeight: 600 }}>
+                <div style={{ position: "fixed", bottom: "20px", right: "20px", background: "var(--success-bg)", color: "white", padding: "12px 20px", borderRadius: "8px", zIndex: 3000, boxShadow: "var(--shadow-lg)", display: "flex", alignItems: "center", gap: "10px", fontWeight: 600 }}>
                     <FiCheckCircle size={20} /> {toast}
                 </div>
             )}

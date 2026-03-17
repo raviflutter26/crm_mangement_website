@@ -1,5 +1,5 @@
 // API Configuration
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5001";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:5001";
 export const API_BASE_URL = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
 export const API_ENDPOINTS = {
@@ -7,6 +7,8 @@ export const API_ENDPOINTS = {
     AUTH_LOGIN: `${API_BASE_URL}/api/auth/login`,
     AUTH_REGISTER: `${API_BASE_URL}/api/auth/register`,
     AUTH_USERS: `${API_BASE_URL}/api/auth/users`,
+    AUTH_FORGOT_PASSWORD: `${API_BASE_URL}/api/auth/forgot-password`,
+    AUTH_RESET_PASSWORD: `${API_BASE_URL}/api/auth/reset-password`,
 
     // Dashboard
     DASHBOARD: `${API_BASE_URL}/api/dashboard`,
@@ -73,6 +75,13 @@ export const API_ENDPOINTS = {
     PERMISSIONS_TEAM: `${API_BASE_URL}/api/permissions/team-permissions`,
     PERMISSIONS_APPROVE: (id: string) => `${API_BASE_URL}/api/permissions/${id}/approve`,
     PERMISSIONS_CANCEL: (id: string) => `${API_BASE_URL}/api/permissions/${id}/cancel`,
+
+    // Role Permissions management
+    ROLE_PERMISSIONS: `${API_BASE_URL}/api/role-permissions`,
+
+    // Payroll Reports
+    PAYROLL_REPORTS: `${API_BASE_URL}/api/payroll/reports`,
+    PAYROLL_REPORTS_EXPORT: `${API_BASE_URL}/api/payroll/reports/export`,
 };
 
 export default API_ENDPOINTS;

@@ -191,14 +191,14 @@ export default function PermissionsPage() {
             {dialogState.show && (
                 <div style={{
                     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.6)", zIndex: 2000,
+                    backgroundColor: "var(--overlay-bg)", zIndex: 2000,
                     display: "flex", alignItems: "center", justifyContent: "center"
                 }}>
                     <div className="card animate-in" style={{ width: "400px", padding: "25px", textAlign: "center" }}>
                         <div style={{
                             width: "60px", height: "60px", borderRadius: "30px",
-                            background: dialogState.type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)",
-                            color: dialogState.type === "success" ? "var(--success)" : "var(--error)",
+                            background: dialogState.type === "success" ? "var(--secondary-bg-light)" : "var(--error-bg-light)",
+                            color: dialogState.type === "success" ? "var(--secondary)" : "var(--error)",
                             display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px"
                         }}>
                             {dialogState.type === "success" ? <FiCheckCircle size={30} /> : <FiAlertCircle size={30} />}

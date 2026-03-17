@@ -22,6 +22,12 @@ export default function DepartmentsPage() {
         isActive: true
     });
 
+    // View Employees Modal State
+    const [showEmpModal, setShowEmpModal] = useState(false);
+    const [selectedDeptName, setSelectedDeptName] = useState("");
+    const [deptEmployees, setDeptEmployees] = useState<any[]>([]);
+    const [loadingEmployees, setLoadingEmployees] = useState(false);
+
     const getToken = async () => {
         let token = localStorage.getItem('ravi_zoho_token');
         if (!token) { window.location.reload(); throw new Error("No token"); }
@@ -124,6 +130,23 @@ export default function DepartmentsPage() {
         }
     };
 
+    const handleViewEmployees = async (deptName: string) => {
+        setSelectedDeptName(deptName);
+        setShowEmpModal(true);
+        setLoadingEmployees(true);
+        try {
+            const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEES, {
+                params: { department: deptName }
+            });
+            setDeptEmployees(res.data.data || []);
+        } catch (err) {
+            console.error("Failed to fetch department employees", err);
+            alert("Error fetching employees for this department");
+        } finally {
+            setLoadingEmployees(false);
+        }
+    };
+
     return (
         <>
             <div className="page-header">
@@ -171,6 +194,9 @@ export default function DepartmentsPage() {
                             </div>
 
                             <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
+                                <button onClick={() => handleViewEmployees(dept.name)} className="btn btn-primary btn-sm" style={{ flex: 1.5, justifyContent: "center" }}>
+                                    <FiUsers /> View List
+                                </button>
                                 <button onClick={() => openEditModal(dept)} className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: "center" }}>
                                     <FiEdit2 /> Edit
                                 </button>
@@ -225,6 +251,55 @@ export default function DepartmentsPage() {
                                 <button type="submit" className="btn btn-primary">{isEditing ? "Save Changes" : "Create Department"}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Modal for View Employees */}
+            {showEmpModal && (
+                <div style={{
+                    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000,
+                    display: "flex", alignItems: "center", justifyContent: "center"
+                }}>
+                    <div className="card animate-in" style={{ width: "600px", padding: "24px", maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                            <h2 style={{ fontSize: "20px" }}>Employees in {selectedDeptName}</h2>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setShowEmpModal(false)}>Close</button>
+                        </div>
+                        
+                        <div style={{ flex: 1, overflowY: "auto", border: "1px solid var(--border)", borderRadius: "8px" }}>
+                            {loadingEmployees ? (
+                                <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>Loading employees...</div>
+                            ) : deptEmployees.length === 0 ? (
+                                <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>No employees found in this department.</div>
+                            ) : (
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead style={{ position: "sticky", top: 0, background: "var(--bg-secondary)", zIndex: 1, boxShadow: "0 1px 0 var(--border)" }}>
+                                        <tr>
+                                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase" }}>Employee</th>
+                                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase" }}>Designation</th>
+                                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase" }}>Role</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {deptEmployees.map(emp => (
+                                            <tr key={emp._id} style={{ borderBottom: "1px solid var(--border)" }}>
+                                                <td style={{ padding: "12px 16px" }}>
+                                                    <div style={{ fontWeight: 600 }}>{emp.firstName} {emp.lastName}</div>
+                                                    <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{emp.employeeId} • {emp.email}</div>
+                                                </td>
+                                                <td style={{ padding: "12px 16px", fontSize: "14px" }}>{emp.designation || "-"}</td>
+                                                <td style={{ padding: "12px 16px" }}>
+                                                    <span style={{ fontSize: "12px", fontWeight: 600, padding: "4px 8px", background: "var(--primary-bg-light)", color: "var(--primary)", borderRadius: "12px" }}>
+                                                        {emp.role}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

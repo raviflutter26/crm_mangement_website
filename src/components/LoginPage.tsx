@@ -2,18 +2,25 @@
 
 import { useState } from "react";
 import axiosInstance from "@/lib/axios";
-import { FiMail, FiLock, FiUser, FiArrowRight, FiShield } from "react-icons/fi";
+import { FiMail, FiLock, FiUser, FiArrowRight, FiShield, FiEye, FiEyeOff } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
 interface LoginPageProps {
     onLogin: (token: string, user: any) => void;
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
 }
 
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin, showNotify }: LoginPageProps) {
     const [isRegister, setIsRegister] = useState(false);
-    const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "admin" });
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
+    const [formData, setFormData] = useState({
+        email: "",
+        password: "",
+        name: ""
+    });
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e: any) => {
         e.preventDefault();
@@ -21,7 +28,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         setLoading(true);
 
         try {
-            if (isRegister) {
+            if (isForgotPassword) {
+                await axiosInstance.post(API_ENDPOINTS.AUTH_FORGOT_PASSWORD, { email: formData.email });
+                if (showNotify) showNotify('success', 'Reset link sent to your email.');
+                setIsForgotPassword(false);
+            } else if (isRegister) {
                 const res = await axiosInstance.post(API_ENDPOINTS.AUTH_REGISTER, formData);
                 onLogin(res.data.data.token, res.data.data.user);
             } else {
@@ -29,10 +40,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     email: formData.email,
                     password: formData.password
                 });
+
+                if (showNotify) showNotify("success", res.data.message || "Login successful!");
                 onLogin(res.data.data.token, res.data.data.user);
             }
         } catch (err: any) {
-            console.error("Login error:", err);
+            console.error("Auth error:", err);
             const errorMessage = err.response?.data?.message || err.message || "Network error. Please check your connection.";
             setError(errorMessage);
         } finally {
@@ -48,19 +61,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         }}>
             <div className="card animate-in" style={{ width: "100%", maxWidth: "450px", padding: "40px 30px" }}>
                 <div style={{ textAlign: "center", marginBottom: "30px" }}>
-                    <div style={{
-                        width: "60px", height: "60px", borderRadius: "15px",
-                        background: "linear-gradient(135deg, var(--primary), var(--primary-hover))",
-                        display: "flex", justifyContent: "center", alignItems: "center",
-                        margin: "0 auto 15px", color: "white", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.3)"
-                    }}>
+                    <div style={{ width: "60px", height: "60px", backgroundColor: "rgba(255, 122, 0, 0.1)", color: "var(--primary)", borderRadius: "15px", display: "flex", alignItems: "center", justifyItems: "center", margin: "0 auto 15px", justifyContent: "center" }}>
                         <FiShield size={30} />
                     </div>
                     <h1 style={{ fontSize: "24px", color: "var(--text-primary)", marginBottom: "5px" }}>
-                        {isRegister ? "Create Account" : "Welcome Back"}
+                        {isForgotPassword ? "Forgot Password" : (isRegister ? "Set Account Password" : "Welcome Back")}
                     </h1>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
-                        {isRegister ? "Sign up to configure your Zoho HR instance" : "Sign in to access the Administration Panel"}
+                    <p style={{ color: "var(--text-secondary)", fontSize: "14px", lineHeight: "1.5" }}>
+                        {isForgotPassword ? "Enter your email to receive a reset link" : (isRegister ? "If you're a new employee, enter your email and choose a new password." : "Sign in to access your HRMS portal")}
                     </p>
                 </div>
 
@@ -80,8 +88,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                             <FiUser style={{ position: "absolute", left: "15px", top: "14px", color: "var(--text-muted)" }} />
                             <input
                                 type="text"
-                                required
-                                placeholder="Full Name (e.g., Ravi Admin)"
+                                placeholder="Display Name (Optional)"
                                 className="form-input"
                                 style={{ paddingLeft: "45px", height: "45px" }}
                                 value={formData.name}
@@ -94,41 +101,70 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                         <input
                             type="email"
                             required
-                            placeholder="Email Address (e.g., ravikumar@gmail.com)"
+                            placeholder="Employee Email"
                             className="form-input"
                             style={{ paddingLeft: "45px", height: "45px" }}
                             value={formData.email}
                             onChange={e => setFormData({ ...formData, email: e.target.value })}
                         />
                     </div>
-                    <div style={{ position: "relative" }}>
-                        <FiLock style={{ position: "absolute", left: "15px", top: "14px", color: "var(--text-muted)" }} />
-                        <input
-                            type="password"
-                            required
-                            placeholder="Password (e.g., 123456)"
-                            className="form-input"
-                            style={{ paddingLeft: "45px", height: "45px" }}
-                            value={formData.password}
-                            onChange={e => setFormData({ ...formData, password: e.target.value })}
-                        />
-                    </div>
-
+                    {!isForgotPassword && (
+                        <div style={{ position: "relative" }}>
+                            <FiLock style={{ position: "absolute", left: "15px", top: "14px", color: "var(--text-muted)" }} />
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                required
+                                placeholder={isRegister ? "Choose a Password" : "Password"}
+                                className="form-input"
+                                style={{ paddingLeft: "45px", paddingRight: "45px", height: "45px" }}
+                                value={formData.password}
+                                onChange={e => setFormData({ ...formData, password: e.target.value })}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{ position: "absolute", right: "15px", top: "14px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                            >
+                                {showPassword ? <FiEyeOff /> : <FiEye />}
+                            </button>
+                        </div>
+                    )}
+                    {/* {!isForgotPassword && !isRegister && (
+                        <div style={{ textAlign: "right", marginTop: "-10px" }}>
+                            <span
+                                onClick={() => setIsForgotPassword(true)}
+                                style={{ fontSize: "13px", color: "var(--primary)", cursor: "pointer", fontWeight: 500 }}
+                            >
+                                Forgot Password?
+                            </span>
+                        </div>
+                    )} */}
                     <button type="submit" className="btn btn-primary" disabled={loading} style={{ height: "45px", justifyContent: "center", marginTop: "10px", fontWeight: 600 }}>
-                        {loading ? "Processing..." : (isRegister ? "Create Admin User" : "Sign In to Admin Panel")}
+                        {loading ? "Processing..." : (isForgotPassword ? "Send Reset Link" : (isRegister ? "Activate Account" : "Sign In"))}
                         {!loading && <FiArrowRight />}
                     </button>
+
+                    {isForgotPassword && (
+                        <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setIsForgotPassword(false)}
+                            style={{ justifyContent: "center", border: "1px solid #ddd" }}
+                        >
+                            Back to Login
+                        </button>
+                    )}
                 </form>
 
-                <div style={{ textAlign: "center", marginTop: "25px", fontSize: "14px", color: "var(--text-secondary)" }}>
-                    {isRegister ? "Already have an account?" : "No account yet?"}{" "}
+                {/* <div style={{ textAlign: "center", marginTop: "25px", fontSize: "14px", color: "var(--text-secondary)" }}>
+                    {isRegister ? "Ready to login?" : "New employee?"}{" "}
                     <span
                         onClick={() => { setIsRegister(!isRegister); setError(""); }}
                         style={{ color: "var(--primary)", cursor: "pointer", fontWeight: "600" }}
                     >
-                        {isRegister ? "Sign In" : "Register Super Admin"}
+                        {isRegister ? "Sign In" : "Set Password"}
                     </span>
-                </div>
+                </div> */}
             </div>
         </div>
     );

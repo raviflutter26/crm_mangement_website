@@ -16,11 +16,16 @@ const STATUS_BADGE: any = {
     Pending: "pending", Paid: "paid", Processing: "processing", Failed: "rejected",
 };
 
-export default function PayrollPage() {
+interface PayrollProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function PayrollPage({ showNotify }: PayrollProps) {
     const [activeTab, setActiveTab] = useState<"runs" | "records" | "payslip">("runs");
     const [payrollRuns, setPayrollRuns] = useState<any[]>([]);
     const [payrollRecords, setPayrollRecords] = useState<any[]>([]);
     const [summary, setSummary] = useState<any>(null);
+    const [complianceSettings, setComplianceSettings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState("");
     const [showRunModal, setShowRunModal] = useState(false);
@@ -36,14 +41,16 @@ export default function PayrollPage() {
     const fetchAll = useCallback(async () => {
         setLoading(true);
         try {
-            const [runsRes, recordsRes, summaryRes] = await Promise.all([
+            const [runsRes, recordsRes, summaryRes, compRes] = await Promise.all([
                 axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS).catch(() => ({ data: { data: [] } })),
                 axiosInstance.get(API_ENDPOINTS.PAYROLL).catch(() => ({ data: { data: [] } })),
                 axiosInstance.get(API_ENDPOINTS.PAYROLL_SUMMARY).catch(() => ({ data: { data: {} } })),
+                axiosInstance.get(API_ENDPOINTS.COMPLIANCE).catch(() => ({ data: { data: null } })),
             ]);
             setPayrollRuns(runsRes.data.data || []);
             setPayrollRecords(recordsRes.data.data || []);
             setSummary(summaryRes.data.data || {});
+            setComplianceSettings(compRes.data.data);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
     }, []);
@@ -72,10 +79,9 @@ export default function PayrollPage() {
 
     const handlePay = async (id: string) => {
         try {
-            await axiosInstance.patch(`${API_ENDPOINTS.PAYROLL_RUNS}/${id}/pay`, { paymentMode: "bank_transfer" });
-            showToast("Payroll disbursed! 💰");
+            if (showNotify) showNotify('success', "Payroll disbursed! 💰");
             fetchAll();
-        } catch (err: any) { alert(err.response?.data?.message || "Payment failed"); }
+        } catch (err: any) { if (showNotify) showNotify('failure', err.response?.data?.message || "Payment failed"); }
     };
 
     const viewRunDetails = async (run: any) => {
@@ -212,19 +218,19 @@ export default function PayrollPage() {
 
                     {/* Compliance Summary */}
                     <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
-                        <div style={{ padding: "14px 16px", background: "rgba(26,115,232,0.08)", borderRadius: "10px" }}>
+                        <div style={{ padding: "14px 16px", background: "var(--primary-bg-light)", borderRadius: "10px" }}>
                             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total PF</div>
                             <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "monospace" }}>{fmt(selectedRun.totalPF)}</div>
                         </div>
-                        <div style={{ padding: "14px 16px", background: "rgba(52,168,83,0.08)", borderRadius: "10px" }}>
+                        <div style={{ padding: "14px 16px", background: "var(--secondary-bg-light)", borderRadius: "10px" }}>
                             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total ESI</div>
                             <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "monospace" }}>{fmt(selectedRun.totalESI)}</div>
                         </div>
-                        <div style={{ padding: "14px 16px", background: "rgba(255,109,0,0.08)", borderRadius: "10px" }}>
+                        <div style={{ padding: "14px 16px", background: "var(--accent-bg-light)", borderRadius: "10px" }}>
                             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total PT</div>
                             <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "monospace" }}>{fmt(selectedRun.totalPT)}</div>
                         </div>
-                        <div style={{ padding: "14px 16px", background: "rgba(234,67,53,0.08)", borderRadius: "10px" }}>
+                        <div style={{ padding: "14px 16px", background: "var(--error-bg-light)", borderRadius: "10px" }}>
                             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total TDS</div>
                             <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "monospace" }}>{fmt(selectedRun.totalTDS)}</div>
                         </div>
@@ -284,9 +290,8 @@ export default function PayrollPage() {
                 </div>
             )}
 
-            {/* Run Payroll Modal */}
             {showRunModal && (
-                <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "var(--overlay-bg)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <div className="card animate-in" style={{ width: "520px", padding: "0" }}>
                         <div style={{ padding: "24px 24px 0", borderBottom: "1px solid var(--border)" }}>
                             <h2 style={{ marginBottom: "4px" }}>🚀 Run Payroll</h2>
@@ -308,11 +313,11 @@ export default function PayrollPage() {
                                 </div>
                             </div>
 
-                            <div style={{ background: "rgba(26,115,232,0.06)", borderRadius: "10px", padding: "16px", border: "1px solid rgba(26,115,232,0.15)" }}>
+                            <div style={{ background: "var(--primary-bg-light)", borderRadius: "10px", padding: "16px", border: "1px solid var(--border)" }}>
                                 <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: "var(--primary)" }}>Payroll will automatically calculate:</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", fontSize: "13px" }}>
-                                    <div>✅ PF (Employee + Employer 12%)</div>
-                                    <div>✅ ESI (0.75% + 3.25%)</div>
+                                    <div>✅ PF ({complianceSettings?.pf?.employeeContribution || 12}% + {complianceSettings?.pf?.employerContribution || 12}%)</div>
+                                    <div>✅ ESI ({complianceSettings?.esi?.employeeContribution || 0.75}% + {complianceSettings?.esi?.employerContribution || 3.25}%)</div>
                                     <div>✅ Professional Tax (state-wise)</div>
                                     <div>✅ TDS (as per tax regime)</div>
                                     <div>✅ Attendance-based pro-rata</div>
@@ -338,7 +343,7 @@ export default function PayrollPage() {
 
             {/* Payslip Modal */}
             {showPayslipModal && payslipData && (
-                <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "var(--overlay-bg)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <div className="card animate-in" style={{ width: "600px", maxHeight: "80vh", overflow: "auto" }}>
                         <div style={{ padding: "24px" }}>
                             <div style={{ textAlign: "center", marginBottom: "20px" }}>
@@ -394,7 +399,7 @@ export default function PayrollPage() {
                                 </div>
                             </div>
 
-                            <div style={{ marginTop: "16px", padding: "16px", background: "linear-gradient(135deg, rgba(26,115,232,0.08), rgba(52,168,83,0.08))", borderRadius: "12px", textAlign: "center" }}>
+                            <div style={{ marginTop: "16px", padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px", textAlign: "center" }}>
                                 <div style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Net Pay</div>
                                 <div style={{ fontSize: "28px", fontWeight: 800, fontFamily: "monospace", color: "var(--primary)" }}>{fmt(payslipData.netPay)}</div>
                             </div>
@@ -409,7 +414,7 @@ export default function PayrollPage() {
             )}
 
             {toast && (
-                <div style={{ position: "fixed", bottom: "20px", right: "20px", background: "rgba(34, 197, 94, 0.9)", color: "white", padding: "12px 20px", borderRadius: "8px", zIndex: 3000, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)", display: "flex", alignItems: "center", gap: "10px", fontWeight: 600, animation: "fadeInUp 0.3s ease-out" }}>
+                <div style={{ position: "fixed", bottom: "20px", right: "20px", background: "var(--success-bg)", color: "white", padding: "12px 20px", borderRadius: "8px", zIndex: 3000, boxShadow: "var(--shadow-lg)", display: "flex", alignItems: "center", gap: "10px", fontWeight: 600, animation: "fadeInUp 0.3s ease-out" }}>
                     <FiCheckCircle size={20} /> {toast}
                 </div>
             )}
