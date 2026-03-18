@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { FiBookOpen, FiMessageCircle, FiVideo, FiExternalLink, FiSearch, FiChevronDown, FiChevronUp } from "react-icons/fi";
 
-export default function HelpPage() {
+interface HelpPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function HelpPage({ showNotify }: HelpPageProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [openFaq, setOpenFaq] = useState<number | null>(0); // Initialize first FAQ open
     const [dialogState, setDialogState] = useState({ show: false, message: "" });

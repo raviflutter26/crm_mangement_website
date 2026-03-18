@@ -11,7 +11,11 @@ import { API_ENDPOINTS } from "@/config/api";
 
 const CHART_COLORS = ["#1A73E8", "#34A853", "#FF6D00", "#7C3AED", "#EA4335", "#FBBC04"];
 
-export default function ReportsPage() {
+interface ReportsPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function ReportsPage({ showNotify }: ReportsPageProps) {
     const [activeReport, setActiveReport] = useState("overview");
     const [dashData, setDashData] = useState<any>(null);
     const [employees, setEmployees] = useState<any[]>([]);

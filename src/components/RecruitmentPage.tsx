@@ -14,7 +14,11 @@ const STATUS_COLORS: any = {
     offered: "active", hired: "active", rejected: "inactive",
 };
 
-export default function RecruitmentPage() {
+interface RecruitmentPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     const [activeView, setActiveView] = useState<"postings" | "candidates">("postings");
     const [postings, setPostings] = useState<any[]>([]);
     const [candidates, setCandidates] = useState<any[]>([]);

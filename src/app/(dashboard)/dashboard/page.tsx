@@ -1,6 +1,6 @@
 "use client";
 
-import DashboardPage from "@/pages/dashboard/DashboardPage";
+import DashboardPage from "@/page_components/dashboard/DashboardPage";
 
 export default function Dashboard() {
   return <DashboardPage showNotify={() => {}} />;

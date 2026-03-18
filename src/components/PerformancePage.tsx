@@ -14,7 +14,11 @@ const STATUS_COLORS: any = {
     draft: "pending", "self-review": "processing", "manager-review": "leave",
 };
 
-export default function PerformancePage() {
+interface PerformancePageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function PerformancePage({ showNotify }: PerformancePageProps) {
     const [activeView, setActiveView] = useState<"goals" | "appraisals">("goals");
     const [goals, setGoals] = useState<any[]>([]);
     const [appraisals, setAppraisals] = useState<any[]>([]);

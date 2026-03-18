@@ -5,7 +5,11 @@ import axiosInstance from "@/lib/axios";
 import { FiPlus, FiEdit2, FiTrash2, FiBriefcase, FiUsers } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
-export default function DepartmentsPage() {
+interface DepartmentsPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
     const [departments, setDepartments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 

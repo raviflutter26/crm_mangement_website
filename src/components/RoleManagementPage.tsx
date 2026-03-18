@@ -15,7 +15,11 @@ const ROLES = [
     { value: "Employee", label: "Employee", color: "#34A853", desc: "Self-service portal access" },
 ];
 
-export default function RoleManagementPage() {
+interface RoleManagementPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function RoleManagementPage({ showNotify }: RoleManagementPageProps) {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");

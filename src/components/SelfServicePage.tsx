@@ -11,7 +11,11 @@ import { API_ENDPOINTS } from "@/config/api";
 const PRIORITY_COLORS: any = { low: "active", medium: "pending", high: "leave", urgent: "inactive" };
 const STATUS_COLORS: any = { open: "pending", "in-progress": "processing", resolved: "active", closed: "inactive" };
 
-export default function SelfServicePage() {
+interface SelfServicePageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function SelfServicePage({ showNotify }: SelfServicePageProps) {
     const [user, setUser] = useState<any>(null);
     const [tickets, setTickets] = useState<any[]>([]);
     const [leaves, setLeaves] = useState<any[]>([]);

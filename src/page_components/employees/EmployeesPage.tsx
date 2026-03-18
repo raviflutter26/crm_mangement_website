@@ -6,8 +6,8 @@ import { FiPlus, FiDownload, FiFilter, FiTrash2, FiCheckCircle, FiAlertCircle } 
 import { API_ENDPOINTS } from "@/config/api";
 
 // Components
-import EmployeeTable from "./components/EmployeeTable";
-import EmployeeFilters from "./components/EmployeeFilters";
+import EmployeeTable from "@/components/employees/EmployeeTable";
+import EmployeeFilters from "@/components/employees/EmployeeFilters";
 
 interface EmployeesPageProps {
     employees: any[];

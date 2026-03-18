@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { FiSave, FiUser, FiBell, FiShield, FiDatabase, FiCheckCircle } from "react-icons/fi";
 
-export default function SettingsPage() {
+interface SettingsPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function SettingsPage({ showNotify }: SettingsPageProps) {
     const [activeTab, setActiveTab] = useState("general");
     const [dialogState, setDialogState] = useState({ show: false, message: "" });
 

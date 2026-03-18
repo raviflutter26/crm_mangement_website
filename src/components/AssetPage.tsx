@@ -18,7 +18,11 @@ const TYPE_ICONS: any = {
     furniture: "🪑", vehicle: "🚗", "id-card": "🪪", other: "📦",
 };
 
-export default function AssetPage() {
+interface AssetPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function AssetPage({ showNotify }: AssetPageProps) {
     const [assets, setAssets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);

@@ -5,7 +5,11 @@ import axiosInstance from "@/lib/axios";
 import { FiCalendar, FiClock, FiCheckCircle, FiXCircle, FiPlus, FiFilter, FiAlertCircle } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
-export default function LeavePage() {
+interface LeavePageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function LeavePage({ showNotify }: LeavePageProps) {
     const [leaves, setLeaves] = useState<any[]>([]);
     const [employees, setEmployees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);

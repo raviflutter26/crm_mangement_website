@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
 import { FiClock, FiCalendar, FiDownload, FiActivity } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
-import AttendanceTable from "./components/AttendanceTable";
+import AttendanceTable from "@/components/attendance/AttendanceTable";
 
 interface AttendancePageProps {
     showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;

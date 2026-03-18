@@ -7,11 +7,11 @@ import { FiUsers, FiUserCheck, FiCalendar, FiActivity, FiCheckCircle, FiDollarSi
 import { API_ENDPOINTS } from "@/config/api";
 
 // Components
-import AttendanceCard from "./components/AttendanceCard";
-import StatsCards from "./components/StatsCards";
-import Charts from "./components/Charts";
-import LeaveSummary from "./components/LeaveSummary";
-import PermissionModal from "./components/PermissionModal";
+import AttendanceCard from "@/components/dashboard/AttendanceCard";
+import StatsCards from "@/components/dashboard/StatsCards";
+import Charts from "@/components/dashboard/Charts";
+import LeaveSummary from "@/components/dashboard/LeaveSummary";
+import PermissionModal from "@/components/dashboard/PermissionModal";
 
 interface DashboardPageProps {
     showNotify: (type: 'success' | 'failure' | 'warning', message: string) => void;

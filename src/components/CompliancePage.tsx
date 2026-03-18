@@ -5,7 +5,11 @@ import axiosInstance from "@/lib/axios";
 import { FiShield, FiSave, FiCheckCircle, FiAlertTriangle, FiPercent, FiDollarSign, FiClock } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
-export default function CompliancePage() {
+interface CompliancePageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function CompliancePage({ showNotify }: CompliancePageProps) {
     const [settings, setSettings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

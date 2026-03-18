@@ -1,6 +1,6 @@
 "use client";
 
-import AttendancePage from "@/pages/attendance/AttendancePage";
+import AttendancePage from "@/page_components/attendance/AttendancePage";
 
 export default function Attendance() {
   return <AttendancePage showNotify={() => {}} />;

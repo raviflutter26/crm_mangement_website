@@ -18,7 +18,11 @@ const CATEGORY_ICONS: any = {
     training: "📚", medical: "🏥", other: "📎",
 };
 
-export default function ExpensePage() {
+interface ExpensePageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function ExpensePage({ showNotify }: ExpensePageProps) {
     const [expenses, setExpenses] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);

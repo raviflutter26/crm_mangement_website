@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
-import EmployeesPage from "@/pages/employees/EmployeesPage";
-import AddEmployeePage from "@/pages/employees/AddEmployeePage";
-import EmployeeDetailsPage from "@/pages/employees/EmployeeDetailsPage";
+import EmployeesPage from "@/page_components/employees/EmployeesPage";
+import AddEmployeePage from "@/page_components/employees/AddEmployeePage";
+import EmployeeDetailsPage from "@/page_components/employees/EmployeeDetailsPage";
 
 export default function Employees() {
   const [employeesView, setEmployeesView] = useState<"list" | "add" | "edit" | "view">("list");

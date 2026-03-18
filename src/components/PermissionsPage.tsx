@@ -5,7 +5,11 @@ import axiosInstance from "@/lib/axios";
 import { FiClock, FiCheckCircle, FiXCircle, FiFilter, FiAlertCircle, FiShield } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
-export default function PermissionsPage() {
+interface PermissionsPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function PermissionsPage({ showNotify }: PermissionsPageProps) {
     const [permissions, setPermissions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState("employee");

@@ -74,7 +74,11 @@ const TABLE_COLS: any = {
     holidays: ["name", "date", "type", "year", "isOptional"],
 };
 
-export default function OrganizationPage() {
+interface OrganizationPageProps {
+    showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
+}
+
+export default function OrganizationPage({ showNotify }: OrganizationPageProps) {
     const [activeTab, setActiveTab] = useState("designations");
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
