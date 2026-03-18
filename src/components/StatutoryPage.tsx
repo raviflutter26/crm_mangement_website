@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
-import { API_ENDPOINTS } from "@/config/api";
+import { API_ENDPOINTS, API_BASE_URL } from "@/config/api";
 import { 
     FiDownload, FiFilter, FiSearch, FiCalendar, FiUsers, FiDollarSign, FiBarChart2
 } from "react-icons/fi";
@@ -190,4 +190,3 @@ export default function StatutoryPage({ showNotify }: { showNotify: (type: any, 
     );
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:5001";

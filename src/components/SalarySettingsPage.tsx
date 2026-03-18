@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
+import { API_BASE_URL } from "@/config/api";
 import { FiSave, FiPlus, FiTrash2, FiPercent, FiInfo } from "react-icons/fi";
 
 export default function SalarySettingsPage({ showNotify }: { showNotify: (type: any, msg: string) => void }) {
@@ -133,4 +134,3 @@ export default function SalarySettingsPage({ showNotify }: { showNotify: (type: 
     );
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:5001";
