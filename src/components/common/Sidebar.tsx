@@ -27,6 +27,8 @@ const menuItemsBase: MenuItem[] = [
     { id: "permissions", label: "Permissions", icon: FiClock, roles: ["Admin", "HR", "Manager", "Employee"] },
     { id: "payroll", label: "Payroll", icon: FiDollarSign, roles: ["Admin", "HR"] },
     { id: "payroll-reports", label: "Reports", icon: FiBarChart2, roles: ["Admin", "HR"] },
+    { id: "statutory", label: "Statutory Reports", icon: FiShield, roles: ["Admin", "HR"] },
+    { id: "salary-settings", label: "Salary Settings", icon: FiSettings, roles: ["Admin", "HR"] },
 ];
 
 const moduleItems: MenuItem[] = [

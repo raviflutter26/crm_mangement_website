@@ -120,6 +120,32 @@ export default function AttendancePage({ showNotify }: AttendancePageProps) {
                 <button className="btn btn-secondary"><FiDownload /> Export</button>
             </div>
 
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px", marginBottom: "25px" }}>
+                <div className="card" style={{ padding: "20px", borderLeft: "4px solid #ef4444" }}>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "5px", fontWeight: 600 }}>LATE COUNT (MONTH)</div>
+                    <div style={{ fontSize: "24px", fontWeight: 700, color: "#ef4444" }}>
+                        {records.filter(r => r.isLate && new Date(r.date).getMonth() === new Date().getMonth()).length}
+                    </div>
+                </div>
+                <div className="card" style={{ padding: "20px", borderLeft: "4px solid var(--primary)" }}>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "5px", fontWeight: 600 }}>PERMISSION USED</div>
+                    <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--primary)" }}>0 hrs</div>
+                </div>
+                <div className="card" style={{ padding: "20px", borderLeft: "4px solid #10b981" }}>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "5px", fontWeight: 600 }}>TOTAL WORKING HRS</div>
+                    <div style={{ fontSize: "24px", fontWeight: 700, color: "#10b981" }}>
+                        {records.filter(r => new Date(r.date).getMonth() === new Date().getMonth())
+                                .reduce((acc, curr) => acc + (curr.totalHours || 0), 0).toFixed(1)}h
+                    </div>
+                </div>
+                <div className="card" style={{ padding: "20px", borderLeft: "4px solid #f59e0b" }}>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "5px", fontWeight: 600 }}>ATTENDANCE SUMMARY</div>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
+                        {records.filter(r => r.status === 'Present').length} P / {records.filter(r => r.status === 'Half Day').length} HD
+                    </div>
+                </div>
+            </div>
+
             <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
                 <button className={`btn ${activeView === "today" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveView("today")}><FiClock /> Today</button>
                 <button className={`btn ${activeView === "records" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveView("records")}><FiCalendar /> Records</button>

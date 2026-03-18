@@ -103,7 +103,6 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             basic: editEmployee?.salary?.basic || 0, 
             hra: editEmployee?.salary?.hra || 0, 
             da: editEmployee?.salary?.da || 0, 
-            ta: editEmployee?.salary?.ta || 0, 
             specialAllowance: editEmployee?.salary?.specialAllowance || 0 
         }, 
         ctc: editEmployee?.ctc || 0, 
@@ -118,6 +117,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         esiNumber: editEmployee?.esiNumber || "", 
         esiJoiningDate: (editEmployee?.esiJoiningDate || "").split('T')[0], 
         esiDispensary: editEmployee?.esiDispensary || "",
+        esiSalaryLimit: editEmployee?.esiSalaryLimit || 21000,
         bankDetails: { 
             bankName: editEmployee?.bankDetails?.bankName || "", 
             accountHolderName: editEmployee?.bankDetails?.accountHolderName || "", 
@@ -125,7 +125,8 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             confirmAccountNumber: editEmployee?.bankDetails?.accountNumber || "", 
             ifscCode: editEmployee?.bankDetails?.ifscCode || "", 
             branchName: editEmployee?.bankDetails?.branchName || "", 
-            upiId: editEmployee?.bankDetails?.upiId || "" 
+            upiId: editEmployee?.bankDetails?.upiId || "",
+            cancelledCheque: editEmployee?.bankDetails?.cancelledCheque || ""
         },
         pan: editEmployee?.pan || "", 
         aadhaar: editEmployee?.aadhaar || "", 
@@ -140,17 +141,23 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             zipCode: editEmployee?.address?.zipCode || "" 
         },
         role: editEmployee?.role || "Employee", 
-        generateCredentials: false, 
-        sendWelcomeEmail: false
+        generateCredentials: true, 
+        sendWelcomeEmail: true
     });
+
+    const [templates, setTemplates] = useState<any[]>([]);
+    const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+    const [isFetchingIFSC, setIsFetchingIFSC] = useState(false);
+    const [ifscVerified, setIfscVerified] = useState(false);
 
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
-                const [locRes, shiftRes, compRes] = await Promise.allSettled([
+                const [locRes, shiftRes, compRes, tempRes] = await Promise.allSettled([
                     axiosInstance.get(API_ENDPOINTS.LOCATIONS),
                     axiosInstance.get(API_ENDPOINTS.SHIFTS),
-                    axiosInstance.get(API_ENDPOINTS.COMPLIANCE)
+                    axiosInstance.get(API_ENDPOINTS.COMPLIANCE),
+                    axiosInstance.get(`${API_BASE_URL}/api/salary-templates`)
                 ]);
                 
                 if (locRes.status === 'fulfilled' && locRes.value.data.success) {
@@ -158,6 +165,12 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 }
                 if (shiftRes.status === 'fulfilled' && shiftRes.value.data.success) {
                     setShifts(shiftRes.value.data.data);
+                }
+                if (tempRes.status === 'fulfilled' && tempRes.value.data.success) {
+                    const temps = tempRes.value.data.data;
+                    setTemplates(temps);
+                    const def = temps.find((t: any) => t.isDefault);
+                    if (def) setSelectedTemplate(def);
                 }
                 if (compRes.status === 'fulfilled' && compRes.value.data.success) {
                     const comp = compRes.value.data.data;
@@ -178,6 +191,46 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         fetchMetadata();
     }, []);
 
+    const fetchBankDetails = async (ifsc: string) => {
+        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+            setIfscVerified(false);
+            return;
+        }
+
+        setIsFetchingIFSC(true);
+        try {
+            const res = await axiosInstance.get(`${API_BASE_URL}/api/bank/ifsc/${ifsc}`);
+            if (res.data.success) {
+                setFormData(prev => ({
+                    ...prev,
+                    bankDetails: {
+                        ...prev.bankDetails,
+                        bankName: res.data.data.bank,
+                        branchName: res.data.data.branch
+                    }
+                }));
+                setIfscVerified(true);
+            }
+        } catch (err) {
+            console.error("IFSC fetch failed:", err);
+            setIfscVerified(false);
+        } finally {
+            setIsFetchingIFSC(false);
+        }
+    };
+
+    const autoCalculateSalary = (ctc: number) => {
+        if (!ctc) return;
+        const monthly = Math.round(ctc / 12);
+        const t = selectedTemplate || { basicPercent: 40, hraPercent: 20, daPercent: 10, specialAllowancePercent: 30 };
+        const basic = Math.round(monthly * (t.basicPercent / 100));
+        const hra = Math.round(monthly * (t.hraPercent / 100));
+        const da = Math.round(monthly * (t.daPercent / 100));
+        const specialAllowance = monthly - (basic + hra + da);
+
+        setFormData(prev => ({ ...prev, salary: { basic, hra, da, specialAllowance } }));
+    };
+
     const steps = [
         { name: "Select Role", icon: <FiUser /> },
         { name: "Basic Info", icon: <FiUser /> },
@@ -192,6 +245,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     ].filter(s => {
         if (currentUser?.role === "Manager" && (s.name === "Payroll" || s.name === "PF / ESI")) return false;
         if (isEdit && s.name === "System") return false;
+        if (formData.role === "Admin" && s.name === "Reporting") return false;
         return true;
     });
 
@@ -211,10 +265,10 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 const [parent, child] = parts;
                 
                 // Prevent negative numbers for specific nested fields
-                if (type === 'number' && Number(value) < 0) return;
+                if (type === 'number' && value !== "" && Number(value) < 0) return;
 
                 setFormData(prev => {
-                    let processedValue = type === 'number' ? Number(value) : value;
+                    let processedValue = type === 'number' ? (value === "" ? "" : Number(value)) : value;
                     
                     // Auto-capitalize IFSC and PAN
                     if (name === "bankDetails.ifscCode" || name === "pan") {
@@ -236,11 +290,11 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             }
         } else {
             // Prevent negative numbers for specific root fields
-            if (type === 'number' && Number(value) < 0) return;
+            if (type === 'number' && value !== "" && Number(value) < 0) return;
 
             setFormData(prev => ({
                 ...prev,
-                [name]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value)
+                [name]: type === 'checkbox' ? checked : (type === 'number' ? (value === "" ? "" : Number(value)) : value)
             }));
         }
     };
@@ -299,23 +353,30 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             if (!formData.ctc) { isValid = false; newErrors.ctc = "Annual CTC is required"; missingFields.push("Annual CTC"); }
         } else if (currentStepName === "PF / ESI") {
             if (formData.pfEnabled) {
-                if (formData.uan && !/^\d{12}$/.test(formData.uan)) {
+                if (!formData.uan) { isValid = false; newErrors.uan = "UAN is required when PF is enabled"; missingFields.push("UAN"); }
+                else if (!/^\d{12}$/.test(formData.uan)) {
                     isValid = false; newErrors.uan = "UAN must be exactly 12 digits"; missingFields.push("Invalid UAN");
                 }
-                if (formData.pfNumber && !/^[A-Z0-9]{5,22}$/i.test(formData.pfNumber)) {
+                if (!formData.pfNumber) { isValid = false; newErrors.pfNumber = "PF Number is required when PF is enabled"; missingFields.push("PF Number"); }
+                else if (!/^[A-Z0-9]{5,22}$/i.test(formData.pfNumber)) {
                     isValid = false; newErrors.pfNumber = "PF Number format is invalid"; missingFields.push("Invalid PF Number");
                 }
             }
-        } else if (currentStepName === "Bank Details") {
-            if (!formData.bankDetails.accountNumber) { isValid = false; newErrors["bankDetails.accountNumber"] = "Account Number is required"; missingFields.push("Account Number"); }
-            if (formData.bankDetails.accountNumber !== formData.bankDetails.confirmAccountNumber) {
-                isValid = false;
-                newErrors["bankDetails.confirmAccountNumber"] = "Numbers do not match";
-                missingFields.push("Account Number Mismatch");
+            if (formData.esiEnabled) {
+                if (!formData.esiNumber) { isValid = false; newErrors.esiNumber = "ESI Number is required when ESI is enabled"; missingFields.push("ESI Number"); }
             }
-            const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-            if (formData.bankDetails.ifscCode && !ifscRegex.test(formData.bankDetails.ifscCode)) {
-                isValid = false; newErrors.ifscCode = "Invalid IFSC Code format"; missingFields.push("Invalid IFSC");
+        } else if (currentStepName === "Bank Details") {
+            if (!formData.bankDetails.accountHolderName) { isValid = false; newErrors["bankDetails.accountHolderName"] = "Account Holder Name is required"; missingFields.push("Account Holder Name"); }
+            if (!formData.bankDetails.accountNumber) { isValid = false; newErrors["bankDetails.accountNumber"] = "Account Number is required"; missingFields.push("Account Number"); }
+            else if (!/^\d{9,18}$/.test(formData.bankDetails.accountNumber)) {
+                isValid = false; newErrors["bankDetails.accountNumber"] = "Account number must be 9-18 digits"; missingFields.push("Account Number Format");
+            }
+            if (!formData.bankDetails.ifscCode) { isValid = false; newErrors["bankDetails.ifscCode"] = "IFSC Code is required"; missingFields.push("IFSC Code"); }
+            else if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.bankDetails.ifscCode)) {
+                isValid = false; newErrors["bankDetails.ifscCode"] = "Invalid IFSC format"; missingFields.push("IFSC Format");
+            }
+            if (formData.bankDetails.accountNumber !== formData.bankDetails.confirmAccountNumber) {
+                isValid = false; newErrors["bankDetails.confirmAccountNumber"] = "Account Numbers do not match"; missingFields.push("Account Number Match");
             }
         } else if (currentStepName === "Documents") {
             if (formData.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan.toUpperCase())) {
@@ -334,11 +395,16 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     const handleSubmit = async () => {
         setLoading(true);
         try {
+            // Sanitize data: ObjectIds cannot be empty strings
+            const sanitizedData = { ...formData };
+            if (!sanitizedData.reportingManager) (sanitizedData as any).reportingManager = null;
+            if (!sanitizedData.shift) (sanitizedData as any).shift = null;
+
             if (isEdit && editEmployee) {
-                await axiosInstance.put(`${API_ENDPOINTS.EMPLOYEES}/${editEmployee._id}`, formData);
+                await axiosInstance.put(`${API_ENDPOINTS.EMPLOYEES}/${editEmployee._id}`, sanitizedData);
                 showNotify('success', "Employee updated successfully!");
             } else {
-                await axiosInstance.post(API_ENDPOINTS.EMPLOYEES, formData);
+                await axiosInstance.post(API_ENDPOINTS.EMPLOYEES, sanitizedData);
                 showNotify('success', "Employee created successfully!");
             }
             onSuccess();
@@ -517,24 +583,66 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                     </div>
                 );
 
-            case "Payroll":
+             case "Payroll":
+                const t = selectedTemplate || { basicPercent: 40, hraPercent: 20, daPercent: 10, specialAllowancePercent: 30 };
+                const monthlyCTC = Math.round(Number(formData.ctc) / 12);
+                const currentSum = Number(formData.salary.basic) + Number(formData.salary.hra) + Number(formData.salary.da) + Number(formData.salary.specialAllowance);
+                const isMismatch = formData.ctc > 0 && currentSum !== monthlyCTC;
+
                 return (
                     <div className="card animate-in" style={{ padding: "30px" }}>
-                        <div style={{ marginBottom: "20px" }}>
-                            <h3 style={{ color: "var(--primary)", marginBottom: "5px" }}>Payroll Details</h3>
-                            <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-                                Set the employee's Annual CTC and its components (Basic, HRA, etc.). 
-                                Values must be positive and represent the monthly breakdown for salary generation.
-                            </p>
+                        <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <div>
+                                <h3 style={{ color: "var(--primary)", marginBottom: "5px" }}>Payroll Details</h3>
+                                <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+                                    Set Annual CTC. Use "Auto Calculate" for percentage-based breakdown.
+                                </p>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                                <label className="form-label" style={{ fontSize: "11px" }}>Salary Template</label>
+                                <select 
+                                    className="form-input" 
+                                    style={{ width: "200px", padding: "4px 8px", height: "32px" }}
+                                    value={selectedTemplate?._id || ""}
+                                    onChange={(e) => {
+                                        const found = templates.find(temp => temp._id === e.target.value);
+                                        setSelectedTemplate(found);
+                                        if (formData.ctc) autoCalculateSalary(formData.ctc);
+                                    }}
+                                >
+                                    {templates.map(temp => <option key={temp._id} value={temp._id}>{temp.name}</option>)}
+                                    {templates.length === 0 && <option value="">Standard (40/20/10/30)</option>}
+                                </select>
+                            </div>
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                            <div><label className="form-label">Annual CTC (INR) *</label><input type="number" name="ctc" value={formData.ctc} onChange={handleInputChange} className="form-input" /></div>
-                            <div style={{ gridColumn: "1/-1", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "15px", padding: "15px", background: "var(--bg-secondary)", borderRadius: "8px" }}>
-                                <div><label className="form-label">Basic</label><input type="number" name="salary.basic" value={formData.salary.basic} onChange={handleInputChange} className="form-input" /></div>
-                                <div><label className="form-label">HRA</label><input type="number" name="salary.hra" value={formData.salary.hra} onChange={handleInputChange} className="form-input" /></div>
-                                <div><label className="form-label">TA</label><input type="number" name="salary.ta" value={formData.salary.ta} onChange={handleInputChange} className="form-input" /></div>
-                                <div><label className="form-label">DA</label><input type="number" name="salary.da" value={formData.salary.da} onChange={handleInputChange} className="form-input" /></div>
-                                <div><label className="form-label">Special Allowance</label><input type="number" name="salary.specialAllowance" value={formData.salary.specialAllowance} onChange={handleInputChange} className="form-input" /></div>
+                            <div>
+                                <label className="form-label">Annual CTC (INR) *</label>
+                                <div style={{ display: "flex", gap: "10px" }}>
+                                    <input 
+                                        type="number" 
+                                        name="ctc" 
+                                        value={formData.ctc} 
+                                        onChange={handleInputChange} 
+                                        onBlur={() => autoCalculateSalary(formData.ctc)}
+                                        className="form-input" 
+                                    />
+                                    <button onClick={() => autoCalculateSalary(formData.ctc)} className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }}>Auto Calculate</button>
+                                </div>
+                                <div style={{ fontSize: "12px", marginTop: "4px", color: "var(--text-muted)" }}>Monthly CTC: ₹{monthlyCTC.toLocaleString()}</div>
+                            </div>
+                            
+                            <div style={{ gridColumn: "1/-1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", padding: "20px", background: "var(--bg-secondary)", borderRadius: "12px", border: isMismatch ? "1px solid #FFCDD2" : "1px solid var(--border)" }}>
+                                <div><label className="form-label">Basic ({t.basicPercent}%)</label><input type="number" name="salary.basic" value={formData.salary.basic} onChange={handleInputChange} className="form-input" /></div>
+                                <div><label className="form-label">HRA ({t.hraPercent}%)</label><input type="number" name="salary.hra" value={formData.salary.hra} onChange={handleInputChange} className="form-input" /></div>
+                                <div><label className="form-label">DA ({t.daPercent}%)</label><input type="number" name="salary.da" value={formData.salary.da} onChange={handleInputChange} className="form-input" /></div>
+                                <div><label className="form-label">Special Allowance ({t.specialAllowancePercent}%)</label><input type="number" name="salary.specialAllowance" value={formData.salary.specialAllowance} onChange={handleInputChange} className="form-input" /></div>
+                                
+                                {isMismatch && (
+                                    <div style={{ gridColumn: "1/-1", color: "#D32F2F", fontSize: "12px", marginTop: "10px", padding: "8px", background: "#FFEBEE", borderRadius: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        ⚠️ Components total (₹{currentSum.toLocaleString()}) does not match Monthly CTC (₹{monthlyCTC.toLocaleString()})
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -552,11 +660,11 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 {formData.pfEnabled && (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                                         <div>
-                                            <input placeholder="UAN Number (12 digits)" name="uan" value={formData.uan} onChange={handleInputChange} className="form-input" />
+                                            <input placeholder="UAN Number (12 digits) *" name="uan" value={formData.uan} onChange={handleInputChange} className="form-input" />
                                             {errors.uan && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.uan}</div>}
                                         </div>
                                         <div>
-                                            <input placeholder="PF Number" name="pfNumber" value={formData.pfNumber} onChange={handleInputChange} className="form-input" />
+                                            <input placeholder="PF Number *" name="pfNumber" value={formData.pfNumber} onChange={handleInputChange} className="form-input" />
                                             {errors.pfNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.pfNumber}</div>}
                                         </div>
                                         <input type="date" name="pfJoiningDate" value={formData.pfJoiningDate} onChange={handleInputChange} className="form-input" />
@@ -580,9 +688,14 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 </div>
                                 {formData.esiEnabled && (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                                        <input placeholder="ESI Number" name="esiNumber" value={formData.esiNumber} onChange={handleInputChange} className="form-input" />
+                                        <input placeholder="ESI Number *" name="esiNumber" value={formData.esiNumber} onChange={handleInputChange} className="form-input" />
+                                        {errors.esiNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.esiNumber}</div>}
                                         <input type="date" name="esiJoiningDate" value={formData.esiJoiningDate} onChange={handleInputChange} className="form-input" />
                                         <input placeholder="ESI Dispensary" name="esiDispensary" value={formData.esiDispensary} onChange={handleInputChange} className="form-input" />
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                                            <label style={{ fontSize: "11px", color: "var(--text-secondary)" }}>ESI Salary Limit (INR)</label>
+                                            <input type="number" name="esiSalaryLimit" value={formData.esiSalaryLimit} onChange={handleInputChange} className="form-input" placeholder="21000" />
+                                        </div>
                                         <div style={{ fontSize: "11px", color: "var(--text-muted)", padding: "5px", background: "var(--bg-secondary)", borderRadius: "4px" }}>
                                             Rates: {complianceSettings?.esi?.employeeContribution || 0.75}% (Employee) / {complianceSettings?.esi?.employerContribution || 3.25}% (Employer)
                                         </div>
@@ -597,18 +710,88 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 return (
                     <div className="card animate-in" style={{ padding: "30px" }}>
                         <h3 style={{ marginBottom: "20px", color: "var(--primary)" }}>Bank Account Information</h3>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                            <div><label className="form-label">Bank Name</label><input name="bankDetails.bankName" value={formData.bankDetails.bankName} onChange={handleInputChange} className="form-input" /></div>
-                            <div><label className="form-label">Branch Name</label><input name="bankDetails.branchName" value={formData.bankDetails.branchName} onChange={handleInputChange} className="form-input" /></div>
-                            <div><label className="form-label">Account Number</label><input name="bankDetails.accountNumber" value={formData.bankDetails.accountNumber} onChange={handleInputChange} className="form-input" />{errors["bankDetails.accountNumber"] && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors["bankDetails.accountNumber"]}</div>}</div>
-                            <div><label className="form-label">Confirm Account Number</label><input name="bankDetails.confirmAccountNumber" value={formData.bankDetails.confirmAccountNumber} onChange={handleInputChange} className="form-input" />{errors["bankDetails.confirmAccountNumber"] && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors["bankDetails.confirmAccountNumber"]}</div>}</div>
-                            <div>
-                                <label className="form-label">IFSC Code</label>
-                                <input name="bankDetails.ifscCode" value={formData.bankDetails.ifscCode} onChange={handleInputChange} className="form-input" placeholder="e.g., HDFC0001234" />
-                                {errors.ifscCode && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.ifscCode}</div>}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px" }}>
+                            <div style={{ gridColumn: "1 / -1" }}>
+                                <label className="form-label">Account Holder Name *</label>
+                                <input name="bankDetails.accountHolderName" value={formData.bankDetails.accountHolderName} onChange={handleInputChange} className="form-input" placeholder="Name as per bank records" />
+                                {errors["bankDetails.accountHolderName"] && <div className="error-text">{errors["bankDetails.accountHolderName"]}</div>}
                             </div>
-                            <div><label className="form-label">UPI ID (Optional)</label><input name="bankDetails.upiId" value={formData.bankDetails.upiId} onChange={handleInputChange} className="form-input" /></div>
+                            
+                            <div>
+                                <label className="form-label">IFSC Code *</label>
+                                <div style={{ position: "relative" }}>
+                                    <input 
+                                        name="bankDetails.ifscCode" 
+                                        value={formData.bankDetails.ifscCode} 
+                                        onChange={handleInputChange} 
+                                        onBlur={(e) => fetchBankDetails(e.target.value)}
+                                        className="form-input" 
+                                        placeholder="e.g., HDFC0001234" 
+                                    />
+                                    <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>
+                                        {isFetchingIFSC ? (
+                                            <div className="spinner-small" style={{ width: "16px", height: "16px", border: "2px solid #ccc", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                                        ) : ifscVerified ? (
+                                            <FiCheckCircle color="#4CAF50" size={18} />
+                                        ) : null}
+                                    </div>
+                                </div>
+                                {errors["bankDetails.ifscCode"] && <div className="error-text">{errors["bankDetails.ifscCode"]}</div>}
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", gridColumn: "1 / -1" }}>
+                                <div>
+                                    <label className="form-label">Bank Name</label>
+                                    <input name="bankDetails.bankName" value={formData.bankDetails.bankName} className="form-input read-only" readOnly style={{ background: "var(--bg-secondary)" }} placeholder="Auto-filled from IFSC" />
+                                </div>
+                                <div>
+                                    <label className="form-label">Branch Name</label>
+                                    <input name="bankDetails.branchName" value={formData.bankDetails.branchName} className="form-input read-only" readOnly style={{ background: "var(--bg-secondary)" }} placeholder="Auto-filled from IFSC" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="form-label">Account Number *</label>
+                                <input name="bankDetails.accountNumber" value={formData.bankDetails.accountNumber} onChange={handleInputChange} className="form-input" placeholder="9-18 digits" />
+                                {errors["bankDetails.accountNumber"] && <div className="error-text">{errors["bankDetails.accountNumber"]}</div>}
+                            </div>
+                            
+                            <div>
+                                <label className="form-label">Confirm Account Number *</label>
+                                <input name="bankDetails.confirmAccountNumber" value={formData.bankDetails.confirmAccountNumber} onChange={handleInputChange} className="form-input" placeholder="Repeat account number" />
+                                {errors["bankDetails.confirmAccountNumber"] && <div className="error-text">{errors["bankDetails.confirmAccountNumber"]}</div>}
+                            </div>
+
+                            <div style={{ gridColumn: "1 / -1" }}>
+                                <label className="form-label">UPI ID (Optional)</label>
+                                <input name="bankDetails.upiId" value={formData.bankDetails.upiId} onChange={handleInputChange} className="form-input" placeholder="e.g., user@okhdfc" />
+                            </div>
+
+                            <div style={{ gridColumn: "1 / -1" }}>
+                                <label className="form-label">Cancelled Cheque / Passbook Copy</label>
+                                <input 
+                                    type="file" 
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            // Real implementation would upload to S3/Cloudinary
+                                            // For now, we'll store a mock path or base64 if small
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                bankDetails: { ...prev.bankDetails, cancelledCheque: file.name }
+                                            }));
+                                        }
+                                    }} 
+                                    className="form-input" 
+                                    accept="image/*,.pdf"
+                                />
+                                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "5px" }}>Upload a clear photo or PDF for verification.</div>
+                            </div>
                         </div>
+                        <style>{`
+                            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                            .error-text { color: red; fontSize: 11px; margin-top: 4px; }
+                        `}</style>
                     </div>
                 );
 
@@ -658,31 +841,117 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
 
             case "Review":
                 return (
-                    <div className="animate-in">
-                        <div className="card" style={{ padding: "30px", marginBottom: "20px" }}>
+                    <div className="animate-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                        <div className="card" style={{ padding: "30px" }}>
                             <h3 style={{ color: "var(--primary)", marginBottom: "20px" }}>Summary Review</h3>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px" }}>
+                            
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px" }}>
+                                {/* Personal & Role */}
                                 <div>
-                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px" }}>Personal & Role</div>
-                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "5px" }}>
+                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <FiUser size={16} /> Personal & Role
+                                    </div>
+                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
                                         <div><strong>Name:</strong> {formData.firstName} {formData.lastName}</div>
                                         <div><strong>Email:</strong> {formData.email}</div>
+                                        <div><strong>Phone:</strong> {formData.phone}</div>
                                         <div><strong>Role:</strong> {formData.role}</div>
-                                        <div><strong>ID:</strong> {formData.employeeId}</div>
+                                        <div><strong>Employee ID:</strong> {formData.employeeId}</div>
                                     </div>
                                 </div>
+
+                                {/* Work context */}
                                 <div>
-                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px" }}>Work Context</div>
-                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "5px" }}>
+                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <FiBriefcase size={16} /> Work Context
+                                    </div>
+                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
                                         <div><strong>Department:</strong> {formData.department}</div>
                                         <div><strong>Designation:</strong> {formData.designation}</div>
-                                        <div><strong>Joining:</strong> {formData.dateOfJoining}</div>
+                                        <div><strong>Joining Date:</strong> {formData.dateOfJoining}</div>
+                                        <div><strong>Manager:</strong> {formData.reportingManager || "Not Assigned"}</div>
+                                    </div>
+                                </div>
+
+                                {/* Payroll */}
+                                <div>
+                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <FiDollarSign size={16} /> Payroll & Salary
+                                    </div>
+                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                        <div><strong>Annual CTC:</strong> ₹{formData.ctc.toLocaleString()}</div>
+                                        <div style={{ padding: "8px", background: "var(--bg-secondary)", borderRadius: "8px", marginTop: "4px" }}>
+                                            <div><strong>Basic:</strong> ₹{formData.salary.basic.toLocaleString()}</div>
+                                            <div><strong>HRA:</strong> ₹{formData.salary.hra.toLocaleString()}</div>
+                                            <div><strong>DA:</strong> ₹{formData.salary.da.toLocaleString()}</div>
+                                            <div><strong>Special:</strong> ₹{formData.salary.specialAllowance.toLocaleString()}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bank Details */}
+                                <div>
+                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <FiCreditCard size={16} /> Bank Information
+                                    </div>
+                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                        <div><strong>Account Holder:</strong> {formData.bankDetails.accountHolderName}</div>
+                                        <div><strong>Bank:</strong> {formData.bankDetails.bankName}</div>
+                                        <div><strong>Account No:</strong> ****{formData.bankDetails.accountNumber.slice(-4)}</div>
+                                        <div><strong>IFSC:</strong> {formData.bankDetails.ifscCode}</div>
+                                    </div>
+                                </div>
+
+                                {/* Statutory */}
+                                <div>
+                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <FiPercent size={16} /> Statutory Details
+                                    </div>
+                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                        <div><strong>PF Status:</strong> {formData.pfEnabled ? "Enabled" : "Disabled"}</div>
+                                        {formData.pfEnabled && (
+                                            <>
+                                                <div><strong>UAN:</strong> {formData.uan}</div>
+                                                <div><strong>PF No:</strong> {formData.pfNumber}</div>
+                                            </>
+                                        )}
+                                        <div><strong>ESI Status:</strong> {formData.esiEnabled ? "Enabled" : "Disabled"}</div>
+                                        {formData.esiEnabled && <div><strong>ESI No:</strong> {formData.esiNumber}</div>}
+                                    </div>
+                                </div>
+
+                                {/* Documents */}
+                                <div>
+                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <FiFileText size={16} /> Documents
+                                    </div>
+                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                        <div><strong>PAN:</strong> {formData.pan || "Not Provided"}</div>
+                                        <div><strong>Aadhaar:</strong> {formData.aadhaar || "Not Provided"}</div>
+                                        <div><strong>Cheque Copy:</strong> {formData.bankDetails.cancelledCheque || "Not Uploaded"}</div>
+                                    </div>
+                                </div>
+
+                                {/* Address */}
+                                <div style={{ gridColumn: "1 / -1" }}>
+                                    <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <FiMapPin size={16} /> Address Details
+                                    </div>
+                                    <div style={{ fontSize: "14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                                        <div>
+                                            <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: "2px" }}>Current Address</div>
+                                            <div>{formData.address.currentAddress}, {formData.address.city}, {formData.address.state} - {formData.address.zipCode}</div>
+                                        </div>
+                                        <div>
+                                            <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: "2px" }}>Permanent Address</div>
+                                            <div>{formData.address.permanentAddress || "Same as current"}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div style={{ textAlign: "center", padding: "20px", color: "var(--text-secondary)", fontSize: "14px" }}>
-                            Please verify all details before clicking Submit.
+                        <div style={{ textAlign: "center", padding: "10px", color: "var(--text-secondary)", fontSize: "14px" }}>
+                            Please verify all details above before clicking Submit.
                         </div>
                     </div>
                 );
@@ -736,3 +1005,5 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         </div>
     );
 }
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:5001";
