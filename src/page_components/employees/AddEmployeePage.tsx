@@ -35,38 +35,7 @@ interface AddEmployeePageProps {
     editEmployee?: any;
 }
 
-const INDIAN_STATES_CITIES: { [key: string]: string[] } = {
-    "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Kurnool"],
-    "Arunachal Pradesh": ["Itanagar", "Tawang", "Ziro", "Pasighat"],
-    "Assam": ["Guwahati", "Dibrugarh", "Silchar", "Jorhat"],
-    "Bihar": ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur"],
-    "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba"],
-    "Goa": ["Panaji", "Margao", "Vasco da Gama"],
-    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot"],
-    "Haryana": ["Faridabad", "Gurugram", "Panipat", "Ambala"],
-    "Himachal Pradesh": ["Shimla", "Manali", "Dharamshala"],
-    "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro"],
-    "Karnataka": ["Bengaluru", "Mysuru", "Hubballi", "Mangaluru"],
-    "Kerala": ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur"],
-    "Madhya Pradesh": ["Indore", "Bhopal", "Jabalpur", "Gwalior"],
-    "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad"],
-    "Manipur": ["Imphal"],
-    "Meghalaya": ["Shillong"],
-    "Mizoram": ["Aizawl"],
-    "Nagaland": ["Kohima", "Dimapur"],
-    "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela"],
-    "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
-    "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
-    "Sikkim": ["Gangtok"],
-    "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Erode", "Tirunelveli", "Vellore"],
-    "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar"],
-    "Tripura": ["Agartala"],
-    "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Noida"],
-    "Uttarakhand": ["Dehradun", "Haridwar", "Roorkee"],
-    "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Siliguri"],
-    "Delhi": ["New Delhi", "North Delhi", "South Delhi"],
-    "Puducherry": ["Puducherry"]
-};
+// Dynamic Location API Data (States/Cities) will be fetched from Backend
 
 export default function AddEmployeePage({ onBack, onSuccess, showNotify, currentUser, employees, departmentsList, editEmployee }: AddEmployeePageProps) {
     const isEdit = !!editEmployee;
@@ -74,76 +43,103 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
-    
+
     // Fetch lists for dropdowns
     const [locations, setLocations] = useState<any[]>([]);
     const [shifts, setShifts] = useState<any[]>([]);
     const [complianceSettings, setComplianceSettings] = useState<any>(null);
 
     const [formData, setFormData] = useState({
-        firstName: editEmployee?.firstName || "", 
-        lastName: editEmployee?.lastName || "", 
-        employeeId: editEmployee?.employeeId || "", 
-        email: editEmployee?.email || "", 
-        phone: editEmployee?.phone || "", 
-        gender: editEmployee?.gender || "Male", 
-        dateOfBirth: (editEmployee?.dateOfBirth || "").split('T')[0], 
-        maritalStatus: editEmployee?.maritalStatus || "Single", 
+        firstName: editEmployee?.firstName || "",
+        lastName: editEmployee?.lastName || "",
+        employeeId: editEmployee?.employeeId || "",
+        email: editEmployee?.email || "",
+        phone: editEmployee?.phone || "",
+        gender: editEmployee?.gender || "Male",
+        dateOfBirth: (editEmployee?.dateOfBirth || "").split('T')[0],
+        maritalStatus: editEmployee?.maritalStatus || "Single",
         profilePhoto: editEmployee?.profilePhoto || "",
-        department: editEmployee?.department || (currentUser?.role === "Manager" ? currentUser.department : ""), 
-        designation: editEmployee?.designation || "", 
-        reportingManager: (editEmployee?.reportingManager?._id || editEmployee?.reportingManager) || (currentUser?.role === "Manager" ? currentUser._id : ""), 
-        location: editEmployee?.location || "", 
-        employmentType: editEmployee?.employmentType || "Full-time", 
-        dateOfJoining: (editEmployee?.dateOfJoining || "").split('T')[0], 
-        shift: (editEmployee?.shift?._id || editEmployee?.shift) ||  "", 
+        department: (editEmployee?.department ? (editEmployee.department.includes(',') ? editEmployee.department.split(',').map((s: string) => s.trim()) : [editEmployee.department]) : (currentUser?.role === "Manager" ? [currentUser.department] : [])),
+        designation: editEmployee?.designation || "",
+        reportingManager: (editEmployee?.reportingManager?._id || editEmployee?.reportingManager) || (currentUser?.role === "Manager" ? currentUser._id : ""),
+        location: editEmployee?.location || "",
+        employmentType: editEmployee?.employmentType || "Full-time",
+        dateOfJoining: (editEmployee?.dateOfJoining || "").split('T')[0],
+        shift: (editEmployee?.shift?._id || editEmployee?.shift) || "",
         status: editEmployee?.status || "Active",
-        salaryStructure: editEmployee?.salaryStructure || "Standard", 
-        salary: { 
-            basic: editEmployee?.salary?.basic || 0, 
-            hra: editEmployee?.salary?.hra || 0, 
-            da: editEmployee?.salary?.da || 0, 
-            specialAllowance: editEmployee?.salary?.specialAllowance || 0 
-        }, 
-        ctc: editEmployee?.ctc || 0, 
+        salaryStructure: editEmployee?.salaryStructure || "Standard",
+        salary: {
+            basic: editEmployee?.salary?.basic || 0,
+            hra: editEmployee?.salary?.hra || 0,
+            da: editEmployee?.salary?.da || 0,
+            specialAllowance: editEmployee?.salary?.specialAllowance || 0
+        },
+        ctc: editEmployee?.ctc || 0,
         paymentCycle: editEmployee?.paymentCycle || "Monthly",
-        pfEnabled: editEmployee?.pfEnabled ?? true, 
-        uan: editEmployee?.uan || "", 
-        pfNumber: editEmployee?.pfNumber || "", 
-        pfJoiningDate: (editEmployee?.pfJoiningDate || "").split('T')[0], 
-        pfEmployeeContributionRate: editEmployee?.pfEmployeeContributionRate || 12, 
-        pfEmployerContributionRate: editEmployee?.pfEmployerContributionRate || 12,
-        esiEnabled: editEmployee?.esiEnabled ?? true, 
-        esiNumber: editEmployee?.esiNumber || "", 
-        esiJoiningDate: (editEmployee?.esiJoiningDate || "").split('T')[0], 
-        esiDispensary: editEmployee?.esiDispensary || "",
-        esiSalaryLimit: editEmployee?.esiSalaryLimit || 21000,
-        bankDetails: { 
-            bankName: editEmployee?.bankDetails?.bankName || "", 
-            accountHolderName: editEmployee?.bankDetails?.accountHolderName || "", 
-            accountNumber: editEmployee?.bankDetails?.accountNumber || "", 
-            confirmAccountNumber: editEmployee?.bankDetails?.accountNumber || "", 
-            ifscCode: editEmployee?.bankDetails?.ifscCode || "", 
-            branchName: editEmployee?.bankDetails?.branchName || "", 
+        esiDeductionCycle: editEmployee?.statutory?.esi?.esiDeductionCycle || editEmployee?.esiDeductionCycle || "Monthly",
+        // Statutory Nested Object Mapping for Edit (Standardized)
+        pfEnabled: editEmployee?.statutory?.pf?.epfEnabled ?? editEmployee?.pfEnabled ?? true,
+        uan: editEmployee?.statutory?.pf?.uanNumber || editEmployee?.uan || "",
+        pfNumber: editEmployee?.statutory?.pf?.epfNumber || editEmployee?.pfNumber || "",
+        pfJoiningDate: (editEmployee?.statutory?.pf?.pfJoiningDate || editEmployee?.pfJoiningDate || "").split('T')[0],
+        pfEmployeeContributionRate: editEmployee?.statutory?.pf?.employeeContributionRate || editEmployee?.pfEmployeeContributionRate || 12,
+        pfEmployerContributionRate: editEmployee?.statutory?.pf?.employerContributionRate || editEmployee?.pfEmployerContributionRate || 12,
+        pfContributionPreferences: {
+            employerPF: editEmployee?.statutory?.pf?.contributionPreferences?.employerPFContribution ?? editEmployee?.pfContributionPreferences?.employerPF ?? true,
+            edli: editEmployee?.statutory?.pf?.contributionPreferences?.edliContribution ?? editEmployee?.pfContributionPreferences?.edli ?? true,
+            adminCharges: editEmployee?.statutory?.pf?.contributionPreferences?.adminCharges ?? editEmployee?.pfContributionPreferences?.adminCharges ?? true
+        },
+        pfOverrideEnabled: editEmployee?.statutory?.pf?.allowEmployeeLevelOverride ?? editEmployee?.pfOverrideEnabled ?? false,
+        pfProRateRestrictedWage: editEmployee?.statutory?.pf?.proRateRestrictedPFWage ?? editEmployee?.pfProRateRestrictedWage ?? true,
+        pfLOPBased: editEmployee?.statutory?.pf?.considerSalaryComponentsOnLOP ?? editEmployee?.pfLOPBased ?? true,
+        pfABRYEligible: editEmployee?.statutory?.pf?.eligibleForABRYScheme ?? editEmployee?.pfABRYEligible ?? false,
+        esiEnabled: editEmployee?.statutory?.esi?.esiEnabled ?? editEmployee?.esiEnabled ?? true,
+        esiNumber: editEmployee?.statutory?.esi?.esiNumber || editEmployee?.esiNumber || "",
+        esiJoiningDate: (editEmployee?.statutory?.esi?.esiJoiningDate || editEmployee?.esiJoiningDate || "").split('T')[0],
+        esiDispensary: editEmployee?.statutory?.esi?.dispensary || editEmployee?.esiDispensary || "",
+        esiSalaryLimit: editEmployee?.statutory?.esi?.esiSalaryLimit || editEmployee?.esiSalaryLimit || 21000,
+        ptEnabled: editEmployee?.statutory?.pt?.ptEnabled ?? editEmployee?.ptEnabled ?? false,
+        ptNumber: editEmployee?.statutory?.pt?.ptRegistrationNumber || editEmployee?.ptNumber || "",
+        ptDeductionCycle: editEmployee?.statutory?.pt?.ptDeductionCycle || editEmployee?.ptDeductionCycle || "Monthly",
+        lwfEnabled: editEmployee?.statutory?.lwf?.lwfEnabled ?? editEmployee?.lwfEnabled ?? false,
+        lwfNumber: editEmployee?.statutory?.lwf?.lwfAccountNumber || editEmployee?.lwfNumber || "",
+        lwfDeductionCycle: editEmployee?.statutory?.lwf?.lwfDeductionCycle || editEmployee?.lwfDeductionCycle || "Monthly",
+        statutoryBonusEnabled: editEmployee?.statutory?.statutoryBonus?.statutoryBonusEnabled ?? editEmployee?.statutoryBonusEnabled ?? false,
+        statutoryBonusAmount: editEmployee?.statutory?.statutoryBonus?.bonusAmount || editEmployee?.statutoryBonusAmount || 0,
+        bankDetails: {
+            bankName: editEmployee?.bankDetails?.bankName || "",
+            accountHolderName: editEmployee?.bankDetails?.accountHolderName || "",
+            accountNumber: editEmployee?.bankDetails?.accountNumber || "",
+            confirmAccountNumber: editEmployee?.bankDetails?.accountNumber || "",
+            ifscCode: editEmployee?.bankDetails?.ifscCode || "",
+            branchName: editEmployee?.bankDetails?.branchName || "",
             upiId: editEmployee?.bankDetails?.upiId || "",
             cancelledCheque: editEmployee?.bankDetails?.cancelledCheque || ""
         },
-        panNumber: editEmployee?.panNumber || "", 
-        aadhaar: editEmployee?.aadhaar || "", 
-        passportNumber: editEmployee?.passportNumber || "", 
+        panNumber: editEmployee?.panNumber || "",
+        aadhaar: editEmployee?.aadhaar || "",
+        passportNumber: editEmployee?.passportNumber || "",
         drivingLicense: editEmployee?.drivingLicense || "",
-        address: { 
-            currentAddress: editEmployee?.address?.currentAddress || "", 
-            permanentAddress: editEmployee?.address?.permanentAddress || "", 
-            city: editEmployee?.address?.city || "", 
-            state: editEmployee?.address?.state || "", 
-            country: editEmployee?.address?.country || "India", 
-            zipCode: editEmployee?.address?.zipCode || "" 
+        address: {
+            currentAddress: editEmployee?.address?.currentAddress || "",
+            permanentAddress: editEmployee?.address?.permanentAddress || "",
+            city: editEmployee?.address?.city || "",
+            state: editEmployee?.address?.state || "",
+            country: editEmployee?.address?.country || "India",
+            pincode: editEmployee?.address?.pincode || editEmployee?.address?.zipCode || ""
         },
-        role: editEmployee?.role || "Employee", 
-        generateCredentials: true, 
+        role: editEmployee?.role || "Employee",
+        generateCredentials: true,
         sendWelcomeEmail: true
     });
+
+    const [stateSearch, setStateSearch] = useState("");
+    const [citySearch, setCitySearch] = useState("");
+    const [statesList, setStatesList] = useState<any[]>([]);
+    const [citiesList, setCitiesList] = useState<string[]>([]);
+    const [loadingStates, setLoadingStates] = useState(false);
+    const [loadingCities, setLoadingCities] = useState(false);
+    const [locationsCache, setLocationsCache] = useState<{ [key: string]: string[] }>({});
 
     const [templates, setTemplates] = useState<any[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
@@ -153,13 +149,14 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
-                const [locRes, shiftRes, compRes, tempRes] = await Promise.allSettled([
+                const [locRes, shiftRes, compRes, tempRes, statesRes] = await Promise.allSettled([
                     axiosInstance.get(API_ENDPOINTS.LOCATIONS),
                     axiosInstance.get(API_ENDPOINTS.SHIFTS),
-                    axiosInstance.get(API_ENDPOINTS.COMPLIANCE),
-                    axiosInstance.get(`${API_BASE_URL}/api/salary-templates`)
+                    axiosInstance.get('/api/statutory/config'), // Use new statutory config
+                    axiosInstance.get(API_ENDPOINTS.SALARY_STRUCTURES),
+                    axiosInstance.get(`${API_ENDPOINTS.LOCATIONS}/states?country=India`)
                 ]);
-                
+
                 if (locRes.status === 'fulfilled' && locRes.value.data.success) {
                     setLocations(locRes.value.data.data);
                 }
@@ -172,16 +169,22 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                     const def = temps.find((t: any) => t.isDefault);
                     if (def) setSelectedTemplate(def);
                 }
+                if (statesRes.status === 'fulfilled' && statesRes.value.data.success) {
+                    setStatesList(statesRes.value.data.data);
+                }
                 if (compRes.status === 'fulfilled' && compRes.value.data.success) {
                     const comp = compRes.value.data.data;
                     setComplianceSettings(comp);
-                    // Standardize defaults from compliance
+                    // Standardize defaults from global config
                     setFormData(prev => ({
                         ...prev,
-                        pfEnabled: comp.pf?.enabled ?? prev.pfEnabled,
-                        pfEmployeeContributionRate: comp.pf?.employeeContribution ?? prev.pfEmployeeContributionRate,
-                        pfEmployerContributionRate: comp.pf?.employerContribution ?? prev.pfEmployerContributionRate,
-                        esiEnabled: comp.esi?.enabled ?? prev.esiEnabled,
+                        pfEnabled: comp.epf?.epfEnabled ?? prev.pfEnabled,
+                        pfEmployeeContributionRate: comp.epf?.employeeContributionRate ?? prev.pfEmployeeContributionRate,
+                        esiEnabled: comp.esi?.esiEnabled ?? prev.esiEnabled,
+                        esiSalaryLimit: comp.esi?.esiSalaryLimit ?? prev.esiSalaryLimit,
+                        ptEnabled: comp.professionalTax?.enabled ?? prev.ptEnabled,
+                        lwfEnabled: comp.labourWelfareFund?.enabled ?? prev.lwfEnabled,
+                        statutoryBonusEnabled: comp.statutoryBonus?.enabled ?? prev.statutoryBonusEnabled
                     }));
                 }
             } catch (err) {
@@ -191,6 +194,40 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         fetchMetadata();
     }, []);
 
+    const fetchCitiesForState = async (stateName: string) => {
+        if (!stateName) return;
+
+        // Check cache
+        if (locationsCache[stateName]) {
+            setCitiesList(locationsCache[stateName]);
+            return;
+        }
+
+        setLoadingCities(true);
+        try {
+            const res = await axiosInstance.get(`${API_ENDPOINTS.LOCATIONS}/cities?country=India&state=${encodeURIComponent(stateName)}`);
+            if (res.data.success) {
+                const cities = Array.from(new Set(res.data.data as string[]));
+                setCitiesList(cities);
+                setLocationsCache(prev => ({ ...prev, [stateName]: cities }));
+            } else {
+                showNotify('warning', res.data.message || 'Unable to load cities for this state.');
+            }
+        } catch (err) {
+            console.error("Failed to fetch cities:", err);
+            showNotify('failure', "Network error while loading cities.");
+        } finally {
+            setLoadingCities(false);
+        }
+    };
+
+    // Prefetch cities if editing
+    useEffect(() => {
+        if (formData.address.state && citiesList.length === 0) {
+            fetchCitiesForState(formData.address.state);
+        }
+    }, [formData.address.state]);
+
     const fetchBankDetails = async (ifsc: string) => {
         if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
             setIfscVerified(false);
@@ -199,7 +236,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
 
         setIsFetchingIFSC(true);
         try {
-            const res = await axiosInstance.get(`${API_BASE_URL}/api/bank/ifsc/${ifsc}`);
+            const res = await axiosInstance.get(API_ENDPOINTS.BANK_IFSC(ifsc));
             if (res.data.success) {
                 setFormData(prev => ({
                     ...prev,
@@ -237,13 +274,13 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         { name: "Work Info", icon: <FiBriefcase /> },
         { name: "Reporting", icon: <FiClock /> },
         { name: "Payroll", icon: <FiDollarSign /> },
-        { name: "PF / ESI", icon: <FiPercent /> },
+        { name: "Statutory & Compliance", icon: <FiPercent /> },
         { name: "Bank Details", icon: <FiCreditCard /> },
         { name: "Documents", icon: <FiFileText /> },
         { name: "System", icon: <FiSettings /> },
         { name: "Review", icon: <FiCheckCircle /> }
     ].filter(s => {
-        if (currentUser?.role === "Manager" && (s.name === "Payroll" || s.name === "PF / ESI")) return false;
+        if (currentUser?.role === "Manager" && (s.name === "Payroll" || s.name === "Statutory & Compliance")) return false;
         if (isEdit && s.name === "System") return false;
         if (formData.role === "Admin" && s.name === "Reporting") return false;
         return true;
@@ -258,44 +295,74 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             delete newErrors[name];
             setErrors(newErrors);
         }
-
         if (name.includes('.')) {
             const parts = name.split('.');
             if (parts.length === 2) {
                 const [parent, child] = parts;
-                
+
                 // Prevent negative numbers for specific nested fields
                 if (type === 'number' && value !== "" && Number(value) < 0) return;
 
                 setFormData(prev => {
-                    let processedValue = type === 'number' ? (value === "" ? "" : Number(value)) : value;
-                    
+                    let processedValue = type === 'checkbox' ? checked : (type === 'number' ? (value === "" ? "" : Number(value)) : value);
+
                     // Auto-capitalize IFSC and PAN
                     if (name === "bankDetails.ifscCode" || name === "panNumber") {
                         processedValue = value.toUpperCase();
                     }
 
-                    const newData: any = {
+                    // Pincode validation (numeric only, max 6)
+                    if (name === "address.pincode") {
+                        if (value !== "" && !/^\d*$/.test(value)) return prev;
+                        if (value.length > 6) return prev;
+                        processedValue = value;
+                    }
+
+                    return {
                         ...prev,
                         [parent]: { ...((prev as any)[parent] || {}), [child]: processedValue }
                     };
-                    
-                    // Special case: reset city when state changes
-                    if (name === "address.state") {
-                        newData.address.city = "";
-                    }
-                    
-                    return newData;
                 });
+            } else if (parts.length === 3) {
+                const [grandparent, parent, child] = parts;
+                setFormData(prev => ({
+                    ...prev,
+                    [grandparent]: {
+                        ...((prev as any)[grandparent] || {}),
+                        [parent]: {
+                            ...(((prev as any)[grandparent] || {})[parent] || {}),
+                            [child]: type === 'checkbox' ? checked : value
+                        }
+                    }
+                }));
             }
         } else {
             // Prevent negative numbers for specific root fields
             if (type === 'number' && value !== "" && Number(value) < 0) return;
 
-            setFormData(prev => ({
-                ...prev,
-                [name]: type === 'checkbox' ? checked : (type === 'number' ? (value === "" ? "" : Number(value)) : value)
-            }));
+            setFormData(prev => {
+                let processedValue = type === 'checkbox' ? checked : (type === 'number' ? (value === "" ? "" : Number(value)) : value);
+
+                // Auto-capitalize PAN
+                if (name === "panNumber") {
+                    processedValue = value.toUpperCase();
+                }
+
+                // Phone validation (numeric only)
+                if (name === "phone") {
+                    if (value !== "" && !/^\d*$/.test(value)) return prev;
+                }
+
+                // Statutory numeric validations
+                if (name === "uan" || name === "esiNumber") {
+                    if (value !== "" && !/^\d*$/.test(value)) return prev;
+                }
+
+                return {
+                    ...prev,
+                    [name]: processedValue
+                };
+            });
         }
     };
 
@@ -329,8 +396,8 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             if (!formData.lastName) { isValid = false; newErrors.lastName = "Last Name is required"; missingFields.push("Last Name"); }
             if (!formData.email) { isValid = false; newErrors.email = "Email is required"; missingFields.push("Email"); }
             if (!formData.employeeId) { isValid = false; newErrors.employeeId = "Employee ID is required"; missingFields.push("Employee ID"); }
-            if (!formData.phone) { 
-                isValid = false; newErrors.phone = "Phone is required"; missingFields.push("Phone"); 
+            if (!formData.phone) {
+                isValid = false; newErrors.phone = "Phone is required"; missingFields.push("Phone");
             } else if (!/^\d{10,12}$/.test(formData.phone)) {
                 isValid = false; newErrors.phone = "Phone must be 10-12 numbers only"; missingFields.push("Invalid Phone Format");
             }
@@ -342,16 +409,16 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 }
             }
         } else if (currentStepName === "Work Info") {
-            if (!formData.department) { isValid = false; newErrors.department = "Department is required"; missingFields.push("Department"); }
+            if (!formData.department || (Array.isArray(formData.department) && formData.department.length === 0)) { isValid = false; newErrors.department = "At least one department is required"; missingFields.push("Department"); }
             if (!formData.dateOfJoining) { isValid = false; newErrors.dateOfJoining = "Join Date is required"; missingFields.push("Join Date"); }
-            if (formData.address.zipCode && !/^\d{6}$/.test(formData.address.zipCode)) {
-                isValid = false; newErrors.zipCode = "Zip Code must be exactly 6 digits"; missingFields.push("Invalid Zip Code");
+            if (formData.address.pincode && !/^\d{6}$/.test(formData.address.pincode)) {
+                isValid = false; newErrors.pincode = "Pincode must be exactly 6 digits"; missingFields.push("Invalid Pincode");
             }
         } else if (currentStepName === "Reporting") {
             // No strict validations for reporting yet
         } else if (currentStepName === "Payroll") {
             if (!formData.ctc) { isValid = false; newErrors.ctc = "Annual CTC is required"; missingFields.push("Annual CTC"); }
-        } else if (currentStepName === "PF / ESI") {
+        } else if (currentStepName === "Statutory & Compliance") {
             if (formData.pfEnabled) {
                 if (!formData.uan) { isValid = false; newErrors.uan = "UAN is required when PF is enabled"; missingFields.push("UAN"); }
                 else if (!/^\d{12}$/.test(formData.uan)) {
@@ -364,6 +431,12 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             }
             if (formData.esiEnabled) {
                 if (!formData.esiNumber) { isValid = false; newErrors.esiNumber = "ESI Number is required when ESI is enabled"; missingFields.push("ESI Number"); }
+            }
+            if (formData.ptEnabled) {
+                if (!formData.ptNumber) { isValid = false; newErrors.ptNumber = "PT Number is required when PT is enabled"; missingFields.push("PT Number"); }
+            }
+            if (formData.lwfEnabled) {
+                if (!formData.lwfNumber) { isValid = false; newErrors.lwfNumber = "LWF Number is required when LWF is enabled"; missingFields.push("LWF Number"); }
             }
         } else if (currentStepName === "Bank Details") {
             if (!formData.bankDetails.accountHolderName) { isValid = false; newErrors["bankDetails.accountHolderName"] = "Account Holder Name is required"; missingFields.push("Account Holder Name"); }
@@ -397,8 +470,64 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     const handleSubmit = async () => {
         setLoading(true);
         try {
-            // Sanitize data: ObjectIds cannot be empty strings
-            const sanitizedData = { ...formData };
+            const statutory = {
+                pf: {
+                    epfEnabled: formData.pfEnabled,
+                    uanNumber: formData.uan,
+                    epfNumber: formData.pfNumber,
+                    pfJoiningDate: formData.pfJoiningDate,
+                    employeeContributionRate: formData.pfEmployeeContributionRate,
+                    employerContributionRate: formData.pfEmployerContributionRate,
+                    contributionPreferences: {
+                        employerPFContribution: formData.pfContributionPreferences.employerPF,
+                        edliContribution: formData.pfContributionPreferences.edli,
+                        adminCharges: formData.pfContributionPreferences.adminCharges
+                    },
+                    allowEmployeeLevelOverride: formData.pfOverrideEnabled,
+                    proRateRestrictedPFWage: formData.pfProRateRestrictedWage,
+                    considerSalaryComponentsOnLOP: formData.pfLOPBased,
+                    eligibleForABRYScheme: formData.pfABRYEligible
+                },
+                esi: {
+                    esiEnabled: formData.esiEnabled,
+                    esiNumber: formData.esiNumber,
+                    esiJoiningDate: formData.esiJoiningDate,
+                    dispensary: formData.esiDispensary,
+                    esiSalaryLimit: formData.esiSalaryLimit,
+                    esiDeductionCycle: formData.esiDeductionCycle
+                },
+                pt: {
+                    ptEnabled: formData.ptEnabled,
+                    ptRegistrationNumber: formData.ptNumber,
+                    ptDeductionCycle: formData.ptDeductionCycle
+                },
+                lwf: {
+                    lwfEnabled: formData.lwfEnabled,
+                    lwfAccountNumber: formData.lwfNumber,
+                    lwfDeductionCycle: formData.lwfDeductionCycle
+                },
+                statutoryBonus: {
+                    statutoryBonusEnabled: formData.statutoryBonusEnabled,
+                    bonusAmount: formData.statutoryBonusAmount
+                }
+            };
+
+            const sanitizedData = {
+                ...formData,
+                department: Array.isArray(formData.department) ? formData.department.join(', ') : formData.department,
+                statutory // Inject structured statutory data
+            };
+
+            // Remove flat fields that were moved to statutory (optional but cleaner)
+            const fieldsToRemove = [
+                'pfEnabled', 'uan', 'pfNumber', 'pfJoiningDate', 'pfEmployeeContributionRate', 'pfEmployerContributionRate',
+                'pfContributionPreferences', 'pfOverrideEnabled', 'pfProRateRestrictedWage', 'pfLOPBased', 'pfABRYEligible',
+                'esiEnabled', 'esiNumber', 'esiJoiningDate', 'esiDispensary', 'esiSalaryLimit', 'esiDeductionCycle',
+                'ptEnabled', 'ptNumber', 'ptDeductionCycle', 'lwfEnabled', 'lwfNumber', 'lwfDeductionCycle',
+                'statutoryBonusEnabled', 'statutoryBonusAmount'
+            ];
+            fieldsToRemove.forEach(f => delete (sanitizedData as any)[f]);
+
             if (!sanitizedData.reportingManager) (sanitizedData as any).reportingManager = null;
             if (!sanitizedData.shift) (sanitizedData as any).shift = null;
 
@@ -417,8 +546,8 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         }
     };
 
-    const availableManagers = formData.department 
-        ? employees.filter(e => e.department === formData.department && ["Admin", "HR", "Manager"].includes(e.role))
+    const availableManagers = Array.isArray(formData.department) && formData.department.length > 0
+        ? employees.filter(e => formData.department.includes(e.department) && ["Admin", "HR", "Manager"].includes(e.role))
         : employees.filter(e => ["Admin", "HR", "Manager"].includes(e.role));
 
     const renderStepContent = () => {
@@ -475,14 +604,14 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                     <option value="Other">Other</option>
                                 </select>
                             </div>
-                             <div>
+                            <div>
                                 <label className="form-label">Date of Birth</label>
-                                <input 
-                                    type="date" 
-                                    name="dateOfBirth" 
-                                    value={formData.dateOfBirth} 
-                                    onChange={handleInputChange} 
-                                    className="form-input" 
+                                <input
+                                    type="date"
+                                    name="dateOfBirth"
+                                    value={formData.dateOfBirth}
+                                    onChange={handleInputChange}
+                                    className="form-input"
                                     max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                                 />
                                 {errors.dateOfBirth && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.dateOfBirth}</div>}
@@ -506,11 +635,37 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                         <h3 style={{ marginBottom: "20px", color: "var(--primary)" }}>Work & Address Info</h3>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
                             <div>
-                                <label className="form-label">Department *</label>
-                                <select name="department" value={formData.department} onChange={handleInputChange} className="form-input">
-                                    <option value="">Select</option>
-                                    {departmentsList.map((d: any) => <option key={d._id} value={d.name}>{d.name}</option>)}
-                                </select>
+                                <label className="form-label">Department * (Select Multiple if applicable)</label>
+                                <div style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 1fr",
+                                    gap: "10px",
+                                    padding: "15px",
+                                    background: "var(--bg-secondary)",
+                                    borderRadius: "8px",
+                                    border: errors.department ? "1px solid red" : "1px solid var(--border)",
+                                    maxHeight: "200px",
+                                    overflowY: "auto"
+                                }}>
+                                    {departmentsList.map((d: any) => (
+                                        <div key={d._id} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                            <input
+                                                type="checkbox"
+                                                id={`dept-${d._id}`}
+                                                checked={Array.isArray(formData.department) && formData.department.includes(d.name)}
+                                                onChange={(e) => {
+                                                    const currentDepts = Array.isArray(formData.department) ? [...formData.department] : [];
+                                                    if (e.target.checked) {
+                                                        setFormData(prev => ({ ...prev, department: [...currentDepts, d.name] }));
+                                                    } else {
+                                                        setFormData(prev => ({ ...prev, department: currentDepts.filter(name => name !== d.name) }));
+                                                    }
+                                                }}
+                                            />
+                                            <label htmlFor={`dept-${d._id}`} style={{ fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name}</label>
+                                        </div>
+                                    ))}
+                                </div>
                                 {errors.department && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.department}</div>}
                             </div>
                             <div><label className="form-label">Designation</label><input name="designation" value={formData.designation} onChange={handleInputChange} className="form-input" /></div>
@@ -535,27 +690,52 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 <textarea name="address.currentAddress" value={formData.address.currentAddress} onChange={handleInputChange} className="form-input" style={{ height: "80px" }} />
                             </div>
                             <div>
-                                <label className="form-label">State</label>
-                                <select name="address.state" value={formData.address.state} onChange={handleInputChange} className="form-input">
-                                    <option value="">Select State</option>
-                                    {Object.keys(INDIAN_STATES_CITIES).map(state => (
-                                        <option key={state} value={state}>{state}</option>
-                                    ))}
-                                </select>
+                                <label className="form-label">State {loadingStates && "(Loading...)"}</label>
+                                <div style={{ position: "relative" }}>
+                                    <select
+                                        name="address.state"
+                                        value={formData.address.state}
+                                        onChange={(e) => {
+                                            handleInputChange(e);
+                                            fetchCitiesForState(e.target.value);
+                                        }}
+                                        className="form-input"
+                                        style={{ marginTop: "5px" }}
+                                    >
+                                        <option value="">Select State</option>
+                                        {statesList
+                                            .map(state => (
+                                                <option key={state.state_code || state.name} value={state.name}>{state.name}</option>
+                                            ))}
+                                    </select>
+                                </div>
                             </div>
                             <div>
-                                <label className="form-label">City</label>
-                                <select name="address.city" value={formData.address.city} onChange={handleInputChange} className="form-input" disabled={!formData.address.state}>
-                                    <option value="">Select City</option>
-                                    {(INDIAN_STATES_CITIES[formData.address.state] || []).map(city => (
-                                        <option key={city} value={city}>{city}</option>
-                                    ))}
-                                </select>
+                                <label className="form-label">District {loadingCities && "(Loading...)"}</label>
+                                <div style={{ position: "relative" }}>
+                                    <select
+                                        name="address.city"
+                                        value={formData.address.city}
+                                        onChange={handleInputChange}
+                                        className="form-input"
+                                        style={{ marginTop: "5px" }}
+                                        disabled={!formData.address.state || loadingCities}
+                                    >
+                                        <option value="">{loadingCities ? "Loading districts..." : "Select District"}</option>
+                                        {citiesList
+                                            .map(city => (
+                                                <option key={city} value={city}>{city}</option>
+                                            ))}
+                                        {!loadingCities && citiesList.length === 0 && formData.address.state && (
+                                            <option value="" disabled>No districts found</option>
+                                        )}
+                                    </select>
+                                </div>
                             </div>
                             <div>
-                                <label className="form-label">Zip Code</label>
-                                <input name="address.zipCode" value={formData.address.zipCode} onChange={handleInputChange} className="form-input" placeholder="600001" />
-                                {errors.zipCode && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.zipCode}</div>}
+                                <label className="form-label">Pincode *</label>
+                                <input name="address.pincode" value={formData.address.pincode} onChange={handleInputChange} className="form-input" placeholder="600001" maxLength={6} />
+                                {errors.pincode && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.pincode}</div>}
                             </div>
                             <div><label className="form-label">Date of Joining *</label><input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleInputChange} className="form-input" /></div>
                         </div>
@@ -585,7 +765,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                     </div>
                 );
 
-             case "Payroll":
+            case "Payroll":
                 const t = selectedTemplate || { basicPercent: 40, hraPercent: 20, daPercent: 10, specialAllowancePercent: 30 };
                 const monthlyCTC = Math.round(Number(formData.ctc) / 12);
                 const currentSum = Number(formData.salary.basic) + Number(formData.salary.hra) + Number(formData.salary.da) + Number(formData.salary.specialAllowance);
@@ -602,8 +782,8 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                             </div>
                             <div style={{ textAlign: "right" }}>
                                 <label className="form-label" style={{ fontSize: "11px" }}>Salary Template</label>
-                                <select 
-                                    className="form-input" 
+                                <select
+                                    className="form-input"
                                     style={{ width: "200px", padding: "4px 8px", height: "32px" }}
                                     value={selectedTemplate?._id || ""}
                                     onChange={(e) => {
@@ -621,25 +801,25 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                             <div>
                                 <label className="form-label">Annual CTC (INR) *</label>
                                 <div style={{ display: "flex", gap: "10px" }}>
-                                    <input 
-                                        type="number" 
-                                        name="ctc" 
-                                        value={formData.ctc} 
-                                        onChange={handleInputChange} 
+                                    <input
+                                        type="number"
+                                        name="ctc"
+                                        value={formData.ctc}
+                                        onChange={handleInputChange}
                                         onBlur={() => autoCalculateSalary(formData.ctc)}
-                                        className="form-input" 
+                                        className="form-input"
                                     />
                                     <button onClick={() => autoCalculateSalary(formData.ctc)} className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }}>Auto Calculate</button>
                                 </div>
                                 <div style={{ fontSize: "12px", marginTop: "4px", color: "var(--text-muted)" }}>Monthly CTC: ₹{monthlyCTC.toLocaleString()}</div>
                             </div>
-                            
+
                             <div style={{ gridColumn: "1/-1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", padding: "20px", background: "var(--bg-secondary)", borderRadius: "12px", border: isMismatch ? "1px solid #FFCDD2" : "1px solid var(--border)" }}>
                                 <div><label className="form-label">Basic ({t.basicPercent}%)</label><input type="number" name="salary.basic" value={formData.salary.basic} onChange={handleInputChange} className="form-input" /></div>
                                 <div><label className="form-label">HRA ({t.hraPercent}%)</label><input type="number" name="salary.hra" value={formData.salary.hra} onChange={handleInputChange} className="form-input" /></div>
                                 <div><label className="form-label">DA ({t.daPercent}%)</label><input type="number" name="salary.da" value={formData.salary.da} onChange={handleInputChange} className="form-input" /></div>
                                 <div><label className="form-label">Special Allowance ({t.specialAllowancePercent}%)</label><input type="number" name="salary.specialAllowance" value={formData.salary.specialAllowance} onChange={handleInputChange} className="form-input" /></div>
-                                
+
                                 {isMismatch && (
                                     <div style={{ gridColumn: "1/-1", color: "#D32F2F", fontSize: "12px", marginTop: "10px", padding: "8px", background: "#FFEBEE", borderRadius: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
                                         ⚠️ Components total (₹{currentSum.toLocaleString()}) does not match Monthly CTC (₹{monthlyCTC.toLocaleString()})
@@ -650,59 +830,177 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                     </div>
                 );
 
-            case "PF / ESI":
+            case "Statutory & Compliance":
                 return (
                     <div className="card animate-in" style={{ padding: "30px" }}>
-                        <div style={{ display: "flex", gap: "40px" }}>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px" }}>
-                                    <h4 style={{ color: "var(--primary)" }}>Provident Fund (PF)</h4>
-                                    <input type="checkbox" name="pfEnabled" checked={formData.pfEnabled} onChange={handleInputChange} />
+                        <h3 style={{ marginBottom: "25px", color: "var(--primary)" }}>Statutory & Compliance Details</h3>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+                            {/* Provident Fund (PF) Section */}
+                            <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", background: "var(--bg-card)", opacity: formData.pfEnabled ? 1 : 0.7, transition: "0.3s" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.pfEnabled ? "20px" : "0", borderBottom: formData.pfEnabled ? "1px solid var(--border)" : "none", paddingBottom: formData.pfEnabled ? "10px" : "0" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <h4 style={{ color: formData.pfEnabled ? "var(--primary)" : "var(--text-muted)", margin: 0 }}>Provident Fund (PF)</h4>
+                                        {!formData.pfEnabled && <span style={{ fontSize: "10px", background: "var(--bg-secondary)", padding: "2px 8px", borderRadius: "10px", color: "var(--text-muted)" }}>Disabled</span>}
+                                    </div>
+                                    <input type="checkbox" name="pfEnabled" checked={formData.pfEnabled} onChange={handleInputChange} style={{ width: "20px", height: "20px", cursor: "pointer" }} />
                                 </div>
                                 {formData.pfEnabled && (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                                        <div>
-                                            <input placeholder="UAN Number (12 digits) *" name="uan" value={formData.uan} onChange={handleInputChange} className="form-input" />
-                                            {errors.uan && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.uan}</div>}
-                                        </div>
-                                        <div>
-                                            <input placeholder="PF Number *" name="pfNumber" value={formData.pfNumber} onChange={handleInputChange} className="form-input" />
-                                            {errors.pfNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.pfNumber}</div>}
-                                        </div>
-                                        <input type="date" name="pfJoiningDate" value={formData.pfJoiningDate} onChange={handleInputChange} className="form-input" />
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
                                             <div>
-                                                <label style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Employee PF Rate (%)</label>
-                                                <input type="number" name="pfEmployeeContributionRate" value={formData.pfEmployeeContributionRate} onChange={handleInputChange} className="form-input" />
+                                                <label className="form-label">UAN Number (12 digits) *</label>
+                                                <input placeholder="123456789012" name="uan" value={formData.uan} onChange={handleInputChange} className="form-input" maxLength={12} />
+                                                {errors.uan && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.uan}</div>}
                                             </div>
                                             <div>
-                                                <label style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Employer PF Rate (%)</label>
-                                                <input type="number" name="pfEmployerContributionRate" value={formData.pfEmployerContributionRate} onChange={handleInputChange} className="form-input" />
+                                                <label className="form-label">PF Number *</label>
+                                                <input placeholder="MH/BAN/12345/123" name="pfNumber" value={formData.pfNumber} onChange={handleInputChange} className="form-input" />
+                                                {errors.pfNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.pfNumber}</div>}
                                             </div>
+                                            <div>
+                                                <label className="form-label">PF Joining Date</label>
+                                                <input type="date" name="pfJoiningDate" value={formData.pfJoiningDate} onChange={handleInputChange} className="form-input" />
+                                            </div>
+                                        </div>
+
+                                        <div style={{ background: "var(--bg-secondary)", padding: "15px", borderRadius: "8px" }}>
+                                            <h5 style={{ fontSize: "13px", fontWeight: 600, marginBottom: "15px" }}>Contribution Preferences</h5>
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                                                <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
+                                                    <input type="checkbox" name="pfContributionPreferences.employerPF" checked={formData.pfContributionPreferences.employerPF} onChange={handleInputChange} />
+                                                    Include Employer's PF contribution in CTC
+                                                </label>
+                                                <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
+                                                    <input type="checkbox" name="pfContributionPreferences.edli" checked={formData.pfContributionPreferences.edli} onChange={handleInputChange} />
+                                                    Include EDLI contribution in CTC
+                                                </label>
+                                                <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
+                                                    <input type="checkbox" name="pfContributionPreferences.adminCharges" checked={formData.pfContributionPreferences.adminCharges} onChange={handleInputChange} />
+                                                    Include Admin charges in CTC
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: "flex", gap: "20px" }}>
+                                            <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
+                                                <input type="checkbox" name="pfOverrideEnabled" checked={formData.pfOverrideEnabled} onChange={handleInputChange} />
+                                                Allow Employee level Override
+                                            </label>
+                                            <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
+                                                <input type="checkbox" name="pfProRateRestrictedWage" checked={formData.pfProRateRestrictedWage} onChange={handleInputChange} />
+                                                Pro-rate Restricted PF Wage
+                                            </label>
+                                            <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
+                                                <input type="checkbox" name="pfLOPBased" checked={formData.pfLOPBased} onChange={handleInputChange} />
+                                                Consider salary components based on LOP
+                                            </label>
+                                            <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
+                                                <input type="checkbox" name="pfABRYEligible" checked={formData.pfABRYEligible} onChange={handleInputChange} />
+                                                Eligible for ABRY Scheme
+                                            </label>
                                         </div>
                                     </div>
                                 )}
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px" }}>
-                                    <h4 style={{ color: "var(--primary)" }}>ESI</h4>
-                                    <input type="checkbox" name="esiEnabled" checked={formData.esiEnabled} onChange={handleInputChange} />
+
+                            {/* ESI Section */}
+                            <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", background: "var(--bg-card)", opacity: formData.esiEnabled ? 1 : 0.7, transition: "0.3s" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.esiEnabled ? "20px" : "0", borderBottom: formData.esiEnabled ? "1px solid var(--border)" : "none", paddingBottom: formData.esiEnabled ? "10px" : "0" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <h4 style={{ color: formData.esiEnabled ? "var(--primary)" : "var(--text-muted)", margin: 0 }}>Employees' State Insurance (ESI)</h4>
+                                        {!formData.esiEnabled && <span style={{ fontSize: "10px", background: "var(--bg-secondary)", padding: "2px 8px", borderRadius: "10px", color: "var(--text-muted)" }}>Disabled</span>}
+                                    </div>
+                                    <input type="checkbox" name="esiEnabled" checked={formData.esiEnabled} onChange={handleInputChange} style={{ width: "20px", height: "20px", cursor: "pointer" }} />
                                 </div>
                                 {formData.esiEnabled && (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                                        <input placeholder="ESI Number *" name="esiNumber" value={formData.esiNumber} onChange={handleInputChange} className="form-input" />
-                                        {errors.esiNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.esiNumber}</div>}
-                                        <input type="date" name="esiJoiningDate" value={formData.esiJoiningDate} onChange={handleInputChange} className="form-input" />
-                                        <input placeholder="ESI Dispensary" name="esiDispensary" value={formData.esiDispensary} onChange={handleInputChange} className="form-input" />
-                                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                                            <label style={{ fontSize: "11px", color: "var(--text-secondary)" }}>ESI Salary Limit (INR)</label>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                                        <div>
+                                            <label className="form-label">ESI Number *</label>
+                                            <input placeholder="ESI Number *" name="esiNumber" value={formData.esiNumber} onChange={handleInputChange} className="form-input" />
+                                            {errors.esiNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.esiNumber}</div>}
+                                        </div>
+                                        <div>
+                                            <label className="form-label">ESI Joining Date</label>
+                                            <input type="date" name="esiJoiningDate" value={formData.esiJoiningDate} onChange={handleInputChange} className="form-input" />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">ESI Deduction Cycle</label>
+                                            <select name="esiDeductionCycle" value={formData.esiDeductionCycle} onChange={handleInputChange} className="form-input">
+                                                <option value="Monthly">Monthly</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="form-label">ESI Salary Limit (INR)</label>
                                             <input type="number" name="esiSalaryLimit" value={formData.esiSalaryLimit} onChange={handleInputChange} className="form-input" placeholder="21000" />
                                         </div>
-                                        <div style={{ fontSize: "11px", color: "var(--text-muted)", padding: "5px", background: "var(--bg-secondary)", borderRadius: "4px" }}>
+                                        <div style={{ gridColumn: "1 / -1", fontSize: "11px", color: "var(--text-muted)", padding: "8px", background: "var(--bg-secondary)", borderRadius: "4px" }}>
                                             Rates: {complianceSettings?.esi?.employeeContribution || 0.75}% (Employee) / {complianceSettings?.esi?.employerContribution || 3.25}% (Employer)
                                         </div>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* PT, LWF, Bonus - 3 Column Grid */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px" }}>
+                                {/* Professional Tax */}
+                                <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "15px", background: "var(--bg-card)", opacity: formData.ptEnabled ? 1 : 0.7, transition: "0.3s" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.ptEnabled ? "15px" : "0" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                            <h5 style={{ margin: 0, fontSize: "14px", color: formData.ptEnabled ? "var(--text-primary)" : "var(--text-muted)" }}>Professional Tax</h5>
+                                            {!formData.ptEnabled && <span style={{ fontSize: "9px", background: "var(--bg-secondary)", padding: "1px 6px", borderRadius: "10px", color: "var(--text-muted)" }}>Off</span>}
+                                        </div>
+                                        <input type="checkbox" name="ptEnabled" checked={formData.ptEnabled} onChange={handleInputChange} style={{ cursor: "pointer" }} />
+                                    </div>
+                                    {formData.ptEnabled && (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                            <input placeholder="PT Registration No." name="ptNumber" value={formData.ptNumber} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }} />
+                                            <select name="ptDeductionCycle" value={formData.ptDeductionCycle} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }}>
+                                                <option value="Monthly">Monthly</option>
+                                                <option value="Half Yearly">Half Yearly</option>
+                                                <option value="Yearly">Yearly</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* LWF */}
+                                <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "15px", background: "var(--bg-card)", opacity: formData.lwfEnabled ? 1 : 0.7, transition: "0.3s" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.lwfEnabled ? "15px" : "0" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                            <h5 style={{ margin: 0, fontSize: "14px", color: formData.lwfEnabled ? "var(--text-primary)" : "var(--text-muted)" }}>Labour Welfare Fund</h5>
+                                            {!formData.lwfEnabled && <span style={{ fontSize: "9px", background: "var(--bg-secondary)", padding: "1px 6px", borderRadius: "10px", color: "var(--text-muted)" }}>Off</span>}
+                                        </div>
+                                        <input type="checkbox" name="lwfEnabled" checked={formData.lwfEnabled} onChange={handleInputChange} style={{ cursor: "pointer" }} />
+                                    </div>
+                                    {formData.lwfEnabled && (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                            <input placeholder="LWF Account No." name="lwfNumber" value={formData.lwfNumber} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }} />
+                                            <select name="lwfDeductionCycle" value={formData.lwfDeductionCycle} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }}>
+                                                <option value="Monthly">Monthly</option>
+                                                <option value="Half Yearly">Half Yearly</option>
+                                                <option value="Yearly">Yearly</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Statutory Bonus */}
+                                <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "15px", background: "var(--bg-card)", opacity: formData.statutoryBonusEnabled ? 1 : 0.7, transition: "0.3s" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.statutoryBonusEnabled ? "15px" : "0" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                            <h5 style={{ margin: 0, fontSize: "14px", color: formData.statutoryBonusEnabled ? "var(--text-primary)" : "var(--text-muted)" }}>Statutory Bonus</h5>
+                                            {!formData.statutoryBonusEnabled && <span style={{ fontSize: "9px", background: "var(--bg-secondary)", padding: "1px 6px", borderRadius: "10px", color: "var(--text-muted)" }}>Off</span>}
+                                        </div>
+                                        <input type="checkbox" name="statutoryBonusEnabled" checked={formData.statutoryBonusEnabled} onChange={handleInputChange} style={{ cursor: "pointer" }} />
+                                    </div>
+                                    {formData.statutoryBonusEnabled && (
+                                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                            <span style={{ fontSize: "14px" }}>₹</span>
+                                            <input type="number" name="statutoryBonusAmount" value={formData.statutoryBonusAmount} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }} placeholder="Amount" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -718,17 +1016,17 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 <input name="bankDetails.accountHolderName" value={formData.bankDetails.accountHolderName} onChange={handleInputChange} className="form-input" placeholder="Name as per bank records" />
                                 {errors["bankDetails.accountHolderName"] && <div className="error-text">{errors["bankDetails.accountHolderName"]}</div>}
                             </div>
-                            
+
                             <div>
                                 <label className="form-label">IFSC Code *</label>
                                 <div style={{ position: "relative" }}>
-                                    <input 
-                                        name="bankDetails.ifscCode" 
-                                        value={formData.bankDetails.ifscCode} 
-                                        onChange={handleInputChange} 
+                                    <input
+                                        name="bankDetails.ifscCode"
+                                        value={formData.bankDetails.ifscCode}
+                                        onChange={handleInputChange}
                                         onBlur={(e) => fetchBankDetails(e.target.value)}
-                                        className="form-input" 
-                                        placeholder="e.g., HDFC0001234" 
+                                        className="form-input"
+                                        placeholder="e.g., HDFC0001234"
                                     />
                                     <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>
                                         {isFetchingIFSC ? (
@@ -757,7 +1055,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 <input name="bankDetails.accountNumber" value={formData.bankDetails.accountNumber} onChange={handleInputChange} className="form-input" placeholder="9-18 digits" />
                                 {errors["bankDetails.accountNumber"] && <div className="error-text">{errors["bankDetails.accountNumber"]}</div>}
                             </div>
-                            
+
                             <div>
                                 <label className="form-label">Confirm Account Number *</label>
                                 <input name="bankDetails.confirmAccountNumber" value={formData.bankDetails.confirmAccountNumber} onChange={handleInputChange} className="form-input" placeholder="Repeat account number" />
@@ -771,8 +1069,8 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
 
                             <div style={{ gridColumn: "1 / -1" }}>
                                 <label className="form-label">Cancelled Cheque / Passbook Copy</label>
-                                <input 
-                                    type="file" 
+                                <input
+                                    type="file"
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
@@ -783,8 +1081,8 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                                 bankDetails: { ...prev.bankDetails, cancelledCheque: file.name }
                                             }));
                                         }
-                                    }} 
-                                    className="form-input" 
+                                    }}
+                                    className="form-input"
                                     accept="image/*,.pdf"
                                 />
                                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "5px" }}>Upload a clear photo or PDF for verification.</div>
@@ -802,7 +1100,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                     <div className="card animate-in" style={{ padding: "30px" }}>
                         <h3 style={{ marginBottom: "20px", color: "var(--primary)" }}>Identity Documents</h3>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                             <div>
+                            <div>
                                 <label className="form-label">PAN Number *</label>
                                 <input name="panNumber" value={formData.panNumber} onChange={handleInputChange} className="form-input" placeholder="ABCDE1234F" maxLength={10} />
                                 {errors.panNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.panNumber}</div>}
@@ -846,7 +1144,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                     <div className="animate-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                         <div className="card" style={{ padding: "30px" }}>
                             <h3 style={{ color: "var(--primary)", marginBottom: "20px" }}>Summary Review</h3>
-                            
+
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px" }}>
                                 {/* Personal & Role */}
                                 <div>
@@ -904,21 +1202,22 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                     </div>
                                 </div>
 
-                                {/* Statutory */}
+                                { /* Statutory */}
                                 <div>
                                     <div style={{ fontWeight: 700, borderBottom: "1px solid var(--border)", paddingBottom: "5px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
                                         <FiPercent size={16} /> Statutory Details
                                     </div>
                                     <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                                        <div><strong>PF Status:</strong> {formData.pfEnabled ? "Enabled" : "Disabled"}</div>
+                                        <div><strong>PF:</strong> {formData.pfEnabled ? `Enabled (${formData.uan})` : "Disabled"}</div>
                                         {formData.pfEnabled && (
-                                            <>
-                                                <div><strong>UAN:</strong> {formData.uan}</div>
-                                                <div><strong>PF No:</strong> {formData.pfNumber}</div>
-                                            </>
+                                            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginLeft: "10px" }}>
+                                                • LOP Based: {formData.pfLOPBased ? "Yes" : "No"} | ABRY: {formData.pfABRYEligible ? "Yes" : "No"}
+                                            </div>
                                         )}
-                                        <div><strong>ESI Status:</strong> {formData.esiEnabled ? "Enabled" : "Disabled"}</div>
-                                        {formData.esiEnabled && <div><strong>ESI No:</strong> {formData.esiNumber}</div>}
+                                        <div><strong>ESI:</strong> {formData.esiEnabled ? `Enabled (${formData.esiNumber})` : "Disabled"}</div>
+                                        <div><strong>PT:</strong> {formData.ptEnabled ? `Enabled (${formData.ptNumber}) - ${formData.ptDeductionCycle}` : "Disabled"}</div>
+                                        <div><strong>LWF:</strong> {formData.lwfEnabled ? `Enabled (${formData.lwfNumber}) - ${formData.lwfDeductionCycle}` : "Disabled"}</div>
+                                        <div><strong>Bonus:</strong> {formData.statutoryBonusEnabled ? `₹${formData.statutoryBonusAmount}` : "Disabled"}</div>
                                     </div>
                                 </div>
 
@@ -928,7 +1227,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                         <FiFileText size={16} /> Documents
                                     </div>
                                     <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                                         <div><strong>PAN:</strong> {formData.panNumber || "Not Provided"}</div>
+                                        <div><strong>PAN:</strong> {formData.panNumber || "Not Provided"}</div>
                                         <div><strong>Aadhaar:</strong> {formData.aadhaar || "Not Provided"}</div>
                                         <div><strong>Cheque Copy:</strong> {formData.bankDetails.cancelledCheque || "Not Uploaded"}</div>
                                     </div>
@@ -942,7 +1241,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                     <div style={{ fontSize: "14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
                                         <div>
                                             <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: "2px" }}>Current Address</div>
-                                            <div>{formData.address.currentAddress}, {formData.address.city}, {formData.address.state} - {formData.address.zipCode}</div>
+                                            <div>{formData.address.currentAddress}, {formData.address.city}, {formData.address.state} - {formData.address.pincode}</div>
                                         </div>
                                         <div>
                                             <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: "2px" }}>Permanent Address</div>

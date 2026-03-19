@@ -12,11 +12,11 @@ interface EmployeeDetailsPageProps {
 
 const DetailSection = ({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) => (
     <div className="card" style={{ marginBottom: "24px", overflow: "hidden" }}>
-        <div style={{ 
-            padding: "16px 24px", 
-            borderBottom: "1px solid var(--border)", 
-            display: "flex", 
-            alignItems: "center", 
+        <div style={{
+            padding: "16px 24px",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
             gap: "12px",
             background: "var(--bg-secondary)"
         }}>
@@ -59,7 +59,7 @@ export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentU
     if (!employee) return null;
 
     const isVisible = (section: string) => {
-        if (currentUser?.role === "Manager" && (section === "Payroll" || section === "PF / ESI")) return false;
+        if (currentUser?.role === "Manager" && (section === "Payroll" || section === "Statutory & Compliance")) return false;
         return true;
     };
 
@@ -134,7 +134,7 @@ export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentU
                         </DetailSection>
                     )}
 
-                    {isVisible("PF / ESI") && (
+                    {isVisible("Statutory & Compliance") && (
                         <DetailSection title="Compliance (PF & ESI)" icon={<FiCheckCircle />}>
                             <DetailField label="PF Enabled" value={employee.pfEnabled ? "Yes" : "No"} />
                             <DetailField label="UAN Number" value={employee.uan} />
@@ -218,13 +218,13 @@ export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentU
                 <div>
                     <DetailSection title="Reporting & Shift" icon={<FiClock />}>
                         <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: "20px" }}>
-                            <DetailField 
-                                label="Reporting Manager" 
+                            <DetailField
+                                label="Reporting Manager"
                                 value={employee.reportingManager ? (
-                                    typeof employee.reportingManager === 'object' ? 
-                                    `${employee.reportingManager.firstName} ${employee.reportingManager.lastName}` : 
-                                    employee.reportingManager
-                                ) : "N/A"} 
+                                    typeof employee.reportingManager === 'object' ?
+                                        `${employee.reportingManager.firstName} ${employee.reportingManager.lastName}` :
+                                        employee.reportingManager
+                                ) : "N/A"}
                             />
                             <DetailField label="Shift Slot" value={employee.shift ? (typeof employee.shift === 'object' ? `${employee.shift.name} (${employee.shift.startTime}-${employee.shift.endTime})` : employee.shift) : "N/A"} />
                         </div>

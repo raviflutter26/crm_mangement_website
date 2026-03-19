@@ -78,7 +78,7 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
         URL.revokeObjectURL(url);
     };
 
-    const uniqueDepartments = Array.from(new Set(employees.map(e => e.department).filter(Boolean)));
+    const uniqueDepartments = Array.from(new Set(employees.flatMap(e => e.department ? e.department.split(',').map((s: string) => s.trim()) : []).filter(Boolean)));
     const uniqueStatuses = Array.from(new Set(employees.map(e => e.status).filter(Boolean)));
     const uniqueRoles = Array.from(new Set(employees.map(e => e.role).filter(Boolean)));
 
@@ -86,7 +86,7 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
         const searchLower = search.toLowerCase();
         const matchSearch = `${e.firstName} ${e.lastName}`.toLowerCase().includes(searchLower) || (e.employeeId || "").toLowerCase().includes(searchLower) || (e.department || "").toLowerCase().includes(searchLower);
         const activeFilterDept = currentUser?.role === "Manager" ? currentUser.department : filterDept;
-        const matchDept = activeFilterDept ? e.department === activeFilterDept : true;
+        const matchDept = activeFilterDept ? (e.department && e.department.split(',').map((s: string) => s.trim()).includes(activeFilterDept)) : true;
         const matchStatus = filterStatus ? e.status === filterStatus : true;
         const matchRole = filterRole ? e.role === filterRole : true;
         const managerId = (e.reportingManager && typeof e.reportingManager === 'object') ? e.reportingManager._id : e.reportingManager;

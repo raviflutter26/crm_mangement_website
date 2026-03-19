@@ -1,5 +1,5 @@
 // API Configuration
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:5001";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5001";
 export const API_BASE_URL = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
 export const API_ENDPOINTS = {
@@ -87,6 +87,10 @@ export const API_ENDPOINTS = {
     // Payouts (RazorpayX)
     PAYOUTS_INITIATE: `${API_BASE_URL}/api/payouts/initiate`,
     PAYOUTS_PREPARE: (empId: string) => `${API_BASE_URL}/api/payouts/prepare/${empId}`,
+
+    // Bank
+    BANK_IFSC: (code: string) => `${API_BASE_URL}/api/bank/ifsc/${code}`,
+    BANK_UPDATE: `${API_BASE_URL}/api/bank/update`,
 };
 
 export default API_ENDPOINTS;

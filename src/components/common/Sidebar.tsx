@@ -26,9 +26,8 @@ const menuItemsBase: MenuItem[] = [
     { id: "leaves", label: "Leave Management", icon: FiCalendar, roles: ["Admin", "HR", "Manager", "Employee"] },
     { id: "permissions", label: "Permissions", icon: FiClock, roles: ["Admin", "HR", "Manager", "Employee"] },
     { id: "payroll", label: "Payroll", icon: FiDollarSign, roles: ["Admin", "HR"] },
+    { id: "statutory", label: "Salary Settings", icon: FiShield, roles: ["Admin", "HR"] },
     { id: "payroll-reports", label: "Reports", icon: FiBarChart2, roles: ["Admin", "HR"] },
-    { id: "statutory", label: "Statutory Reports", icon: FiShield, roles: ["Admin", "HR"] },
-    { id: "salary-settings", label: "Salary Settings", icon: FiSettings, roles: ["Admin", "HR"] },
     { id: "attendance-settings", label: "Attendance Settings", icon: FiSliders, roles: ["Admin", "HR"] },
 ];
 

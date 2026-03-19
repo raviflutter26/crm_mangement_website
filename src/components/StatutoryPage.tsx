@@ -2,191 +2,418 @@
 
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
-import { API_ENDPOINTS, API_BASE_URL } from "@/config/api";
 import { 
-    FiDownload, FiFilter, FiSearch, FiCalendar, FiUsers, FiDollarSign, FiBarChart2
+    FiShield, FiInfo, FiEdit2, FiTrash2, FiPlus, FiCheckCircle, FiXCircle, FiTrendingUp
 } from "react-icons/fi";
+import EPFCalculatorPanel from "./statutory/EPFCalculatorPanel";
+import PTSlabsModal from "./statutory/PTSlabsModal";
 
-const MONTHS = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+const TAB_LIST = [
+    { id: "epf", label: "EPF" },
+    { id: "esi", label: "ESI" },
+    { id: "pt", label: "Professional Tax" },
+    { id: "lwf", label: "Labour Welfare Fund" },
+    { id: "bonus", label: "Statutory Bonus" }
 ];
 
-const YEARS = [2024, 2025, 2026];
+interface StatutoryConfig {
+    epf: {
+        epfEnabled: boolean;
+        epfNumber: string;
+        deductionCycle: string;
+        employeeContributionRate: number;
+        employerContributionMode: string;
+        employerPFWageLimit: number;
+        epfContributionPreference: string;
+        includedInCTC: {
+            employerPFContribution: boolean;
+            edliContribution: boolean;
+            adminCharges: boolean;
+        };
+        allowEmployeeLevelOverride: boolean;
+        proRateRestrictedPFWage: boolean;
+        considerLOP: boolean;
+        abryEligible: boolean;
+    };
+    esi: {
+        esiEnabled: boolean;
+        esiNumber: string;
+        esiDeductionCycle: string;
+        esiSalaryLimit: number;
+        employeeContribution: number;
+        employerContribution: number;
+        includeInCTC: boolean;
+    };
+    professionalTax: {
+        enabled: boolean;
+        ptRegistrationNumber: string;
+        ptState: string;
+        ptDeductionCycle: string;
+        ptSlabs: any[];
+    };
+    labourWelfareFund: {
+        enabled: boolean;
+        lwfAccountNumber: string;
+        lwfState: string;
+        employeeContribution: number;
+        employerContribution: number;
+        lwfDeductionCycle: string;
+    };
+    statutoryBonus: {
+        enabled: boolean;
+        bonusPercentage: number;
+        eligibilityLimit: number;
+        paymentFrequency: string;
+    };
+}
 
-export default function StatutoryPage({ showNotify }: { showNotify: (type: any, msg: string) => void }) {
-    const [activeTab, setActiveTab] = useState<"dashboard" | "pf" | "esi">("dashboard");
-    const [month, setMonth] = useState(new Date().getMonth() + 1);
-    const [year, setYear] = useState(new Date().getFullYear());
-    const [department, setDepartment] = useState("All");
-    const [departments, setDepartments] = useState<any[]>([]);
-    const [data, setData] = useState<any[]>([]);
-    const [stats, setStats] = useState<any>(null);
-    const [loading, setLoading] = useState(false);
+export default function StatutoryPage({ showNotify }: { showNotify: (type: 'success' | 'failure' | 'warning', msg: string) => void }) {
+    const [activeTab, setActiveTab] = useState("epf");
+    const [config, setConfig] = useState<StatutoryConfig | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    
+    // Preview states
+    const [pfWagePreview, setPfWagePreview] = useState(20000);
+    const [isPTModalOpen, setIsPTModalOpen] = useState(false);
 
     useEffect(() => {
-        fetchDepartments();
-        fetchStats();
+        fetchConfig();
     }, []);
 
-    useEffect(() => {
-        if (activeTab === "pf") fetchPFReport();
-        if (activeTab === "esi") fetchESIReport();
-    }, [activeTab, month, year, department]);
-
-    const fetchDepartments = async () => {
+    const fetchConfig = async () => {
         try {
-            const res = await axiosInstance.get(API_ENDPOINTS.DEPARTMENTS);
-            setDepartments(res.data.data || []);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchStats = async () => {
-        try {
-            const res = await axiosInstance.get(`${API_BASE_URL}/api/statutory/dashboard`);
-            setStats(res.data.data);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchPFReport = async () => {
-        setLoading(true);
-        try {
-            const res = await axiosInstance.get(`${API_BASE_URL}/api/statutory/pf-report`, {
-                params: { month, year, department }
-            });
-            setData(res.data.data);
+            const res = await axiosInstance.get('/api/statutory/config');
+            setConfig(res.data.data);
         } catch (err) {
-            showNotify('failure', "Failed to fetch PF report");
-        } finally { setLoading(false); }
+            showNotify('failure', "Failed to load statutory configuration");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const fetchESIReport = async () => {
-        setLoading(true);
+    const handleUpdate = async (type: string, data: any) => {
+        setSaving(true);
         try {
-            const res = await axiosInstance.get(`${API_BASE_URL}/api/statutory/esi-report`, {
-                params: { month, year, department }
-            });
-            setData(res.data.data);
+            await axiosInstance.put(`/api/statutory/config/${type}`, data);
+            showNotify('success', `${type.toUpperCase()} settings updated successfully`);
+            fetchConfig();
         } catch (err) {
-            showNotify('failure', "Failed to fetch ESI report");
-        } finally { setLoading(false); }
+            showNotify('failure', `Failed to update ${type} settings`);
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const exportToCSV = () => {
-        if (data.length === 0) return;
-        const headers = activeTab === "pf" 
-            ? ["Employee ID", "Name", "UAN", "PF Number", "Basic Salary", "Employee PF", "Employer PF"]
-            : ["Employee ID", "Name", "ESI Number", "Gross Salary", "Employee ESI", "Employer ESI"];
-        
-        const rows = data.map(item => activeTab === "pf" 
-            ? [item.employeeId, item.name, item.uan, item.pfNumber, item.basicSalary, item.employeePF, item.employerPF]
-            : [item.employeeId, item.name, item.esiNumber, item.grossSalary, item.employeeESI, item.employerESI]
-        );
-
-        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${activeTab.toUpperCase()}_Report_${month}_${year}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showNotify('success', "Report exported successfully!");
-    };
+    if (loading) return <div style={{ padding: "40px" }}>Loading configuration...</div>;
+    if (!config) return <div style={{ padding: "40px" }}>No configuration found.</div>;
 
     return (
         <div style={{ padding: "0 40px 40px", height: "100%", overflowY: "auto" }}>
-            <div style={{ padding: "20px 0", borderBottom: "1px solid var(--border)", marginBottom: "30px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                    <h1 style={{ fontSize: "20px", fontWeight: 700 }}>Statutory Modules</h1>
-                    <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>PF, ESI, and Statutory Compliance Reports</p>
-                </div>
-                <div style={{ display: "flex", gap: "12px" }}>
-                    <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} className="form-input" style={{ width: "130px" }}>
-                        {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                    </select>
-                    <select value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="form-input" style={{ width: "100px" }}>
-                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                    <select value={department} onChange={(e) => setDepartment(e.target.value)} className="form-input" style={{ width: "150px" }}>
-                        <option value="All">All Departments</option>
-                        {departments.map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
-                    </select>
-                </div>
+            <div style={{ padding: "30px 0", borderBottom: "1px solid var(--border)", marginBottom: "30px" }}>
+                <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#1E293B" }}>Statutory Components</h1>
+                <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>Manage company-level statutory and compliance settings</p>
             </div>
 
-            <div style={{ display: "flex", gap: "20px", marginBottom: "30px", borderBottom: "1px solid var(--border)" }}>
-                <button onClick={() => setActiveTab("dashboard")} style={{ padding: "12px 20px", border: "none", background: "none", cursor: "pointer", fontWeight: 600, color: activeTab === "dashboard" ? "var(--primary)" : "var(--text-muted)", borderBottom: activeTab === "dashboard" ? "2px solid var(--primary)" : "none" }}>Dashboard</button>
-                <button onClick={() => setActiveTab("pf")} style={{ padding: "12px 20px", border: "none", background: "none", cursor: "pointer", fontWeight: 600, color: activeTab === "pf" ? "var(--primary)" : "var(--text-muted)", borderBottom: activeTab === "pf" ? "2px solid var(--primary)" : "none" }}>PF Report</button>
-                <button onClick={() => setActiveTab("esi")} style={{ padding: "12px 20px", border: "none", background: "none", cursor: "pointer", fontWeight: 600, color: activeTab === "esi" ? "var(--primary)" : "var(--text-muted)", borderBottom: activeTab === "esi" ? "2px solid var(--primary)" : "none" }}>ESI Report</button>
+            <div style={{ display: "flex", gap: "30px", marginBottom: "40px", borderBottom: "1px solid var(--border)" }}>
+                {TAB_LIST.map(tab => (
+                    <button 
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        style={{ 
+                            padding: "12px 0", 
+                            border: "none", 
+                            background: "none", 
+                            cursor: "pointer", 
+                            fontWeight: 600, 
+                            fontSize: "15px",
+                            color: activeTab === tab.id ? "var(--primary)" : "#64748B", 
+                            borderBottom: activeTab === tab.id ? "3px solid var(--primary)" : "3px solid transparent",
+                            transition: "all 0.2s"
+                        }}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
-            {activeTab === "dashboard" && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
-                    <div className="card" style={{ padding: "20px", display: "flex", alignItems: "center", gap: "15px" }}>
-                        <div style={{ width: "50px", height: "50px", borderRadius: "12px", background: "#E3F2FD", color: "#1976D2", display: "flex", alignItems: "center", justifyContent: "center" }}><FiUsers size={24} /></div>
-                        <div><p style={{ fontSize: "12px", color: "var(--text-muted)" }}>PF Employees</p><h3 style={{ fontSize: "20px", fontWeight: 700 }}>{stats?.totalPFEmployees || 0}</h3></div>
-                    </div>
-                    <div className="card" style={{ padding: "20px", display: "flex", alignItems: "center", gap: "15px" }}>
-                        <div style={{ width: "50px", height: "50px", borderRadius: "12px", background: "#F1F8E9", color: "#388E3C", display: "flex", alignItems: "center", justifyContent: "center" }}><FiUsers size={24} /></div>
-                        <div><p style={{ fontSize: "12px", color: "var(--text-muted)" }}>ESI Employees</p><h3 style={{ fontSize: "20px", fontWeight: 700 }}>{stats?.totalESIEmployees || 0}</h3></div>
-                    </div>
-                    <div className="card" style={{ padding: "20px", display: "flex", alignItems: "center", gap: "15px" }}>
-                        <div style={{ width: "50px", height: "50px", borderRadius: "12px", background: "#FFF3E0", color: "#F57C00", display: "flex", alignItems: "center", justifyContent: "center" }}><FiDollarSign size={24} /></div>
-                        <div><p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total PF (Last Month)</p><h3 style={{ fontSize: "20px", fontWeight: 700 }}>₹{stats?.totalPFContribution?.toLocaleString() || 0}</h3></div>
-                    </div>
-                    <div className="card" style={{ padding: "20px", display: "flex", alignItems: "center", gap: "15px" }}>
-                        <div style={{ width: "50px", height: "50px", borderRadius: "12px", background: "#F3E5F5", color: "#7B1FA2", display: "flex", alignItems: "center", justifyContent: "center" }}><FiDollarSign size={24} /></div>
-                        <div><p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Total ESI (Last Month)</p><h3 style={{ fontSize: "20px", fontWeight: 700 }}>₹{stats?.totalESIContribution?.toLocaleString() || 0}</h3></div>
-                    </div>
+            <div style={{ display: "flex", gap: "40px", alignItems: "flex-start" }}>
+                <div style={{ flex: 1 }}>
+                    {activeTab === "epf" && <EPFSettings epf={config.epf} onUpdate={(data) => handleUpdate('epf', data)} saving={saving} />}
+                    {activeTab === "esi" && <ESISettings esi={config.esi} onUpdate={(data) => handleUpdate('esi', data)} saving={saving} />}
+                    {activeTab === "pt" && <PTSettings pt={config.professionalTax} onUpdate={(data) => handleUpdate('pt', data)} onViewSlabs={() => setIsPTModalOpen(true)} saving={saving} />}
+                    {activeTab === "lwf" && <LWFSettings lwf={config.labourWelfareFund} onUpdate={(data) => handleUpdate('lwf', data)} saving={saving} />}
+                    {activeTab === "bonus" && <BonusSettings bonus={config.statutoryBonus} onUpdate={(data) => handleUpdate('bonus', data)} saving={saving} />}
                 </div>
-            )}
 
-            {(activeTab === "pf" || activeTab === "esi") && (
-                <div className="card">
-                    <div style={{ padding: "20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <h4 style={{ fontWeight: 700 }}>{activeTab === "pf" ? "Provident Fund (PF) Report" : "Employee State Insurance (ESI) Report"}</h4>
-                        <button className="btn btn-secondary" onClick={exportToCSV} disabled={data.length === 0}><FiDownload /> Export CSV</button>
-                    </div>
-                    <div className="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Emp ID</th>
-                                    <th>Employee Name</th>
-                                    {activeTab === "pf" ? (
-                                        <><th>UAN</th><th>PF Number</th><th>Basic Salary</th><th>Employee PF</th><th>Employer PF</th></>
-                                    ) : (
-                                        <><th>ESI Number</th><th>Gross Salary</th><th>Employee ESI</th><th>Employer ESI</th></>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? (
-                                    <tr><td colSpan={7} style={{ textAlign: "center", padding: "40px" }}>Loading data...</td></tr>
-                                ) : data.length > 0 ? (
-                                    data.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td>{item.employeeId}</td>
-                                            <td style={{ fontWeight: 600 }}>{item.name}</td>
-                                            {activeTab === "pf" ? (
-                                                <><td>{item.uan}</td><td>{item.pfNumber}</td><td>₹{item.basicSalary?.toLocaleString()}</td><td>₹{item.employeePF?.toLocaleString()}</td><td>₹{item.employerPF?.toLocaleString()}</td></>
-                                            ) : (
-                                                <><td>{item.esiNumber}</td><td>₹{item.grossSalary?.toLocaleString()}</td><td>₹{item.employeeESI?.toLocaleString()}</td><td>₹{item.employerESI?.toLocaleString()}</td></>
-                                            )}
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan={7} style={{ textAlign: "center", padding: "40px" }}>No records found for the selected period.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+                {activeTab === "epf" && (
+                    <EPFCalculatorPanel pfWage={pfWagePreview} onWageChange={setPfWagePreview} />
+                )}
+            </div>
+
+            <PTSlabsModal 
+                isOpen={isPTModalOpen} 
+                onClose={() => setIsPTModalOpen(false)} 
+                state={config.professionalTax.ptState} 
+                slabs={config.professionalTax.ptSlabs || []} 
+            />
         </div>
     );
 }
+
+const EPFSettings = ({ epf, onUpdate, saving }: { epf: StatutoryConfig['epf'], onUpdate: (data: any) => void, saving: boolean }) => {
+    const [data, setData] = useState(epf);
+    
+    return (
+        <div className="card" style={{ padding: "32px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "32px" }}>
+                <h3 style={{ fontSize: "18px", fontWeight: 700, display: "flex", alignItems: "center", gap: "10px" }}>
+                    Employees' Provident Fund <FiEdit2 size={16} color="#64748B" />
+                </h3>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <span className="badge badge-success" style={{ padding: "4px 12px", background: "#f0fdf4", color: "#16a34a", borderRadius: "20px", fontSize: "12px", border: "1px solid #bbfcce" }}>
+                        Enabled
+                    </span>
+                    <button style={{ background: "none", border: "none", color: "#EF4444", fontSize: "13px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <FiTrash2 size={14} /> (Disable)
+                    </button>
+                </div>
+            </div>
+
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
+                <div>
+                    <label className="form-label">EPF Number</label>
+                    <input type="text" value={data.epfNumber} onChange={e => setData({...data, epfNumber: e.target.value})} className="form-input" />
+                </div>
+                <div>
+                    <label className="form-label">Deduction Cycle</label>
+                    <select value={data.deductionCycle} onChange={e => setData({...data, deductionCycle: e.target.value})} className="form-input">
+                        <option value="Monthly">Monthly</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style={{ marginBottom: "32px" }}>
+                <label className="form-label">Employee's Contribution Rate</label>
+                <div style={{ fontSize: "14px", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                    12% of Actual PF Wage
+                </div>
+            </div>
+
+            <div style={{ marginBottom: "32px" }}>
+                <label className="form-label">Employer's Contribution Rate</label>
+                <select 
+                    value={data.employerContributionMode} 
+                    onChange={e => setData({...data, employerContributionMode: e.target.value})} 
+                    className="form-input"
+                >
+                    <option value="Restrict to ₹15,000 of PF Wage">Restrict contribution to ₹15,000 of PF Wage</option>
+                    <option value="Actual PF Wage">Actual PF Wage</option>
+                </select>
+            </div>
+
+            <div style={{ marginBottom: "32px" }}>
+                <p style={{ fontWeight: 600, fontSize: "14px", marginBottom: "16px" }}>Contribution Preferences (Included in CTC)</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", cursor: "pointer" }}>
+                        <input type="checkbox" checked={data.includedInCTC.employerPFContribution} onChange={e => setData({...data, includedInCTC: {...data.includedInCTC, employerPFContribution: e.target.checked}})} style={{ width: "18px", height: "18px" }} />
+                        Employer's PF contribution
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", cursor: "pointer" }}>
+                        <input type="checkbox" checked={data.includedInCTC.edliContribution} onChange={e => setData({...data, includedInCTC: {...data.includedInCTC, edliContribution: e.target.checked}})} style={{ width: "18px", height: "18px" }} />
+                        EDLI contribution
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", cursor: "pointer" }}>
+                        <input type="checkbox" checked={data.includedInCTC.adminCharges} onChange={e => setData({...data, includedInCTC: {...data.includedInCTC, adminCharges: e.target.checked}})} style={{ width: "18px", height: "18px" }} />
+                        Admin charges
+                    </label>
+                </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px", marginBottom: "32px" }}>
+                <div>
+                    <label className="form-label">Allow Employee Level Override</label>
+                    <div style={{ display: "flex", gap: "20px" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                            <input type="radio" checked={data.allowEmployeeLevelOverride} onChange={() => setData({...data, allowEmployeeLevelOverride: true})} /> Yes
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                            <input type="radio" checked={!data.allowEmployeeLevelOverride} onChange={() => setData({...data, allowEmployeeLevelOverride: false})} /> No
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label className="form-label">Pro-rate Restricted PF Wage</label>
+                    <div style={{ display: "flex", gap: "20px" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                            <input type="radio" checked={data.proRateRestrictedPFWage} onChange={() => setData({...data, proRateRestrictedPFWage: true})} /> Yes
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                            <input type="radio" checked={!data.proRateRestrictedPFWage} onChange={() => setData({...data, proRateRestrictedPFWage: false})} /> No
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <button className="btn btn-primary" onClick={() => onUpdate(data)} disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+            </button>
+        </div>
+    );
+};
+
+const ESISettings = ({ esi, onUpdate, saving }: { esi: StatutoryConfig['esi'], onUpdate: (data: any) => void, saving: boolean }) => {
+    const [data, setData] = useState(esi);
+    return (
+        <div className="card" style={{ padding: "32px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "32px", display: "flex", alignItems: "center", gap: "10px" }}>
+                Employees' State Insurance <FiEdit2 size={16} color="#64748B" />
+            </h3>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
+                <div>
+                    <label className="form-label">ESI Number</label>
+                    <input type="text" value={data.esiNumber} onChange={e => setData({...data, esiNumber: e.target.value})} className="form-input" />
+                </div>
+                <div>
+                    <label className="form-label">Deduction Cycle</label>
+                    <select value={data.esiDeductionCycle} onChange={e => setData({...data, esiDeductionCycle: e.target.value})} className="form-input">
+                        <option value="Monthly">Monthly</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style={{ marginBottom: "32px" }}>
+                <label className="form-label">ESI Salary Limit (INR)</label>
+                <input type="number" value={data.esiSalaryLimit} onChange={e => setData({...data, esiSalaryLimit: Number(e.target.value)})} className="form-input" />
+                <p style={{ fontSize: "12px", color: "#64748B", marginTop: "8px" }}>ESI only applies if employee gross pay &le; ₹{data.esiSalaryLimit}</p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
+                <div>
+                    <label className="form-label">Employee's Contribution</label>
+                    <div style={{ fontSize: "14px", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>{data.employeeContribution}% of Gross Pay</div>
+                </div>
+                <div>
+                    <label className="form-label">Employer's Contribution</label>
+                    <div style={{ fontSize: "14px", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>{data.employerContribution}% of Gross Pay</div>
+                </div>
+            </div>
+
+            <button className="btn btn-primary" onClick={() => onUpdate(data)} disabled={saving}>Save Changes</button>
+        </div>
+    );
+};
+
+const PTSettings = ({ pt, onUpdate, onViewSlabs, saving }: { pt: StatutoryConfig['professionalTax'], onUpdate: (data: any) => void, onViewSlabs: () => void, saving: boolean }) => {
+    const [data, setData] = useState(pt);
+    return (
+        <div className="card" style={{ padding: "32px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "8px" }}>Professional Tax</h3>
+            <p style={{ fontSize: "13px", color: "#64748B", marginBottom: "32px" }}>This tax is levied on an employee's income by the State Government. Tax slabs differ in each state.</p>
+            
+            <div style={{ padding: "24px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", marginBottom: "32px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 600 }}>PT Number:</span>
+                        <input type="text" value={data.ptRegistrationNumber} onChange={e => setData({...data, ptRegistrationNumber: e.target.value})} className="form-input" style={{ width: "200px" }} />
+                    </div>
+                </div>
+                <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+                    <div>
+                        <label className="form-label">State</label>
+                        <select value={data.ptState} onChange={e => setData({...data, ptState: e.target.value})} className="form-input">
+                            <option value="Tamil Nadu">Tamil Nadu</option>
+                            <option value="Karnataka">Karnataka</option>
+                            <option value="Maharashtra">Maharashtra</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="form-label">Deduction Cycle</label>
+                        <select value={data.ptDeductionCycle} onChange={e => setData({...data, ptDeductionCycle: e.target.value})} className="form-input">
+                            <option value="Monthly">Monthly</option>
+                            <option value="Half Yearly">Half Yearly</option>
+                            <option value="Yearly">Yearly</option>
+                        </select>
+                    </div>
+                </div>
+                <div style={{ marginTop: "20px", display: "flex", gap: "20px" }}>
+                    <button onClick={onViewSlabs} style={{ background: "none", border: "none", color: "var(--primary)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>View Tax Slabs</button>
+                    <button style={{ background: "none", border: "none", color: "var(--primary)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>(Revise)</button>
+                </div>
+            </div>
+
+            <button className="btn btn-primary" onClick={() => onUpdate(data)} disabled={saving}>Save Changes</button>
+        </div>
+    );
+};
+
+const LWFSettings = ({ lwf, onUpdate, saving }: { lwf: StatutoryConfig['labourWelfareFund'], onUpdate: (data: any) => void, saving: boolean }) => {
+    const [data, setData] = useState(lwf);
+    return (
+        <div className="card" style={{ padding: "32px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "8px" }}>Labour Welfare Fund</h3>
+            <p style={{ fontSize: "13px", color: "#64748B", marginBottom: "32px" }}>Act ensures social security and improves working conditions for employees.</p>
+
+            <div style={{ padding: "24px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", marginBottom: "32px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "20px" }}>
+                    <div>
+                        <label className="form-label">LWF Account No.</label>
+                        <input type="text" value={data.lwfAccountNumber} onChange={e => setData({...data, lwfAccountNumber: e.target.value})} className="form-input" />
+                    </div>
+                    <div>
+                        <label className="form-label">State</label>
+                        <div style={{ fontSize: "14px", padding: "12px 16px", background: "white", borderRadius: "8px", border: "1px solid #e2e8f0" }}>{data.lwfState}</div>
+                    </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "20px" }}>
+                    <div>
+                        <label className="form-label">Employee's Contribution</label>
+                        <input type="number" value={data.employeeContribution} onChange={e => setData({...data, employeeContribution: Number(e.target.value)})} className="form-input" />
+                    </div>
+                    <div>
+                        <label className="form-label">Employer's Contribution</label>
+                        <input type="number" value={data.employerContribution} onChange={e => setData({...data, employerContribution: Number(e.target.value)})} className="form-input" />
+                    </div>
+                </div>
+                <div>
+                    <label className="form-label">Deduction Cycle</label>
+                    <select value={data.lwfDeductionCycle} onChange={e => setData({...data, lwfDeductionCycle: e.target.value})} className="form-input">
+                        <option value="Yearly">Yearly</option>
+                        <option value="Half Yearly">Half Yearly</option>
+                        <option value="Monthly">Monthly</option>
+                    </select>
+                </div>
+            </div>
+
+            <button className="btn btn-primary" onClick={() => onUpdate(data)} disabled={saving}>Save Changes</button>
+        </div>
+    );
+};
+
+const BonusSettings = ({ bonus, onUpdate, saving }: { bonus: StatutoryConfig['statutoryBonus'], onUpdate: (data: any) => void, saving: boolean }) => {
+    const [data, setData] = useState(bonus);
+    return (
+        <div className="card" style={{ padding: "32px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "32px" }}>Statutory Bonus</h3>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
+                <div>
+                    <label className="form-label">Bonus Percentage (%)</label>
+                    <input type="number" value={data.bonusPercentage} onChange={e => setData({...data, bonusPercentage: Number(e.target.value)})} className="form-input" />
+                </div>
+                <div>
+                    <label className="form-label">Eligibility Limit (Monthly Basic)</label>
+                    <input type="number" value={data.eligibilityLimit} onChange={e => setData({...data, eligibilityLimit: Number(e.target.value)})} className="form-input" />
+                </div>
+            </div>
+            <div style={{ marginBottom: "32px" }}>
+                <label className="form-label">Payment Frequency</label>
+                <select value={data.paymentFrequency} onChange={e => setData({...data, paymentFrequency: e.target.value})} className="form-input">
+                    <option value="Yearly">Yearly</option>
+                </select>
+            </div>
+
+            <button className="btn btn-primary" onClick={() => onUpdate(data)} disabled={saving}>Save Changes</button>
+        </div>
+    );
+};
 
