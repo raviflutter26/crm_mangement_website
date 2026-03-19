@@ -128,7 +128,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             upiId: editEmployee?.bankDetails?.upiId || "",
             cancelledCheque: editEmployee?.bankDetails?.cancelledCheque || ""
         },
-        pan: editEmployee?.pan || "", 
+        panNumber: editEmployee?.panNumber || "", 
         aadhaar: editEmployee?.aadhaar || "", 
         passportNumber: editEmployee?.passportNumber || "", 
         drivingLicense: editEmployee?.drivingLicense || "",
@@ -271,7 +271,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                     let processedValue = type === 'number' ? (value === "" ? "" : Number(value)) : value;
                     
                     // Auto-capitalize IFSC and PAN
-                    if (name === "bankDetails.ifscCode" || name === "pan") {
+                    if (name === "bankDetails.ifscCode" || name === "panNumber") {
                         processedValue = value.toUpperCase();
                     }
 
@@ -379,8 +379,10 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 isValid = false; newErrors["bankDetails.confirmAccountNumber"] = "Account Numbers do not match"; missingFields.push("Account Number Match");
             }
         } else if (currentStepName === "Documents") {
-            if (formData.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan.toUpperCase())) {
-                isValid = false; newErrors.pan = "Invalid PAN Format (ABCDE1234F)"; missingFields.push("Invalid PAN");
+            if (!formData.panNumber) {
+                isValid = false; newErrors.panNumber = "PAN Number is required"; missingFields.push("PAN Number");
+            } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.panNumber.toUpperCase())) {
+                isValid = false; newErrors.panNumber = "Invalid PAN Format (e.g. ABCDE1234F)"; missingFields.push("Invalid PAN");
             }
             if (formData.aadhaar && !/^\d{12}$/.test(formData.aadhaar)) {
                 isValid = false; newErrors.aadhaar = "Aadhaar must be 12 digits"; missingFields.push("Invalid Aadhaar");
@@ -801,9 +803,9 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                         <h3 style={{ marginBottom: "20px", color: "var(--primary)" }}>Identity Documents</h3>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
                              <div>
-                                <label className="form-label">PAN Number</label>
-                                <input name="pan" value={formData.pan} onChange={handleInputChange} className="form-input" placeholder="ABCDE1234F" />
-                                {errors.pan && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.pan}</div>}
+                                <label className="form-label">PAN Number *</label>
+                                <input name="panNumber" value={formData.panNumber} onChange={handleInputChange} className="form-input" placeholder="ABCDE1234F" maxLength={10} />
+                                {errors.panNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.panNumber}</div>}
                             </div>
                             <div>
                                 <label className="form-label">Aadhaar Number</label>
@@ -926,7 +928,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                         <FiFileText size={16} /> Documents
                                     </div>
                                     <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                                        <div><strong>PAN:</strong> {formData.pan || "Not Provided"}</div>
+                                         <div><strong>PAN:</strong> {formData.panNumber || "Not Provided"}</div>
                                         <div><strong>Aadhaar:</strong> {formData.aadhaar || "Not Provided"}</div>
                                         <div><strong>Cheque Copy:</strong> {formData.bankDetails.cancelledCheque || "Not Uploaded"}</div>
                                     </div>

@@ -26,6 +26,7 @@ export const API_ENDPOINTS = {
     ATTENDANCE_CHECK_OUT: `${API_BASE_URL}/api/attendance/check-out`,
     ATTENDANCE_REGULARIZE: `${API_BASE_URL}/api/attendance/regularize`,
     ATTENDANCE_MONTHLY_REPORT: `${API_BASE_URL}/api/attendance/monthly-report`,
+    ATTENDANCE_SETTINGS: `${API_BASE_URL}/api/attendance-config`,
 
     // Leave
     LEAVES: `${API_BASE_URL}/api/leaves`,
@@ -82,6 +83,10 @@ export const API_ENDPOINTS = {
     // Payroll Reports
     PAYROLL_REPORTS: `${API_BASE_URL}/api/payroll/reports`,
     PAYROLL_REPORTS_EXPORT: `${API_BASE_URL}/api/payroll/reports/export`,
+
+    // Payouts (RazorpayX)
+    PAYOUTS_INITIATE: `${API_BASE_URL}/api/payouts/initiate`,
+    PAYOUTS_PREPARE: (empId: string) => `${API_BASE_URL}/api/payouts/prepare/${empId}`,
 };
 
 export default API_ENDPOINTS;

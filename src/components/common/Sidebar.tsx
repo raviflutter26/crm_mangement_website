@@ -7,7 +7,7 @@ import axiosInstance from "@/lib/axios";
 import {
     FiGrid, FiUsers, FiClock, FiCalendar, FiDollarSign, FiBriefcase,
     FiSettings, FiHelpCircle, FiZap, FiLayers, FiUserPlus, FiTarget,
-    FiFileText, FiPackage, FiUser, FiBarChart2, FiShield, FiLock
+    FiFileText, FiPackage, FiUser, FiBarChart2, FiShield, FiLock, FiSliders
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
@@ -29,6 +29,7 @@ const menuItemsBase: MenuItem[] = [
     { id: "payroll-reports", label: "Reports", icon: FiBarChart2, roles: ["Admin", "HR"] },
     { id: "statutory", label: "Statutory Reports", icon: FiShield, roles: ["Admin", "HR"] },
     { id: "salary-settings", label: "Salary Settings", icon: FiSettings, roles: ["Admin", "HR"] },
+    { id: "attendance-settings", label: "Attendance Settings", icon: FiSliders, roles: ["Admin", "HR"] },
 ];
 
 const moduleItems: MenuItem[] = [

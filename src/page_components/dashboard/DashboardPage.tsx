@@ -3,15 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios";
-import { FiUsers, FiUserCheck, FiCalendar, FiActivity, FiCheckCircle, FiDollarSign } from "react-icons/fi";
+import { FiDownload } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
 // Components
 import AttendanceCard from "@/components/dashboard/AttendanceCard";
-import StatsCards from "@/components/dashboard/StatsCards";
-import Charts from "@/components/dashboard/Charts";
 import LeaveSummary from "@/components/dashboard/LeaveSummary";
 import PermissionModal from "@/components/dashboard/PermissionModal";
+import AdminOverview from "@/components/dashboard/AdminOverview";
 
 interface DashboardPageProps {
     showNotify: (type: 'success' | 'failure' | 'warning', message: string) => void;
@@ -20,22 +19,18 @@ interface DashboardPageProps {
 export default function DashboardPage({ showNotify }: DashboardPageProps) {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [dialogState, setDialogState] = useState({ show: false, message: "" });
     const [actionLoading, setActionLoading] = useState(false);
     const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [permissionForm, setPermissionForm] = useState({ date: new Date().toISOString().split('T')[0], hoursRequest: 1, reason: "" });
     const [liveHours, setLiveHours] = useState<number>(0);
-    const [userName, setUserName] = useState("Admin");
-    const [userRole, setUserRole] = useState("");
+    const [userName, setUserName] = useState("there");
     const [filter, setFilter] = useState("today");
     const [currentTime, setCurrentTime] = useState(new Date());
-    const router = useRouter();
 
     const fetchDashboard = async () => {
         try {
-            let token = localStorage.getItem('ravi_zoho_token');
+            const token = localStorage.getItem('ravi_zoho_token');
             if (!token) { window.location.reload(); return; }
-
             const res = await axiosInstance.get(`${API_ENDPOINTS.DASHBOARD}?filter=${filter}`);
             setData(res.data.data);
         } catch (err) {
@@ -55,7 +50,7 @@ export default function DashboardPage({ showNotify }: DashboardPageProps) {
             setPermissionForm({ date: new Date().toISOString().split('T')[0], hoursRequest: 1, reason: "" });
             fetchDashboard();
         } catch (err: any) {
-            alert(err.response?.data?.message || "Failed to request permission");
+            showNotify('failure', err.response?.data?.message || "Failed to request permission");
         } finally {
             setActionLoading(false);
         }
@@ -66,8 +61,7 @@ export default function DashboardPage({ showNotify }: DashboardPageProps) {
             const raw = localStorage.getItem('ravi_zoho_user');
             if (raw) {
                 const pb = JSON.parse(raw);
-                if (pb.name) setUserName(pb.name);
-                if (pb.role) setUserRole(pb.role);
+                if (pb.name) setUserName(pb.name.split(' ')[0]);
             }
         } catch (e) { }
     }, []);
@@ -77,16 +71,18 @@ export default function DashboardPage({ showNotify }: DashboardPageProps) {
         fetchDashboard();
     }, [filter]);
 
+    // Live clock
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
+    // Live working hours counter
     useEffect(() => {
         if (data?.isEmployee && data.attendanceToday) {
             const sessions = data.attendanceToday.sessions || [];
-            const activeSession = sessions.length > 0 && !sessions[sessions.length - 1].checkOut 
-                ? sessions[sessions.length - 1] 
+            const activeSession = sessions.length > 0 && !sessions[sessions.length - 1].checkOut
+                ? sessions[sessions.length - 1]
                 : null;
 
             if (!activeSession) {
@@ -117,7 +113,7 @@ export default function DashboardPage({ showNotify }: DashboardPageProps) {
                         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
                     });
                     lat = pos.coords.latitude; lng = pos.coords.longitude;
-                } catch (e) {}
+                } catch (e) { }
             }
             const res = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE_CHECK_IN, {
                 employeeId: data.employeeId, latitude: lat, longitude: lng,
@@ -125,7 +121,7 @@ export default function DashboardPage({ showNotify }: DashboardPageProps) {
             showNotify('success', res.data.message || "Checked in successfully!");
             fetchDashboard();
         } catch (err: any) {
-            alert(err.response?.data?.message || "Failed to check in");
+            showNotify('failure', err.response?.data?.message || "Failed to check in");
         } finally {
             setActionLoading(false);
         }
@@ -142,30 +138,19 @@ export default function DashboardPage({ showNotify }: DashboardPageProps) {
                         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
                     });
                     lat = pos.coords.latitude; lng = pos.coords.longitude;
-                } catch (e) {}
+                } catch (e) { }
             }
             const res = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE_CHECK_OUT, {
                 employeeId: data.employeeId, latitude: lat, longitude: lng,
             });
-            showNotify('success', "Checked out successfully!");
+            showNotify('success', res.data.message || "Checked out successfully!");
             fetchDashboard();
         } catch (err: any) {
-            alert(err.response?.data?.message || "Failed to check out");
+            showNotify('failure', err.response?.data?.message || "Failed to check out");
         } finally {
             setActionLoading(false);
         }
     };
-
-    if (loading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading Dashboard...</div>;
-    if (!data) return <div style={{ padding: "40px", textAlign: "center", color: "red" }}>Failed to load dashboard data.</div>;
-
-    const stats = [
-        { id: 'total', label: "Total Employees", value: data?.employees?.total || 0, icon: FiUsers, color: "blue", change: "Overall", up: true },
-        { id: 'checkin', label: "Checkin today", value: data?.attendance?.checkedInToday || 0, icon: FiActivity, color: "orange", change: "Swiped", up: true },
-        { id: 'active', label: "Present Today", value: data?.attendance?.presentToday || 0, icon: FiUserCheck, color: "green", change: "On-time", up: true },
-        { id: 'leave', label: "On Leave Today", value: data?.attendance?.onLeaveToday || 0, icon: FiCalendar, color: "blue", change: "Tracked", up: false },
-        { id: 'absent', label: "Absent Today", value: data?.attendance?.absentToday || 0, icon: FiActivity, color: "purple", change: "Missing", up: false },
-    ];
 
     const handleGenerateReport = () => {
         const reportContent = `Ravi Zoho System Report\nDate: ${new Date().toLocaleDateString()}\nTotal Employees: ${data?.employees?.total || 0}\nPresent Today: ${data?.attendance?.presentToday || 0}\nAttendance Rate: ${data?.attendance?.attendanceRate || 0}%\nPending Leaves: ${data?.leaves?.pending || 0}\n\nDepartment Breakdown:\n${(data?.departmentDistribution || []).map((d: any) => `${d._id || 'Unassigned'}: ${d.count}`).join('\n')}`;
@@ -179,58 +164,71 @@ export default function DashboardPage({ showNotify }: DashboardPageProps) {
         showNotify('success', "Report generated successfully!");
     };
 
-    const handleStatClick = (id: string) => {
-        if (id === 'active' || id === 'leave' || id === 'checkin') {
-            router.push('/attendance');
-        }
-    };
+    if (loading) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", flexDirection: "column", gap: "16px" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
+            <div style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>Loading dashboard...</div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
+
+    if (!data) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", flexDirection: "column", gap: "12px" }}>
+            <div style={{ fontSize: "40px" }}>⚠️</div>
+            <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>Failed to load dashboard</div>
+            <button className="btn btn-primary" onClick={fetchDashboard}>Retry</button>
+        </div>
+    );
+
+    const hr = new Date().getHours();
+    const greeting = hr < 12 ? "Good Morning" : hr < 17 ? "Good Afternoon" : "Good Evening";
+    const greetEmoji = hr < 12 ? "☀️" : hr < 17 ? "🌤️" : "🌙";
 
     return (
         <>
-            <div className="page-header">
-                <div>
-                    <h1 className="page-title">Dashboard</h1>
-                    <p className="page-subtitle">Welcome back, {userName.split(' ')[0]}! Here&apos;s your {data?.managerDept ? `${data.managerDept} ` : 'HR '}overview.</p>
-                </div>
-                <div style={{ display: "flex", gap: "10px" }}>
-                    <select 
-                        className="btn btn-secondary" 
-                        value={filter} 
-                        onChange={(e) => setFilter(e.target.value)}
-                        style={{ appearance: 'auto', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer' }}
-                    >
-                        <option value="today">Today</option>
-                        <option value="week">This Week</option>
-                        <option value="month">This Month</option>
-                        <option value="year">This Year</option>
-                    </select>
-                    <button className="btn btn-primary" onClick={handleGenerateReport}>
-                        <FiActivity /> Generate Report
-                    </button>
-                </div>
-            </div>
-
+            {/* Employee view: Attendance + Leave Summary */}
             {data.isEmployee ? (
-                <div className="grid-2" style={{ marginBottom: "24px" }}>
-                    <AttendanceCard 
-                        isWorking={data.attendanceToday?.sessions?.length > 0 && !data.attendanceToday?.sessions[data.attendanceToday.sessions.length - 1].checkOut}
-                        sessions={data.attendanceToday?.sessions || []}
-                        liveHours={liveHours}
-                        currentTime={currentTime}
-                        handleCheckIn={handleCheckIn}
-                        handleCheckOut={handleCheckOut}
-                        actionLoading={actionLoading}
-                        setShowPermissionModal={setShowPermissionModal}
-                    />
-                    <LeaveSummary data={data} />
-                </div>
+                <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px", gap: "16px", flexWrap: "wrap" }}>
+                        <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                                <span style={{ fontSize: "22px" }}>{greetEmoji}</span>
+                                <h1 style={{ fontSize: "26px", fontWeight: 900, margin: 0, color: "var(--text-primary)" }}>
+                                    {greeting}, {userName}!
+                                </h1>
+                            </div>
+                            <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: 0 }}>
+                                {data?.managerDept ? `${data.managerDept} Department` : "HR"} Overview · {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+                        <AttendanceCard
+                            isWorking={data.attendanceToday?.sessions?.length > 0 && !data.attendanceToday?.sessions[data.attendanceToday.sessions.length - 1].checkOut}
+                            sessions={data.attendanceToday?.sessions || []}
+                            liveHours={liveHours}
+                            currentTime={currentTime}
+                            handleCheckIn={handleCheckIn}
+                            handleCheckOut={handleCheckOut}
+                            actionLoading={actionLoading}
+                            setShowPermissionModal={setShowPermissionModal}
+                        />
+                        <LeaveSummary data={data} />
+                    </div>
+                </>
             ) : (
-                <StatsCards stats={stats} onCardClick={handleStatClick} />
+                <AdminOverview 
+                    data={data}
+                    userName={userName}
+                    filter={filter}
+                    setFilter={setFilter}
+                    onRefresh={fetchDashboard}
+                />
             )}
 
-            <Charts data={data} userRole={userRole} />
-
-            <PermissionModal 
+            {/* Permission Modal */}
+            <PermissionModal
                 show={showPermissionModal}
                 onClose={() => setShowPermissionModal(false)}
                 onSubmit={handleRequestPermission}

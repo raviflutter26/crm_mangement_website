@@ -79,9 +79,14 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
 
     const handlePay = async (id: string) => {
         try {
-            if (showNotify) showNotify('success', "Payroll disbursed! 💰");
+            const res = await axiosInstance.post(API_ENDPOINTS.PAYOUTS_INITIATE, { runId: id });
+            if (showNotify) showNotify('success', res.data.message || "Payroll disbursed via RazorpayX! 💰");
             fetchAll();
-        } catch (err: any) { if (showNotify) showNotify('failure', err.response?.data?.message || "Payment failed"); }
+        } catch (err: any) { 
+            const msg = err.response?.data?.message || "Payment failed";
+            if (showNotify) showNotify('failure', msg);
+            else alert(msg);
+        }
     };
 
     const viewRunDetails = async (run: any) => {
@@ -321,7 +326,7 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
                                     <div>✅ Professional Tax (state-wise)</div>
                                     <div>✅ TDS (as per tax regime)</div>
                                     <div>✅ Attendance-based pro-rata</div>
-                                    <div>✅ Overtime calculations</div>
+                                    <div>✅ RazorpayX Payouts Integrated</div>
                                 </div>
                             </div>
 

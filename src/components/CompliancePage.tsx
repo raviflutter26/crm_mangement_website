@@ -51,7 +51,7 @@ export default function CompliancePage({ showNotify }: CompliancePageProps) {
         { id: "esi", label: "ESI", icon: FiPercent, color: "var(--secondary)" },
         { id: "pt", label: "Professional Tax", icon: FiDollarSign, color: "var(--accent)" },
         { id: "tds", label: "TDS / Income Tax", icon: FiAlertTriangle, color: "var(--error)" },
-        { id: "attendance", label: "Attendance & Permission", icon: FiClock, color: "var(--primary)" },
+        // { id: "attendance", label: "Attendance & Permission", icon: FiClock, color: "var(--primary)" },
         { id: "company", label: "Company Info", icon: FiShield, color: "var(--error)" },
     ];
 
