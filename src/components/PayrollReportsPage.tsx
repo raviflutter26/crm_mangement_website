@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
 import { 
     FiSearch, FiFilter, FiDownload, FiBarChart2, FiPieChart, 
-    FiFileText, FiPrinter, FiChevronRight, FiGrid, FiList, FiChevronLeft
+    FiFileText, FiPrinter, FiChevronRight, FiGrid, FiList, FiChevronLeft, FiChevronDown
 } from "react-icons/fi";
 
 const COLUMNS = [
@@ -89,6 +89,8 @@ export default function PayrollReportsPage({ showNotify }: PayrollReportsProps) 
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
+    const [downloadDropdown, setDownloadDropdown] = useState<string | null>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     const [dataStatus, setDataStatus] = useState({
         employees: false,
         payroll: false,
@@ -96,6 +98,15 @@ export default function PayrollReportsPage({ showNotify }: PayrollReportsProps) 
         leaves: false,
         activity: true
     });
+
+    // Close download dropdown on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDownloadDropdown(null);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
 
     useEffect(() => {
         fetchHistory();
@@ -141,20 +152,40 @@ export default function PayrollReportsPage({ showNotify }: PayrollReportsProps) 
         }
     };
 
-    const handleDownload = async (id: string, name: string) => {
+    const handleDownload = async (id: string, name: string, format: string = "csv") => {
         try {
             setLoading(true);
             const res = await axiosInstance.get(`${API_ENDPOINTS.PAYROLL_REPORTS}/${id}/download`, {
                 responseType: 'blob'
             });
-            const url = window.URL.createObjectURL(new Blob([res.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `${name.replace(/\s+/g, '_')}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            showNotify('success', "Download started!");
+
+            if (format === "pdf") {
+                // PDF: open print dialog
+                const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: 'text/html' }));
+                const printWindow = window.open(blobUrl, '_blank');
+                if (printWindow) setTimeout(() => printWindow.print(), 500);
+                showNotify('success', "PDF print dialog opened!");
+            } else if (format === "doc") {
+                const blob = new Blob([res.data], { type: 'application/vnd.ms-word' });
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `${name.replace(/\s+/g, '_')}.doc`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                showNotify('success', "Word document downloaded!");
+            } else {
+                const url = window.URL.createObjectURL(new Blob([res.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `${name.replace(/\s+/g, '_')}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                showNotify('success', "CSV download started!");
+            }
+            setDownloadDropdown(null);
         } catch (err) {
             console.error("Download failed", err);
             showNotify('failure', "Failed to download report");
@@ -302,15 +333,38 @@ export default function PayrollReportsPage({ showNotify }: PayrollReportsProps) 
                                         <td>{h.generatedBy?.name || "System"}</td>
                                         <td style={{ color: "var(--text-muted)" }}>{new Date(h.createdAt).toLocaleDateString()}</td>
                                         <td>
-                                            <div style={{ display: "flex", gap: "10px" }}>
+                                            <div style={{ position: "relative" }} ref={downloadDropdown === h._id ? dropdownRef : undefined}>
                                                 <button 
-                                                    className="topbar-btn" 
-                                                    onClick={() => handleDownload(h._id, h.reportName)}
-                                                    title="Download Report"
+                                                    className="btn btn-secondary btn-sm" 
+                                                    onClick={() => setDownloadDropdown(downloadDropdown === h._id ? null : h._id)}
+                                                    style={{ display: "flex", alignItems: "center", gap: "6px" }}
                                                 >
-                                                    <FiDownload />
+                                                    <FiDownload /> Download <FiChevronDown size={12} />
                                                 </button>
-                                                <button className="topbar-btn" title="Print Report"><FiPrinter /></button>
+                                                {downloadDropdown === h._id && (
+                                                    <div style={{
+                                                        position: "absolute", top: "100%", right: 0, marginTop: "4px",
+                                                        background: "var(--bg-card)", border: "1px solid var(--border)",
+                                                        borderRadius: "10px", boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                                                        minWidth: "180px", zIndex: 100, overflow: "hidden",
+                                                        animation: "fadeInDown 0.2s ease-out"
+                                                    }}>
+                                                        {[
+                                                            { label: "📄 PDF", desc: "Print-ready", format: "pdf" },
+                                                            { label: "📝 Word (.doc)", desc: "Editable", format: "doc" },
+                                                            { label: "📊 CSV", desc: "Spreadsheet", format: "csv" },
+                                                        ].map((opt, idx) => (
+                                                            <div key={idx} onClick={() => handleDownload(h._id, h.reportName, opt.format)}
+                                                                style={{ padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", borderBottom: idx < 2 ? "1px solid var(--border)" : "none", transition: "0.15s" }}
+                                                                onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-secondary)")}
+                                                                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                                                            >
+                                                                <span style={{ fontSize: "13px", fontWeight: 600 }}>{opt.label}</span>
+                                                                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{opt.desc}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -327,6 +381,7 @@ export default function PayrollReportsPage({ showNotify }: PayrollReportsProps) 
                     color: #FF6D00;
                     text-decoration: underline;
                 }
+                @keyframes fadeInDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
         </div>
     );

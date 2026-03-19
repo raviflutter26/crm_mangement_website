@@ -132,7 +132,13 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
 
     const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN")}`;
 
-    if (loading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading Payroll...</div>;
+    if (loading) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", flexDirection: "column", gap: "16px" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
+            <div style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>Loading Payroll...</div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
 
     return (
         <>

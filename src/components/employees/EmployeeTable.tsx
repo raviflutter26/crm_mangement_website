@@ -11,7 +11,13 @@ interface EmployeeTableProps {
 }
 
 export default function EmployeeTable({ employees, loading, onEdit, onDelete, onView }: EmployeeTableProps) {
-    if (loading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading Employees...</div>;
+    if (loading) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", flexDirection: "column", gap: "16px" }}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
+            <div style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>Loading Employees...</div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
 
     return (
         <div className="card">

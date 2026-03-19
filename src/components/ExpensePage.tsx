@@ -136,7 +136,7 @@ export default function ExpensePage({ showNotify }: ExpensePageProps) {
                     </div>
                 </div>
                 <div className="table-wrapper">
-                    {loading ? <div style={{ padding: "40px", textAlign: "center" }}>Loading...</div> : (
+                    {loading ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", flexDirection: "column", gap: "16px" }}><div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} /><div style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 500 }}>Loading...</div><style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div> : (
                         <table>
                             <thead><tr><th>Employee</th><th>Title</th><th>Category</th><th>Amount</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
                             <tbody>

@@ -164,7 +164,11 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
             </div>
 
             {loading ? (
-                <div style={{ padding: "40px", textAlign: "center" }}>Loading Departments...</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "40vh", flexDirection: "column", gap: "16px" }}>
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
+                    <div style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>Loading Departments...</div>
+                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
             ) : (
                 <div className="grid-3">
                     {departments.map((dept) => (
@@ -227,7 +231,8 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
                 <div style={{
                     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
                     backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000,
-                    display: "flex", alignItems: "center", justifyContent: "center"
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    backdropFilter: "blur(4px)"
                 }}>
                     <div className="card animate-in" style={{ width: "450px", padding: "20px" }}>
                         <h2 style={{ marginBottom: "20px" }}>{isEditing ? "Edit Department" : "Add Department"}</h2>
@@ -263,7 +268,8 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
                 <div style={{
                     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
                     backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000,
-                    display: "flex", alignItems: "center", justifyContent: "center"
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    backdropFilter: "blur(4px)"
                 }}>
                     <div className="card animate-in" style={{ width: "600px", padding: "24px", maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>

@@ -48,6 +48,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     const [locations, setLocations] = useState<any[]>([]);
     const [shifts, setShifts] = useState<any[]>([]);
     const [complianceSettings, setComplianceSettings] = useState<any>(null);
+    const [organizationsList, setOrganizationsList] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
         firstName: editEmployee?.firstName || "",
@@ -56,6 +57,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         email: editEmployee?.email || "",
         phone: editEmployee?.phone || "",
         gender: editEmployee?.gender || "Male",
+        organizationId: editEmployee?.organizationId?._id || editEmployee?.organizationId || "",
         dateOfBirth: (editEmployee?.dateOfBirth || "").split('T')[0],
         maritalStatus: editEmployee?.maritalStatus || "Single",
         profilePhoto: editEmployee?.profilePhoto || "",
@@ -149,13 +151,18 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
-                const [locRes, shiftRes, compRes, tempRes, statesRes] = await Promise.allSettled([
+                const [locRes, shiftRes, compRes, tempRes, statesRes, orgsRes] = await Promise.allSettled([
                     axiosInstance.get(API_ENDPOINTS.LOCATIONS),
                     axiosInstance.get(API_ENDPOINTS.SHIFTS),
                     axiosInstance.get('/api/statutory/config'), // Use new statutory config
-                    axiosInstance.get(API_ENDPOINTS.SALARY_STRUCTURES),
-                    axiosInstance.get(`${API_ENDPOINTS.LOCATIONS}/states?country=India`)
+                    axiosInstance.get(`${API_BASE_URL}/api/salary-templates`),
+                    axiosInstance.get(`${API_ENDPOINTS.LOCATIONS}/states?country=India`),
+                    axiosInstance.get('/api/organization')
                 ]);
+
+                if (orgsRes.status === 'fulfilled' && orgsRes.value.data.success) {
+                    setOrganizationsList(orgsRes.value.data.data);
+                }
 
                 if (locRes.status === 'fulfilled' && locRes.value.data.success) {
                     setLocations(locRes.value.data.data);
@@ -228,6 +235,21 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         }
     }, [formData.address.state]);
 
+    useEffect(() => {
+        const fetchOrgShifts = async () => {
+            if (!formData.organizationId) return;
+            try {
+                const res = await axiosInstance.get(`/api/shifts?organizationId=${formData.organizationId}`);
+                if (res.data.success) {
+                    setShifts(res.data.data);
+                }
+            } catch (err) {
+                console.error("Error fetching shifts for org", err);
+            }
+        };
+        fetchOrgShifts();
+    }, [formData.organizationId]);
+
     const fetchBankDetails = async (ifsc: string) => {
         if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
             setIfscVerified(false);
@@ -256,10 +278,18 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         }
     };
 
-    const autoCalculateSalary = (ctc: number) => {
+    const BUILT_IN_TEMPLATES = [
+        { _id: "standard", name: "Standard (40/20/10/30)", basicPercent: 40, hraPercent: 20, daPercent: 10, specialAllowancePercent: 30, isDefault: true },
+        { _id: "aggressive", name: "Aggressive Basic (50/25/10/15)", basicPercent: 50, hraPercent: 25, daPercent: 10, specialAllowancePercent: 15 },
+        { _id: "equal", name: "Equal Split (30/20/20/30)", basicPercent: 30, hraPercent: 20, daPercent: 20, specialAllowancePercent: 30 },
+    ];
+
+    const allTemplates = [...BUILT_IN_TEMPLATES, ...templates.filter(t => !BUILT_IN_TEMPLATES.some(b => b.name === t.name))];
+
+    const autoCalculateSalary = (ctc: number, templateOverride?: any) => {
         if (!ctc) return;
         const monthly = Math.round(ctc / 12);
-        const t = selectedTemplate || { basicPercent: 40, hraPercent: 20, daPercent: 10, specialAllowancePercent: 30 };
+        const t = templateOverride || selectedTemplate || BUILT_IN_TEMPLATES[0];
         const basic = Math.round(monthly * (t.basicPercent / 100));
         const hra = Math.round(monthly * (t.hraPercent / 100));
         const da = Math.round(monthly * (t.daPercent / 100));
@@ -625,6 +655,22 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                     <option value="Widowed">Widowed</option>
                                 </select>
                             </div>
+                            <div>
+                                <label className="form-label">Organization *</label>
+                                <select 
+                                    name="organizationId" 
+                                    value={formData.organizationId} 
+                                    onChange={handleInputChange} 
+                                    className="form-input"
+                                    required
+                                >
+                                    <option value="">Select Organization</option>
+                                    {organizationsList.map(org => (
+                                        <option key={org._id} value={org._id}>{org.name}</option>
+                                    ))}
+                                </select>
+                                {errors.organizationId && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.organizationId}</div>}
+                            </div>
                         </div>
                     </div>
                 );
@@ -758,7 +804,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 <label className="form-label">Shift</label>
                                 <select name="shift" value={formData.shift} onChange={handleInputChange} className="form-input">
                                     <option value="">Select Shift</option>
-                                    {shifts.map(s => <option key={s._id} value={s._id}>{s.name} ({s.startTime}-{s.endTime})</option>)}
+                                    {shifts.map(s => <option key={s._id} value={s._id}>{s.name} ({s.startTime}-{s.endTime}){s.isNightShift ? ' 🌙' : ''}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -766,7 +812,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 );
 
             case "Payroll":
-                const t = selectedTemplate || { basicPercent: 40, hraPercent: 20, daPercent: 10, specialAllowancePercent: 30 };
+                const t = selectedTemplate || BUILT_IN_TEMPLATES[0];
                 const monthlyCTC = Math.round(Number(formData.ctc) / 12);
                 const currentSum = Number(formData.salary.basic) + Number(formData.salary.hra) + Number(formData.salary.da) + Number(formData.salary.specialAllowance);
                 const isMismatch = formData.ctc > 0 && currentSum !== monthlyCTC;
@@ -781,19 +827,18 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 </p>
                             </div>
                             <div style={{ textAlign: "right" }}>
-                                <label className="form-label" style={{ fontSize: "11px" }}>Salary Template</label>
+                                <label className="form-label" style={{ fontSize: "11px", color: "var(--primary)", fontWeight: 600 }}>Salary Template</label>
                                 <select
                                     className="form-input"
-                                    style={{ width: "200px", padding: "4px 8px", height: "32px" }}
-                                    value={selectedTemplate?._id || ""}
+                                    style={{ width: "220px", padding: "6px 10px", height: "34px", fontSize: "13px", borderColor: "var(--primary)", borderWidth: "1.5px" }}
+                                    value={selectedTemplate?._id || "standard"}
                                     onChange={(e) => {
-                                        const found = templates.find(temp => temp._id === e.target.value);
-                                        setSelectedTemplate(found);
-                                        if (formData.ctc) autoCalculateSalary(formData.ctc);
+                                        const found = allTemplates.find(temp => temp._id === e.target.value);
+                                        setSelectedTemplate(found || BUILT_IN_TEMPLATES[0]);
+                                        if (formData.ctc) autoCalculateSalary(formData.ctc, found || BUILT_IN_TEMPLATES[0]);
                                     }}
                                 >
-                                    {templates.map(temp => <option key={temp._id} value={temp._id}>{temp.name}</option>)}
-                                    {templates.length === 0 && <option value="">Standard (40/20/10/30)</option>}
+                                    {allTemplates.map(temp => <option key={temp._id} value={temp._id}>{temp.name}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -808,21 +853,28 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                         onChange={handleInputChange}
                                         onBlur={() => autoCalculateSalary(formData.ctc)}
                                         className="form-input"
+                                        placeholder="e.g. 600000"
                                     />
-                                    <button onClick={() => autoCalculateSalary(formData.ctc)} className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }}>Auto Calculate</button>
+                                    <button onClick={() => autoCalculateSalary(formData.ctc)} className="btn btn-primary btn-sm" style={{ whiteSpace: "nowrap", background: "var(--primary)", color: "white" }}>Auto Calculate</button>
                                 </div>
-                                <div style={{ fontSize: "12px", marginTop: "4px", color: "var(--text-muted)" }}>Monthly CTC: ₹{monthlyCTC.toLocaleString()}</div>
+                                <div style={{ fontSize: "12px", marginTop: "6px", color: "var(--text-muted)" }}>Monthly CTC: <strong>₹{monthlyCTC.toLocaleString()}</strong></div>
+                                {errors.ctc && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.ctc}</div>}
                             </div>
 
-                            <div style={{ gridColumn: "1/-1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", padding: "20px", background: "var(--bg-secondary)", borderRadius: "12px", border: isMismatch ? "1px solid #FFCDD2" : "1px solid var(--border)" }}>
+                            <div style={{ gridColumn: "1/-1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", padding: "20px", background: "var(--bg-secondary)", borderRadius: "12px", border: isMismatch ? "2px solid #EF5350" : "1px solid var(--border)" }}>
                                 <div><label className="form-label">Basic ({t.basicPercent}%)</label><input type="number" name="salary.basic" value={formData.salary.basic} onChange={handleInputChange} className="form-input" /></div>
                                 <div><label className="form-label">HRA ({t.hraPercent}%)</label><input type="number" name="salary.hra" value={formData.salary.hra} onChange={handleInputChange} className="form-input" /></div>
                                 <div><label className="form-label">DA ({t.daPercent}%)</label><input type="number" name="salary.da" value={formData.salary.da} onChange={handleInputChange} className="form-input" /></div>
                                 <div><label className="form-label">Special Allowance ({t.specialAllowancePercent}%)</label><input type="number" name="salary.specialAllowance" value={formData.salary.specialAllowance} onChange={handleInputChange} className="form-input" /></div>
 
+                                <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "10px", borderTop: "1px solid var(--border)" }}>
+                                    <span style={{ fontSize: "13px", fontWeight: 600 }}>Components Total</span>
+                                    <span style={{ fontSize: "15px", fontWeight: 700, color: isMismatch ? "#EF5350" : "var(--secondary)", fontFamily: "monospace" }}>₹{currentSum.toLocaleString()}</span>
+                                </div>
+
                                 {isMismatch && (
-                                    <div style={{ gridColumn: "1/-1", color: "#D32F2F", fontSize: "12px", marginTop: "10px", padding: "8px", background: "#FFEBEE", borderRadius: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
-                                        ⚠️ Components total (₹{currentSum.toLocaleString()}) does not match Monthly CTC (₹{monthlyCTC.toLocaleString()})
+                                    <div style={{ gridColumn: "1/-1", color: "#D32F2F", fontSize: "12px", padding: "10px 14px", background: "#FFEBEE", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        ⚠️ Components total (₹{currentSum.toLocaleString()}) does not match Monthly CTC (₹{monthlyCTC.toLocaleString()}). Click <strong style={{ cursor: "pointer", textDecoration: "underline", marginLeft: "4px" }} onClick={() => autoCalculateSalary(formData.ctc)}>Auto Calculate</strong> to fix.
                                     </div>
                                 )}
                             </div>
@@ -832,172 +884,292 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
 
             case "Statutory & Compliance":
                 return (
-                    <div className="card animate-in" style={{ padding: "30px" }}>
-                        <h3 style={{ marginBottom: "25px", color: "var(--primary)" }}>Statutory & Compliance Details</h3>
+                    <div className="animate-in" style={{ padding: "0" }}>
+                        <h3 style={{ fontSize: "22px", fontWeight: 600, color: "#333", marginBottom: "8px" }}>Statutory & Compliance Details</h3>
+                        <p style={{ fontSize: "13px", color: "#888", marginBottom: "28px" }}>Configure statutory deductions and compliance settings for this employee.</p>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
-                            {/* Provident Fund (PF) Section */}
-                            <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", background: "var(--bg-card)", opacity: formData.pfEnabled ? 1 : 0.7, transition: "0.3s" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.pfEnabled ? "20px" : "0", borderBottom: formData.pfEnabled ? "1px solid var(--border)" : "none", paddingBottom: formData.pfEnabled ? "10px" : "0" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                        <h4 style={{ color: formData.pfEnabled ? "var(--primary)" : "var(--text-muted)", margin: 0 }}>Provident Fund (PF)</h4>
-                                        {!formData.pfEnabled && <span style={{ fontSize: "10px", background: "var(--bg-secondary)", padding: "2px 8px", borderRadius: "10px", color: "var(--text-muted)" }}>Disabled</span>}
+                        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+
+                            {/* ─── Provident Fund (PF) ─── */}
+                            <div style={{
+                                background: "#fff", borderRadius: "10px", border: "1px solid #e5e7eb",
+                                borderLeft: formData.pfEnabled ? "4px solid #f97316" : "4px solid #d1d5db",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.3s ease"
+                            }}>
+                                <div style={{
+                                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                                    padding: "18px 24px", borderBottom: formData.pfEnabled ? "1px solid #f3f4f6" : "none"
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                        <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#1f2937" }}>Provident Fund (PF)</h4>
+                                        {formData.pfEnabled ? (
+                                            <span style={{ fontSize: "11px", background: "#dcfce7", color: "#16a34a", padding: "2px 10px", borderRadius: "12px", fontWeight: 500 }}>Enabled</span>
+                                        ) : (
+                                            <span style={{ fontSize: "11px", background: "#f3f4f6", color: "#9ca3af", padding: "2px 10px", borderRadius: "12px", fontWeight: 500 }}>Disabled</span>
+                                        )}
                                     </div>
-                                    <input type="checkbox" name="pfEnabled" checked={formData.pfEnabled} onChange={handleInputChange} style={{ width: "20px", height: "20px", cursor: "pointer" }} />
+                                    <label style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+                                        <input type="checkbox" name="pfEnabled" checked={formData.pfEnabled} onChange={handleInputChange}
+                                            style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                                        <div style={{
+                                            width: "44px", height: "24px", borderRadius: "12px",
+                                            background: formData.pfEnabled ? "#f97316" : "#d1d5db", transition: "0.3s",
+                                            position: "relative"
+                                        }}>
+                                            <div style={{
+                                                width: "18px", height: "18px", borderRadius: "50%", background: "#fff",
+                                                position: "absolute", top: "3px", left: formData.pfEnabled ? "23px" : "3px",
+                                                transition: "0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                                            }} />
+                                        </div>
+                                    </label>
                                 </div>
                                 {formData.pfEnabled && (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                                    <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                                             <div>
-                                                <label className="form-label">UAN Number (12 digits) *</label>
-                                                <input placeholder="123456789012" name="uan" value={formData.uan} onChange={handleInputChange} className="form-input" maxLength={12} />
-                                                {errors.uan && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.uan}</div>}
+                                                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>UAN Number (12 digits) *</label>
+                                                <input placeholder="123456789012" name="uan" value={formData.uan} onChange={handleInputChange} maxLength={12}
+                                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none", transition: "border 0.2s" }} />
+                                                {errors.uan && <div style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px" }}>{errors.uan}</div>}
                                             </div>
                                             <div>
-                                                <label className="form-label">PF Number *</label>
-                                                <input placeholder="MH/BAN/12345/123" name="pfNumber" value={formData.pfNumber} onChange={handleInputChange} className="form-input" />
-                                                {errors.pfNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.pfNumber}</div>}
+                                                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>PF Number *</label>
+                                                <input placeholder="MH/BAN/12345/123" name="pfNumber" value={formData.pfNumber} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none" }} />
+                                                {errors.pfNumber && <div style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px" }}>{errors.pfNumber}</div>}
                                             </div>
                                             <div>
-                                                <label className="form-label">PF Joining Date</label>
-                                                <input type="date" name="pfJoiningDate" value={formData.pfJoiningDate} onChange={handleInputChange} className="form-input" />
+                                                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>PF Joining Date</label>
+                                                <input type="date" name="pfJoiningDate" value={formData.pfJoiningDate} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none" }} />
                                             </div>
                                         </div>
 
-                                        <div style={{ background: "var(--bg-secondary)", padding: "15px", borderRadius: "8px" }}>
-                                            <h5 style={{ fontSize: "13px", fontWeight: 600, marginBottom: "15px" }}>Contribution Preferences</h5>
-                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                                                <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
-                                                    <input type="checkbox" name="pfContributionPreferences.employerPF" checked={formData.pfContributionPreferences.employerPF} onChange={handleInputChange} />
-                                                    Include Employer's PF contribution in CTC
-                                                </label>
-                                                <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
-                                                    <input type="checkbox" name="pfContributionPreferences.edli" checked={formData.pfContributionPreferences.edli} onChange={handleInputChange} />
-                                                    Include EDLI contribution in CTC
-                                                </label>
-                                                <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
-                                                    <input type="checkbox" name="pfContributionPreferences.adminCharges" checked={formData.pfContributionPreferences.adminCharges} onChange={handleInputChange} />
-                                                    Include Admin charges in CTC
-                                                </label>
+                                        {/* Contribution Preferences */}
+                                        <div style={{ background: "#fefce8", border: "1px solid #fef08a", padding: "16px 20px", borderRadius: "8px" }}>
+                                            <h5 style={{ fontSize: "13px", fontWeight: 600, color: "#854d0e", marginBottom: "14px", margin: "0 0 14px 0" }}>Contribution Preferences</h5>
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                                                {[
+                                                    { name: "pfContributionPreferences.employerPF", label: "Employer's PF contribution in CTC", checked: formData.pfContributionPreferences.employerPF },
+                                                    { name: "pfContributionPreferences.edli", label: "EDLI contribution in CTC", checked: formData.pfContributionPreferences.edli },
+                                                    { name: "pfContributionPreferences.adminCharges", label: "Admin charges in CTC", checked: formData.pfContributionPreferences.adminCharges },
+                                                ].map((pref) => (
+                                                    <label key={pref.name} style={{ display: "flex", alignItems: "flex-start", gap: "8px", fontSize: "12px", color: "#78350f", cursor: "pointer", lineHeight: "1.4" }}>
+                                                        <input type="checkbox" name={pref.name} checked={pref.checked} onChange={handleInputChange} style={{ marginTop: "2px", accentColor: "#f97316" }} />
+                                                        {pref.label}
+                                                    </label>
+                                                ))}
                                             </div>
                                         </div>
 
-                                        <div style={{ display: "flex", gap: "20px" }}>
-                                            <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
-                                                <input type="checkbox" name="pfOverrideEnabled" checked={formData.pfOverrideEnabled} onChange={handleInputChange} />
-                                                Allow Employee level Override
-                                            </label>
-                                            <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
-                                                <input type="checkbox" name="pfProRateRestrictedWage" checked={formData.pfProRateRestrictedWage} onChange={handleInputChange} />
-                                                Pro-rate Restricted PF Wage
-                                            </label>
-                                            <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
-                                                <input type="checkbox" name="pfLOPBased" checked={formData.pfLOPBased} onChange={handleInputChange} />
-                                                Consider salary components based on LOP
-                                            </label>
-                                            <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
-                                                <input type="checkbox" name="pfABRYEligible" checked={formData.pfABRYEligible} onChange={handleInputChange} />
-                                                Eligible for ABRY Scheme
-                                            </label>
+                                        {/* Bottom toggles */}
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", background: "#f9fafb", padding: "14px 18px", borderRadius: "8px" }}>
+                                            {[
+                                                { name: "pfOverrideEnabled", label: "Allow Employee level Override", checked: formData.pfOverrideEnabled },
+                                                { name: "pfProRateRestrictedWage", label: "Pro-rate Restricted PF Wage", checked: formData.pfProRateRestrictedWage },
+                                                { name: "pfLOPBased", label: "Consider salary components on LOP", checked: formData.pfLOPBased },
+                                                { name: "pfABRYEligible", label: "Eligible for ABRY Scheme", checked: formData.pfABRYEligible },
+                                            ].map((opt) => (
+                                                <label key={opt.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#374151", cursor: "pointer" }}>
+                                                    <input type="checkbox" name={opt.name} checked={opt.checked} onChange={handleInputChange} style={{ accentColor: "#f97316" }} />
+                                                    {opt.label}
+                                                </label>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* ESI Section */}
-                            <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", background: "var(--bg-card)", opacity: formData.esiEnabled ? 1 : 0.7, transition: "0.3s" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.esiEnabled ? "20px" : "0", borderBottom: formData.esiEnabled ? "1px solid var(--border)" : "none", paddingBottom: formData.esiEnabled ? "10px" : "0" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                        <h4 style={{ color: formData.esiEnabled ? "var(--primary)" : "var(--text-muted)", margin: 0 }}>Employees' State Insurance (ESI)</h4>
-                                        {!formData.esiEnabled && <span style={{ fontSize: "10px", background: "var(--bg-secondary)", padding: "2px 8px", borderRadius: "10px", color: "var(--text-muted)" }}>Disabled</span>}
+                            {/* ─── Employees' State Insurance (ESI) ─── */}
+                            <div style={{
+                                background: "#fff", borderRadius: "10px", border: "1px solid #e5e7eb",
+                                borderLeft: formData.esiEnabled ? "4px solid #f97316" : "4px solid #d1d5db",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.3s ease"
+                            }}>
+                                <div style={{
+                                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                                    padding: "18px 24px", borderBottom: formData.esiEnabled ? "1px solid #f3f4f6" : "none"
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                        <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#1f2937" }}>Employees&apos; State Insurance (ESI)</h4>
+                                        {formData.esiEnabled ? (
+                                            <span style={{ fontSize: "11px", background: "#dcfce7", color: "#16a34a", padding: "2px 10px", borderRadius: "12px", fontWeight: 500 }}>Enabled</span>
+                                        ) : (
+                                            <span style={{ fontSize: "11px", background: "#f3f4f6", color: "#9ca3af", padding: "2px 10px", borderRadius: "12px", fontWeight: 500 }}>Disabled</span>
+                                        )}
                                     </div>
-                                    <input type="checkbox" name="esiEnabled" checked={formData.esiEnabled} onChange={handleInputChange} style={{ width: "20px", height: "20px", cursor: "pointer" }} />
+                                    <label style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+                                        <input type="checkbox" name="esiEnabled" checked={formData.esiEnabled} onChange={handleInputChange}
+                                            style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                                        <div style={{
+                                            width: "44px", height: "24px", borderRadius: "12px",
+                                            background: formData.esiEnabled ? "#f97316" : "#d1d5db", transition: "0.3s",
+                                            position: "relative"
+                                        }}>
+                                            <div style={{
+                                                width: "18px", height: "18px", borderRadius: "50%", background: "#fff",
+                                                position: "absolute", top: "3px", left: formData.esiEnabled ? "23px" : "3px",
+                                                transition: "0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                                            }} />
+                                        </div>
+                                    </label>
                                 </div>
                                 {formData.esiEnabled && (
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
-                                        <div>
-                                            <label className="form-label">ESI Number *</label>
-                                            <input placeholder="ESI Number *" name="esiNumber" value={formData.esiNumber} onChange={handleInputChange} className="form-input" />
-                                            {errors.esiNumber && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.esiNumber}</div>}
+                                    <div style={{ padding: "20px 24px" }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                                            <div>
+                                                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>ESI Number *</label>
+                                                <input placeholder="56-00-140218-000-0607" name="esiNumber" value={formData.esiNumber} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none" }} />
+                                                {errors.esiNumber && <div style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px" }}>{errors.esiNumber}</div>}
+                                            </div>
+                                            <div>
+                                                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>ESI Joining Date</label>
+                                                <input type="date" name="esiJoiningDate" value={formData.esiJoiningDate} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none" }} />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Deduction Cycle</label>
+                                                <select name="esiDeductionCycle" value={formData.esiDeductionCycle} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", background: "#fff", outline: "none" }}>
+                                                    <option value="Monthly">Monthly</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>ESI Salary Limit (₹)</label>
+                                                <input type="number" name="esiSalaryLimit" value={formData.esiSalaryLimit} onChange={handleInputChange} placeholder="21000"
+                                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none" }} />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="form-label">ESI Joining Date</label>
-                                            <input type="date" name="esiJoiningDate" value={formData.esiJoiningDate} onChange={handleInputChange} className="form-input" />
-                                        </div>
-                                        <div>
-                                            <label className="form-label">ESI Deduction Cycle</label>
-                                            <select name="esiDeductionCycle" value={formData.esiDeductionCycle} onChange={handleInputChange} className="form-input">
-                                                <option value="Monthly">Monthly</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="form-label">ESI Salary Limit (INR)</label>
-                                            <input type="number" name="esiSalaryLimit" value={formData.esiSalaryLimit} onChange={handleInputChange} className="form-input" placeholder="21000" />
-                                        </div>
-                                        <div style={{ gridColumn: "1 / -1", fontSize: "11px", color: "var(--text-muted)", padding: "8px", background: "var(--bg-secondary)", borderRadius: "4px" }}>
-                                            Rates: {complianceSettings?.esi?.employeeContribution || 0.75}% (Employee) / {complianceSettings?.esi?.employerContribution || 3.25}% (Employer)
+                                        <div style={{ marginTop: "14px", display: "flex", gap: "24px", background: "#eff6ff", border: "1px solid #bfdbfe", padding: "12px 18px", borderRadius: "8px", fontSize: "13px", color: "#1e40af" }}>
+                                            <span>Employee Contribution: <strong>{complianceSettings?.esi?.employeeContribution || 0.75}%</strong> of Gross Pay</span>
+                                            <span>Employer Contribution: <strong>{complianceSettings?.esi?.employerContribution || 3.25}%</strong> of Gross Pay</span>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* PT, LWF, Bonus - 3 Column Grid */}
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px" }}>
+                            {/* ─── PT, LWF, Bonus — 3 compact cards ─── */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+
                                 {/* Professional Tax */}
-                                <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "15px", background: "var(--bg-card)", opacity: formData.ptEnabled ? 1 : 0.7, transition: "0.3s" }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.ptEnabled ? "15px" : "0" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                                            <h5 style={{ margin: 0, fontSize: "14px", color: formData.ptEnabled ? "var(--text-primary)" : "var(--text-muted)" }}>Professional Tax</h5>
-                                            {!formData.ptEnabled && <span style={{ fontSize: "9px", background: "var(--bg-secondary)", padding: "1px 6px", borderRadius: "10px", color: "var(--text-muted)" }}>Off</span>}
-                                        </div>
-                                        <input type="checkbox" name="ptEnabled" checked={formData.ptEnabled} onChange={handleInputChange} style={{ cursor: "pointer" }} />
+                                <div style={{
+                                    background: "#fff", borderRadius: "10px", border: "1px solid #e5e7eb",
+                                    borderLeft: formData.ptEnabled ? "4px solid #8b5cf6" : "4px solid #d1d5db",
+                                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.3s ease"
+                                }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: formData.ptEnabled ? "1px solid #f3f4f6" : "none" }}>
+                                        <h5 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#1f2937" }}>Professional Tax</h5>
+                                        <label style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+                                            <input type="checkbox" name="ptEnabled" checked={formData.ptEnabled} onChange={handleInputChange}
+                                                style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                                            <div style={{
+                                                width: "36px", height: "20px", borderRadius: "10px",
+                                                background: formData.ptEnabled ? "#8b5cf6" : "#d1d5db", transition: "0.3s", position: "relative"
+                                            }}>
+                                                <div style={{
+                                                    width: "14px", height: "14px", borderRadius: "50%", background: "#fff",
+                                                    position: "absolute", top: "3px", left: formData.ptEnabled ? "19px" : "3px",
+                                                    transition: "0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)"
+                                                }} />
+                                            </div>
+                                        </label>
                                     </div>
                                     {formData.ptEnabled && (
-                                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                                            <input placeholder="PT Registration No." name="ptNumber" value={formData.ptNumber} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }} />
-                                            <select name="ptDeductionCycle" value={formData.ptDeductionCycle} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }}>
-                                                <option value="Monthly">Monthly</option>
-                                                <option value="Half Yearly">Half Yearly</option>
-                                                <option value="Yearly">Yearly</option>
-                                            </select>
+                                        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                                            <div>
+                                                <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#6b7280", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>PT Registration No.</label>
+                                                <input placeholder="PT Registration No." name="ptNumber" value={formData.ptNumber} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #e5e7eb", borderRadius: "6px", fontSize: "13px", color: "#1f2937", outline: "none" }} />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#6b7280", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Deduction Cycle</label>
+                                                <select name="ptDeductionCycle" value={formData.ptDeductionCycle} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #e5e7eb", borderRadius: "6px", fontSize: "13px", color: "#1f2937", background: "#fff", outline: "none" }}>
+                                                    <option value="Monthly">Monthly</option>
+                                                    <option value="Half Yearly">Half Yearly</option>
+                                                    <option value="Yearly">Yearly</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* LWF */}
-                                <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "15px", background: "var(--bg-card)", opacity: formData.lwfEnabled ? 1 : 0.7, transition: "0.3s" }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.lwfEnabled ? "15px" : "0" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                                            <h5 style={{ margin: 0, fontSize: "14px", color: formData.lwfEnabled ? "var(--text-primary)" : "var(--text-muted)" }}>Labour Welfare Fund</h5>
-                                            {!formData.lwfEnabled && <span style={{ fontSize: "9px", background: "var(--bg-secondary)", padding: "1px 6px", borderRadius: "10px", color: "var(--text-muted)" }}>Off</span>}
-                                        </div>
-                                        <input type="checkbox" name="lwfEnabled" checked={formData.lwfEnabled} onChange={handleInputChange} style={{ cursor: "pointer" }} />
+                                {/* Labour Welfare Fund */}
+                                <div style={{
+                                    background: "#fff", borderRadius: "10px", border: "1px solid #e5e7eb",
+                                    borderLeft: formData.lwfEnabled ? "4px solid #0ea5e9" : "4px solid #d1d5db",
+                                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.3s ease"
+                                }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: formData.lwfEnabled ? "1px solid #f3f4f6" : "none" }}>
+                                        <h5 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#1f2937" }}>Labour Welfare Fund</h5>
+                                        <label style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+                                            <input type="checkbox" name="lwfEnabled" checked={formData.lwfEnabled} onChange={handleInputChange}
+                                                style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                                            <div style={{
+                                                width: "36px", height: "20px", borderRadius: "10px",
+                                                background: formData.lwfEnabled ? "#0ea5e9" : "#d1d5db", transition: "0.3s", position: "relative"
+                                            }}>
+                                                <div style={{
+                                                    width: "14px", height: "14px", borderRadius: "50%", background: "#fff",
+                                                    position: "absolute", top: "3px", left: formData.lwfEnabled ? "19px" : "3px",
+                                                    transition: "0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)"
+                                                }} />
+                                            </div>
+                                        </label>
                                     </div>
                                     {formData.lwfEnabled && (
-                                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                                            <input placeholder="LWF Account No." name="lwfNumber" value={formData.lwfNumber} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }} />
-                                            <select name="lwfDeductionCycle" value={formData.lwfDeductionCycle} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }}>
-                                                <option value="Monthly">Monthly</option>
-                                                <option value="Half Yearly">Half Yearly</option>
-                                                <option value="Yearly">Yearly</option>
-                                            </select>
+                                        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                                            <div>
+                                                <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#6b7280", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>LWF Account No.</label>
+                                                <input placeholder="LWF Account No." name="lwfNumber" value={formData.lwfNumber} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #e5e7eb", borderRadius: "6px", fontSize: "13px", color: "#1f2937", outline: "none" }} />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#6b7280", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Deduction Cycle</label>
+                                                <select name="lwfDeductionCycle" value={formData.lwfDeductionCycle} onChange={handleInputChange}
+                                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #e5e7eb", borderRadius: "6px", fontSize: "13px", color: "#1f2937", background: "#fff", outline: "none" }}>
+                                                    <option value="Monthly">Monthly</option>
+                                                    <option value="Half Yearly">Half Yearly</option>
+                                                    <option value="Yearly">Yearly</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Statutory Bonus */}
-                                <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "15px", background: "var(--bg-card)", opacity: formData.statutoryBonusEnabled ? 1 : 0.7, transition: "0.3s" }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: formData.statutoryBonusEnabled ? "15px" : "0" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                                            <h5 style={{ margin: 0, fontSize: "14px", color: formData.statutoryBonusEnabled ? "var(--text-primary)" : "var(--text-muted)" }}>Statutory Bonus</h5>
-                                            {!formData.statutoryBonusEnabled && <span style={{ fontSize: "9px", background: "var(--bg-secondary)", padding: "1px 6px", borderRadius: "10px", color: "var(--text-muted)" }}>Off</span>}
-                                        </div>
-                                        <input type="checkbox" name="statutoryBonusEnabled" checked={formData.statutoryBonusEnabled} onChange={handleInputChange} style={{ cursor: "pointer" }} />
+                                <div style={{
+                                    background: "#fff", borderRadius: "10px", border: "1px solid #e5e7eb",
+                                    borderLeft: formData.statutoryBonusEnabled ? "4px solid #10b981" : "4px solid #d1d5db",
+                                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.3s ease"
+                                }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: formData.statutoryBonusEnabled ? "1px solid #f3f4f6" : "none" }}>
+                                        <h5 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#1f2937" }}>Statutory Bonus</h5>
+                                        <label style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+                                            <input type="checkbox" name="statutoryBonusEnabled" checked={formData.statutoryBonusEnabled} onChange={handleInputChange}
+                                                style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                                            <div style={{
+                                                width: "36px", height: "20px", borderRadius: "10px",
+                                                background: formData.statutoryBonusEnabled ? "#10b981" : "#d1d5db", transition: "0.3s", position: "relative"
+                                            }}>
+                                                <div style={{
+                                                    width: "14px", height: "14px", borderRadius: "50%", background: "#fff",
+                                                    position: "absolute", top: "3px", left: formData.statutoryBonusEnabled ? "19px" : "3px",
+                                                    transition: "0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)"
+                                                }} />
+                                            </div>
+                                        </label>
                                     </div>
                                     {formData.statutoryBonusEnabled && (
-                                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                            <span style={{ fontSize: "14px" }}>₹</span>
-                                            <input type="number" name="statutoryBonusAmount" value={formData.statutoryBonusAmount} onChange={handleInputChange} className="form-input" style={{ fontSize: "12px" }} placeholder="Amount" />
+                                        <div style={{ padding: "14px 16px" }}>
+                                            <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#6b7280", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Bonus Amount</label>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                                <span style={{ fontSize: "16px", fontWeight: 600, color: "#374151" }}>₹</span>
+                                                <input type="number" name="statutoryBonusAmount" value={formData.statutoryBonusAmount} onChange={handleInputChange} placeholder="8,333"
+                                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #e5e7eb", borderRadius: "6px", fontSize: "13px", color: "#1f2937", outline: "none" }} />
+                                            </div>
                                         </div>
                                     )}
                                 </div>

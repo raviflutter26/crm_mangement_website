@@ -46,6 +46,9 @@ export const API_ENDPOINTS = {
     // Salary Structures
     SALARY_STRUCTURES: `${API_BASE_URL}/api/salary-structures`,
 
+    // Salary Components
+    SALARY_COMPONENTS: `${API_BASE_URL}/api/salary-components`,
+
     // Organization
     DESIGNATIONS: `${API_BASE_URL}/api/organization/designations`,
     BRANCHES: `${API_BASE_URL}/api/organization/branches`,

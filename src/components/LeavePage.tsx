@@ -124,7 +124,13 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
     ];
 
     if (loading || !userRole) {
-        return <div style={{ padding: "40px", textAlign: "center" }}>Loading Leaves...</div>;
+        return (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", flexDirection: "column", gap: "16px" }}>
+                <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
+                <div style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>Loading Leaves...</div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
     }
 
     return (
@@ -232,7 +238,8 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
                 <div style={{
                     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
                     backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000,
-                    display: "flex", alignItems: "center", justifyContent: "center"
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    backdropFilter: "blur(4px)"
                 }}>
                     <div className="card animate-in" style={{ width: "500px", padding: "25px" }}>
                         <h2 style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
@@ -291,7 +298,8 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
                 <div style={{
                     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
                     backgroundColor: "rgba(0,0,0,0.6)", zIndex: 2000,
-                    display: "flex", alignItems: "center", justifyContent: "center"
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    backdropFilter: "blur(4px)"
                 }}>
                     <div className="card animate-in" style={{ width: "400px", padding: "25px", textAlign: "center" }}>
                         <div style={{

@@ -153,7 +153,7 @@ export default function PerformancePage({ showNotify }: PerformancePageProps) {
                     <h3 className="card-title">{activeView === "goals" ? "Goals & KPIs" : "Appraisal Cycles"}</h3>
                 </div>
                 <div className="table-wrapper">
-                    {loading ? <div style={{ padding: "40px", textAlign: "center" }}>Loading...</div> :
+                    {loading ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", flexDirection: "column", gap: "16px" }}><div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} /><div style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 500 }}>Loading...</div><style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div> :
                         activeView === "goals" ? (
                             <table>
                                 <thead><tr><th>Employee</th><th>Goal</th><th>Priority</th><th>Progress</th><th>Status</th><th>Target Date</th><th>Actions</th></tr></thead>

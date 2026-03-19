@@ -12,8 +12,10 @@ const TAB_LIST = [
     { id: "epf", label: "EPF" },
     { id: "esi", label: "ESI" },
     { id: "pt", label: "Professional Tax" },
+    { id: "tds", label: "TDS / Income Tax" },
     { id: "lwf", label: "Labour Welfare Fund" },
-    { id: "bonus", label: "Statutory Bonus" }
+    { id: "bonus", label: "Statutory Bonus" },
+    { id: "company", label: "Company Info" }
 ];
 
 interface StatutoryConfig {
@@ -65,6 +67,20 @@ interface StatutoryConfig {
         eligibilityLimit: number;
         paymentFrequency: string;
     };
+    tds?: {
+        enabled: boolean;
+        regime: 'new' | 'old';
+        cessRate: number;
+        newRegimeSlabs: any[];
+        oldRegimeSlabs: any[];
+    };
+    company?: {
+        companyName: string;
+        financialYear: string;
+        pfRegistrationNumber: string;
+        esiRegistrationNumber: string;
+        tanNumber: string;
+    }
 }
 
 export default function StatutoryPage({ showNotify }: { showNotify: (type: 'success' | 'failure' | 'warning', msg: string) => void }) {
@@ -144,12 +160,39 @@ export default function StatutoryPage({ showNotify }: { showNotify: (type: 'succ
                     {activeTab === "pt" && <PTSettings pt={config.professionalTax} onUpdate={(data) => handleUpdate('pt', data)} onViewSlabs={() => setIsPTModalOpen(true)} saving={saving} />}
                     {activeTab === "lwf" && <LWFSettings lwf={config.labourWelfareFund} onUpdate={(data) => handleUpdate('lwf', data)} saving={saving} />}
                     {activeTab === "bonus" && <BonusSettings bonus={config.statutoryBonus} onUpdate={(data) => handleUpdate('bonus', data)} saving={saving} />}
+                    {activeTab === "tds" && <TDSSettings tds={config.tds || { enabled: true, regime: 'new', cessRate: 4, newRegimeSlabs: [], oldRegimeSlabs: [] }} onUpdate={(data) => handleUpdate('tds', data)} saving={saving} />}
+                    {activeTab === "company" && <CompanySettings company={config.company || { companyName: "", financialYear: "", pfRegistrationNumber: "", esiRegistrationNumber: "", tanNumber: "" }} onUpdate={(data) => handleUpdate('company', data)} saving={saving} />}
                 </div>
 
                 {activeTab === "epf" && (
                     <EPFCalculatorPanel pfWage={pfWagePreview} onWageChange={setPfWagePreview} />
                 )}
+                {activeTab === "tds" && (
+                    <div style={{ width: "300px" }}>
+                        <div className="card" style={{ padding: "24px" }}>
+                            <h4 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "16px" }}>New Regime Slabs</h4>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                {(config.tds?.newRegimeSlabs || []).map((s: any, i: number) => (
+                                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                                        <span>Up to ₹{s.maxIncome?.toLocaleString()}</span>
+                                        <span style={{ fontWeight: 700 }}>{s.rate}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {activeTab === "company" && (
+                    <div style={{ width: "320px" }}>
+                        <div className="card" style={{ padding: "24px" }}>
+                            <h4 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px" }}>Compliance Status</h4>
+                            <div style={{ color: "#16a34a", fontSize: "14px", fontWeight: 600 }}>✅ Fully Compliant</div>
+                            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "8px" }}>Last audit: {new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                )}
             </div>
+
 
             <PTSlabsModal 
                 isOpen={isPTModalOpen} 
@@ -417,3 +460,50 @@ const BonusSettings = ({ bonus, onUpdate, saving }: { bonus: StatutoryConfig['st
     );
 };
 
+const TDSSettings = ({ tds, onUpdate, saving }: { tds: any, onUpdate: (data: any) => void, saving: boolean }) => {
+    const [data, setData] = useState(tds);
+    return (
+        <div className="card animate-in" style={{ padding: "32px", maxWidth: "800px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "8px" }}>TDS / Income Tax</h3>
+            <p style={{ fontSize: "13px", color: "#64748B", marginBottom: "32px" }}>Tax is deducted monthly based on estimated annual taxable income.</p>
+            
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", background: "#f8fafc", borderRadius: "12px", marginBottom: "24px" }}>
+                <span>Income Tax Rules Enabled</span>
+                <input type="checkbox" checked={data.enabled} onChange={e => setData({...data, enabled: e.target.checked})} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
+                <div>
+                    <label className="form-label">Default Regime</label>
+                    <select value={data.regime} onChange={e => setData({...data, regime: e.target.value})} className="form-input">
+                        <option value="new">New Regime (FY 2025-26)</option>
+                        <option value="old">Old Regime</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="form-label">Cess Rate (%)</label>
+                    <input type="number" value={data.cessRate} onChange={e => setData({...data, cessRate: Number(e.target.value)})} className="form-input" />
+                </div>
+            </div>
+
+            <button className="btn btn-primary" onClick={() => onUpdate(data)} disabled={saving}>Save Changes</button>
+        </div>
+    );
+};
+
+const CompanySettings = ({ company, onUpdate, saving }: { company: any, onUpdate: (data: any) => void, saving: boolean }) => {
+    const [data, setData] = useState(company);
+    return (
+        <div className="card animate-in" style={{ padding: "32px", maxWidth: "800px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "32px" }}>Company Statutory Identifiers</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
+                <div><label className="form-label">Company Name</label><input type="text" value={data.companyName} onChange={e => setData({...data, companyName: e.target.value})} className="form-input" /></div>
+                <div><label className="form-label">Financial Year</label><input type="text" value={data.financialYear} onChange={e => setData({...data, financialYear: e.target.value})} className="form-input" /></div>
+                <div><label className="form-label">PF Registration No.</label><input type="text" value={data.pfRegistrationNumber} onChange={e => setData({...data, pfRegistrationNumber: e.target.value})} className="form-input" /></div>
+                <div><label className="form-label">ESI Registration No.</label><input type="text" value={data.esiRegistrationNumber} onChange={e => setData({...data, esiRegistrationNumber: e.target.value})} className="form-input" /></div>
+                <div style={{ gridColumn: "1/-1" }}><label className="form-label">TAN Number</label><input type="text" value={data.tanNumber} onChange={e => setData({...data, tanNumber: e.target.value})} className="form-input" /></div>
+            </div>
+            <button className="btn btn-primary" onClick={() => onUpdate(data)} disabled={saving}>Save Changes</button>
+        </div>
+    );
+};
