@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
-import { FiPlus, FiTrash2, FiX, FiChevronDown, FiInfo } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiX, FiChevronDown, FiInfo, FiSettings } from "react-icons/fi";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 const TABS = [
     { id: "earning", label: "Earnings" },
@@ -279,22 +281,17 @@ export default function SalaryComponentsPage() {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr>
-                                <td colSpan={columns.length + 1} style={{ textAlign: "center", padding: "80px 24px" }}>
-                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-                                        <div className="loading-spinner" />
-                                        <span style={{ color: "var(--text-muted)", fontSize: "14px" }}>Analyzing components...</span>
-                                    </div>
-                                </td>
-                            </tr>
+                            <tr><td colSpan={columns.length + 1} style={{ textAlign: "center", padding: "20px" }}><TableSkeleton rows={6} /></td></tr>
                         ) : data.length === 0 ? (
                             <tr>
-                                <td colSpan={columns.length + 1} style={{ textAlign: "center", padding: "80px 24px", color: "var(--text-muted)" }}>
-                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-                                        <FiInfo size={40} style={{ opacity: 0.2 }} />
-                                        <span style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-secondary)" }}>No {TABS.find(t => t.id === activeTab)?.label.toLowerCase()} configured yet</span>
-                                        <span style={{ fontSize: "13px" }}>Set up your salary components to start managing payroll.</span>
-                                    </div>
+                                <td colSpan={columns.length + 1} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                    <EmptyState 
+                                        title={`No ${TABS.find(t => t.id === activeTab)?.label} Found`}
+                                        description={`You haven't configured any ${activeTab} components yet. Add your first component to start building your salary structures.`}
+                                        icon={FiSettings}
+                                        actionLabel={`Add ${TABS.find(t => t.id === activeTab)?.label.slice(0, -1)}`}
+                                        onAction={() => openCreate(activeTab)}
+                                    />
                                 </td>
                             </tr>
                         ) : data.map((item: any, i: number) => (

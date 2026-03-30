@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
+import { useAuth } from "@/lib/auth";
 import { FiPlus, FiEdit2, FiTrash2, FiBriefcase, FiUsers } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
 
 interface DepartmentsPageProps {
     showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
 }
 
 export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
+    const { user } = useAuth();
     const [departments, setDepartments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -43,8 +46,8 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
             setLoading(true);
             const token = await getToken();
             const [deptRes, empRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.DEPARTMENTS),
-                axiosInstance.get(API_ENDPOINTS.EMPLOYEES)
+                axiosInstance.get(API_ENDPOINTS.DEPARTMENTS, { params: { organizationId: user?.organizationId } }),
+                axiosInstance.get(API_ENDPOINTS.EMPLOYEES, { params: { organizationId: user?.organizationId } })
             ]);
 
             setDepartments(deptRes.data.data);
@@ -99,10 +102,11 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
         e.preventDefault();
         try {
             const token = await getToken();
+            const payload = { ...formData, organizationId: user?.organizationId };
             if (isEditing) {
-                await axiosInstance.put(`${API_ENDPOINTS.DEPARTMENTS}/${editId}`, formData);
+                await axiosInstance.put(`${API_ENDPOINTS.DEPARTMENTS}/${editId}`, payload);
             } else {
-                await axiosInstance.post(API_ENDPOINTS.DEPARTMENTS, formData);
+                await axiosInstance.post(API_ENDPOINTS.DEPARTMENTS, payload);
             }
             setShowModal(false);
             fetchData();
@@ -216,11 +220,14 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
                         </div>
                     ))}
                     {departments.length === 0 && (
-                        <div style={{ gridColumn: "1 / -1" }} className="empty-state">
-                            <FiBriefcase className="empty-state-icon" style={{ opacity: 0.5 }} />
-                            <h3>No Departments Found</h3>
-                            <p>Get started by building your organizational structure.</p>
-                            <button className="btn btn-primary" onClick={openAddModal}>Add First Department</button>
+                        <div style={{ gridColumn: "1 / -1", padding: "40px 0" }}>
+                            <EmptyState
+                                title="No Departments Found"
+                                description="Your organizational structure is empty. Create your first department to start grouping employees."
+                                icon={FiBriefcase}
+                                actionLabel="Add Department"
+                                onAction={openAddModal}
+                            />
                         </div>
                     )}
                 </div>

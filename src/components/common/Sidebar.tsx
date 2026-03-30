@@ -3,93 +3,173 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import axiosInstance from "@/lib/axios";
 import {
     FiGrid, FiUsers, FiClock, FiCalendar, FiDollarSign, FiBriefcase,
     FiSettings, FiHelpCircle, FiZap, FiLayers, FiUserPlus, FiTarget,
-    FiFileText, FiPackage, FiUser, FiBarChart2, FiShield, FiLock, FiSliders, FiMapPin
+    FiFileText, FiPackage, FiUser, FiBarChart2, FiShield, FiLock, FiSliders, FiLogOut, FiActivity, FiSearch, FiGlobe, FiDatabase, FiServer, FiKey, FiMail, FiFlag, FiTag, FiMapPin, FiChevronDown, FiMoreVertical
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
 interface MenuItem {
     id: string;
     label: string;
-    icon: any;
+    icon?: any;
     badge?: string;
+    badgeColor?: 'green' | 'red' | 'orange' | 'gray';
+    href?: string;
     roles: string[];
+    children?: MenuItem[];
+    exact?: boolean;
 }
 
-const menuItemsBase: MenuItem[] = [
-    { id: "dashboard", label: "Dashboard", icon: FiGrid, roles: ["Admin", "HR", "Manager", "Employee"] },
-    { id: "employees", label: "Employees", icon: FiUsers, roles: ["Admin", "HR", "Manager"] },
-    { id: "attendance", label: "Attendance", icon: FiClock, roles: ["Admin", "HR", "Manager", "Employee"] },
-    { id: "leaves", label: "Leave Management", icon: FiCalendar, roles: ["Admin", "HR", "Manager", "Employee"] },
-    { id: "payroll", label: "Payroll", icon: FiDollarSign, roles: ["Admin", "HR"] },
-    { id: "reports", label: "Reports & Analytics", icon: FiBarChart2, roles: ["Admin", "HR", "Manager"] },
-];
+const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: string): { [key: string]: MenuItem[] } => {
+    const isSuperAdmin = role === 'superadmin';
 
-const organizationItems: MenuItem[] = [
-    { id: "organizations", label: "Organizations", icon: FiLayers, roles: ["Admin", "HR"] },
-    { id: "departments", label: "Departments", icon: FiBriefcase, roles: ["Admin", "HR"] },
-];
+    // Standard Admin/SuperAdmin Groups based on Command Center UI
+    if (role !== 'employee') {
+        return {
+            "COMMAND CENTER": [
+                { id: "dashboard", label: "Dashboard", icon: FiGrid, roles: ["admin", "hr", "manager", "superadmin"] },
+                { id: "analytics", label: "Analytics & Reports", icon: FiBarChart2, roles: ["superadmin", "admin"] },
+            ],
+            "ORGANISATION": [
+                { id: "departments", label: "Departments", icon: FiBriefcase, roles: ["superadmin", "admin", "hr"] },
+                { id: "employees", label: "Employees", icon: FiUsers, roles: ["superadmin", "admin", "hr", "manager"], badge: empCount || undefined, badgeColor: "green" },
+                { id: "locations", label: "Sites & Locations", icon: FiMapPin, roles: ["superadmin", "admin", "hr"] },
+                { id: "projects", label: "Project Management", icon: FiLayers, roles: ["superadmin", "admin", "manager"] },
+                { id: "vendors", label: "Vendors & Contractors", icon: FiUserPlus, roles: ["superadmin", "admin"] },
+            ],
+            "HUMAN CAPITAL": [
+                { id: "recruitment", label: "Recruitment", icon: FiSearch, roles: ["superadmin", "admin", "hr"] },
+                { id: "attendance", label: "Attendance tracking", icon: FiClock, roles: ["superadmin", "admin", "hr", "manager"], badge: "2", badgeColor: "red" },
+                { id: "leaves", label: "Leave management", icon: FiCalendar, roles: ["superadmin", "admin", "hr", "manager"], badge: leaveCount || "5", badgeColor: "red" },
+                { id: "shifts", label: "Shift & Roster", icon: FiCalendar, roles: ["superadmin", "admin", "hr"] },
+                { id: "performance", label: "Performance", icon: FiTarget, roles: ["superadmin", "admin", "hr", "manager"] },
+                { id: "training", label: "Training & Certifications", icon: FiTarget, roles: ["superadmin", "admin", "hr"] },
+            ],
+            "FIELD OPERATIONS": [
+                { id: "field-tracking", label: "Field Team Tracking", icon: FiMapPin, roles: ["superadmin", "admin", "manager"] },
+                { id: "job-cards", label: "Job Cards / Work Logs", icon: FiBriefcase, roles: ["superadmin", "admin", "manager"] },
+                { id: "travel", label: "Travel & Site Visits", icon: FiMapPin, roles: ["superadmin", "admin", "manager"] },
+                { id: "inventory", label: "Inventory & Materials", icon: FiPackage, roles: ["superadmin", "admin", "manager"] },
+            ],
+            "SAFETY & COMPLIANCE": [
+                { id: "safety-inductions", label: "Safety Inductions", icon: FiShield, roles: ["superadmin", "admin", "hr"] },
+                { id: "incidents", label: "Incident Reports", icon: FiActivity, roles: ["superadmin", "admin", "hr", "manager"], badge: "1", badgeColor: "red" },
+                { id: "ppe-records", label: "PPE & Tool Records", icon: FiPackage, roles: ["superadmin", "admin", "manager"] },
+                { id: "compliance", label: "Compliance & Licences", icon: FiFileText, roles: ["superadmin", "admin", "hr"] },
+            ],
+            "FINANCE & BILLING": [
+                { id: "payroll", label: "Payroll processing", icon: FiDollarSign, roles: ["superadmin", "admin", "hr"] },
+                { id: "payroll-reports", label: "Payroll reports", icon: FiFileText, roles: ["superadmin", "admin", "hr"] },
+                { id: "reimbursements", label: "Reimbursements", icon: FiFileText, roles: ["superadmin", "admin", "hr", "manager"], badge: "3", badgeColor: "red" },
+                { id: "allowances", label: "Site Allowances", icon: FiBriefcase, roles: ["superadmin", "admin", "manager"] },
+                { id: "revenue", label: "Revenue & Invoices", icon: FiFileText, roles: ["superadmin", "admin"] },
+            ],
+            "ACCESS CONTROL": [
+                { id: "roles", label: "Roles & Permissions", icon: FiLock, roles: ["superadmin", "admin"] },
+                { id: "authentication", label: "Authentication", icon: FiKey, roles: ["superadmin", "admin"] },
+                { id: "ip-allowlist", label: "IP Allowlist", icon: FiGlobe, roles: ["superadmin", "admin"] },
+            ],
+            "ASSETS": [
+                { id: "assets", label: "Asset Management", icon: FiPackage, roles: ["superadmin", "admin", "hr"] },
+                { id: "location-tracking", label: "Location Tracking", icon: FiMapPin, roles: ["superadmin", "admin"] },
+            ],
+            "PLATFORM SETTINGS": [
+                { id: "email-settings", label: "Email & Notifications", icon: FiMail, roles: ["superadmin", "admin"] },
+                { id: "support-tickets", label: "Support Tickets", icon: FiTag, roles: ["superadmin", "admin"] },
+                { id: "compliance-logs", label: "Compliance & Logs", icon: FiFileText, roles: ["superadmin", "admin"] },
+                { id: "settings", label: "Settings", icon: FiSettings, roles: ["superadmin", "admin"] },
+            ]
+        };
+    }
 
-const hrModulesItems: MenuItem[] = [
-    { id: "recruitment", label: "Recruitment", icon: FiUserPlus, roles: ["Admin", "HR"] },
-    { id: "performance", label: "Performance", icon: FiTarget, roles: ["Admin", "HR", "Manager"] },
-];
-
-const financeItems: MenuItem[] = [
-    { id: "statutory", label: "Statutory & Compliance", icon: FiShield, roles: ["Admin", "HR"] },
-    { id: "payroll-reports", label: "Payroll Reports", icon: FiFileText, roles: ["Admin", "HR"] },
-    { id: "expenses", label: "Expenses", icon: FiDollarSign, roles: ["Admin", "HR", "Manager", "Employee"] },
-];
-
-const adminItems: MenuItem[] = [
-    { id: "shifts", label: "Shift Management", icon: FiClock, roles: ["Admin", "HR"] },
-    { id: "attendance-settings", label: "Attendance Settings", icon: FiSliders, roles: ["Admin", "HR"] },
-    { id: "salary-settings", label: "Salary Templates", icon: FiPackage, roles: ["Admin", "HR"] },
-    { id: "salary-components", label: "Salary Components", icon: FiZap, roles: ["Admin", "HR"] },
-    { id: "roles", label: "Role Management", icon: FiLock, roles: ["Admin"] },
-    { id: "assets", label: "Asset Management", icon: FiPackage, roles: ["Admin", "HR"] },
-];
-
-const portalItems: MenuItem[] = [
-    { id: "self-service", label: "Employee Self Service", icon: FiUser, roles: ["Admin", "HR", "Manager", "Employee"] },
-    { id: "settings", label: "Personal Settings", icon: FiSettings, roles: ["Admin", "HR", "Manager", "Employee"] },
-    { id: "help", label: "Help & Support", icon: FiHelpCircle, roles: ["Admin", "HR", "Manager", "Employee"] },
-];
+    // 👷 Employee Specific Groups (Branded Theme)
+    return {
+        "HOME": [
+            { id: "dashboard", label: "My Dashboard", icon: FiGrid, roles: ["employee"] },
+            { id: "profile", label: "My Profile", icon: FiUser, roles: ["employee"] },
+        ],
+        "ATTENDANCE & TIME": [
+            { id: "checkin", label: "Check-In / Check-out", icon: FiClock, roles: ["employee"] },
+            { id: "site-attendance", label: "Site Attendance", icon: FiMapPin, roles: ["employee"], badge: "Field", badgeColor: "orange" },
+            { id: "job-card", label: "Job Card / Work Log", icon: FiBriefcase, roles: ["employee"], badge: "Field", badgeColor: "orange" },
+            { id: "shift-schedule", label: "Shift Schedule", icon: FiCalendar, roles: ["employee"], badge: "Factory", badgeColor: "gray" },
+            { id: "timesheets", label: "Timesheets", icon: FiFileText, roles: ["employee"] },
+        ],
+        "LEAVE & TRAVEL": [
+            { id: "leaves", label: "Leave Request", icon: FiCalendar, roles: ["employee"], badge: leaveCount || "2", badgeColor: "orange" },
+            { id: "travel-request", label: "Travel / Site Visit Request", icon: FiMapPin, roles: ["employee"], badge: "Field", badgeColor: "orange" },
+            { id: "reimbursement", label: "Travel Reimbursement", icon: FiFileText, roles: ["employee"] },
+        ],
+        "PAYROLL & BENEFITS": [
+            { id: "payslips", label: "Pay Slips", icon: FiDollarSign, roles: ["employee"] },
+            { id: "allowance", label: "Site Allowance Claims", icon: FiBriefcase, roles: ["employee"], badge: "Field", badgeColor: "orange" },
+            { id: "esi-pf", label: "ESI / PF Details", icon: FiShield, roles: ["employee"] },
+            { id: "tax", label: "Tax Documents", icon: FiFileText, roles: ["employee"] },
+        ],
+        "SAFETY & COMPLIANCE": [
+            { id: "safety", label: "Safety Induction Status", icon: FiShield, roles: ["employee"] },
+            { id: "incident", label: "Incident / Hazard Report", icon: FiActivity, roles: ["employee"] },
+            { id: "ppe", label: "PPE & Tool Checklist", icon: FiPackage, roles: ["employee"], badge: "Field", badgeColor: "orange" },
+        ],
+        "TRAINING & SKILLS": [
+            { id: "training", label: "Training Courses", icon: FiBriefcase, roles: ["employee"] },
+            { id: "certifications", label: "Certifications", icon: FiTarget, roles: ["employee"] },
+            { id: "skills", label: "Solar Installation Skills", icon: FiZap, roles: ["employee"], badge: "Field", badgeColor: "orange" },
+        ],
+        "PERFORMANCE": [
+            { id: "targets", label: "My Targets", icon: FiTarget, roles: ["employee"] },
+            { id: "appraisals", label: "Appraisals", icon: FiTarget, roles: ["employee"] },
+        ],
+        "MORE": [
+            { id: "announcements", label: "Announcements", icon: FiMail, roles: ["employee"], badge: "4", badgeColor: "orange" },
+            { id: "documents", label: "My Documents", icon: FiFileText, roles: ["employee"] },
+            { id: "team", label: "Team Directory", icon: FiUsers, roles: ["employee"] },
+            { id: "settings", label: "Settings", icon: FiSettings, roles: ["employee"] },
+        ]
+    };
+};
 
 export default function Sidebar() {
     const pathname = usePathname();
+    const { user, logout } = useAuth();
+    const [backendPermissions, setBackendPermissions] = useState<any[]>([]);
     const [empCount, setEmpCount] = useState<string>("");
     const [leaveCount, setLeaveCount] = useState<string>("");
-    const [userRole, setUserRole] = useState<string>("Employee");
-    const [backendPermissions, setBackendPermissions] = useState<any[]>([]);
+    const [sidebarCounts, setSidebarCounts] = useState<any>({
+        pendingOrgs: 0,
+        criticalLogs: 0,
+        lockedAccounts: 0,
+        pendingInvites: 0,
+        openTickets: 0,
+        systemHealth: 'OK'
+    });
+    const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+    const role = user?.role?.toLowerCase() || "";
+    const menuGroups = getMenuItems(sidebarCounts, role, empCount, leaveCount);
 
     useEffect(() => {
-        const fetchCounts = async () => {
-            const token = localStorage.getItem('ravi_zoho_token');
-            const userStr = localStorage.getItem('ravi_zoho_user');
-
-            if (userStr) {
-                try {
-                    const user = JSON.parse(userStr);
-                    if (user.role) setUserRole(user.role);
-                } catch (e) {
-                    console.error("Failed to parse user", e);
-                }
-            }
-
-            if (!token) return;
+        const fetchData = async () => {
+            if (!user) return;
             try {
-                const dashRes = await axiosInstance.get(API_ENDPOINTS.DASHBOARD);
-                if (dashRes.data?.data) {
-                    setEmpCount(dashRes.data.data.employees?.total?.toString() || "");
-                    setLeaveCount(dashRes.data.data.leaves?.pending?.toString() || "");
+                if (role === 'superadmin') {
+                    const countsRes = await axiosInstance.get('/api/superadmin/sidebar-counts');
+                    if (countsRes.data?.data) {
+                        setSidebarCounts(countsRes.data.data);
+                    }
+                } else if (role !== 'employee') {
+                    const dashRes = await axiosInstance.get(API_ENDPOINTS.DASHBOARD);
+                    if (dashRes.data?.data) {
+                        setEmpCount(dashRes.data.data.employees?.total?.toString() || "");
+                        setLeaveCount(dashRes.data.data.leaves?.pending?.toString() || "");
+                    }
                 }
 
-                const user = JSON.parse(localStorage.getItem('ravi_zoho_user') || '{}');
-                if (user.role === "Admin") {
+                if (role === "admin" || role === "hr") {
                     try {
                         const permRes = await axiosInstance.get(API_ENDPOINTS.ROLE_PERMISSIONS);
                         if (permRes.data?.data) {
@@ -100,72 +180,185 @@ export default function Sidebar() {
                     }
                 }
             } catch (err) {
-                console.error("Failed to load sidebar dashboard data", err);
+                console.error("Failed to load sidebar data", err);
             }
         };
-        fetchCounts();
-    }, []);
+        fetchData();
+        
+        const timer = setInterval(fetchData, 60000);
+        return () => clearInterval(timer);
+    }, [user, role]);
 
     const filterByRole = (items: MenuItem[]) => {
         return items.filter(item => {
-            const dynamicPerm = backendPermissions.find(p => p.module === item.id);
-            if (dynamicPerm) {
-                return dynamicPerm.roles.includes(userRole);
+            if (role === 'superadmin') {
+                if (item.roles.map(r => r.toLowerCase()).includes('superadmin')) return true;
+                return false;
             }
-            return item.roles.includes(userRole);
+
+            const dynamicPerm = backendPermissions.find((p: any) => p.module === item.id);
+            if (dynamicPerm) {
+                return dynamicPerm.roles.map((r: string) => r.toLowerCase()).includes(role);
+            }
+            return item.roles.map(r => r.toLowerCase()).includes(role);
         });
     };
 
-    const menuItems = filterByRole(menuItemsBase).map(item => {
-        if (item.id === "employees" && empCount) return { ...item, badge: empCount };
-        if (item.id === "leaves" && leaveCount && leaveCount !== "0") return { ...item, badge: leaveCount };
-        return item;
-    });
+    const getHref = (id: string | undefined) => {
+        if (!id) return '#';
+        if (id.startsWith('superadmin/')) return `/${id}`;
 
-    const renderSection = (title: string, items: MenuItem[]) => {
-        if (items.length === 0) return null;
+        const roleLower = role.toLowerCase();
+        
+        // Base Role Routes
+        if (id === 'dashboard' || id === 'profile' || id === 'payslips' || id === 'leaves' || id === 'analytics') {
+            return `/${roleLower}/${id}`;
+        }
+        
+        // Employee Module Hub
+        if (roleLower === 'employee') {
+            if (id === 'checkin') return '/employee/check-in';
+            const employeeSpecificRoutes = [
+                'site-attendance', 'job-card', 'shift-schedule', 'timesheets',
+                'travel-request', 'reimbursement', 'allowance', 'esi-pf', 'tax',
+                'safety', 'incident', 'ppe', 'training', 'certifications', 'skills',
+                'targets', 'appraisals', 'announcements', 'documents', 'team', 'settings'
+            ];
+            if (employeeSpecificRoutes.includes(id)) {
+                return `/employee/${id}`;
+            }
+        }
+        
+        return `/${id}`;
+    };
+
+    const toggleExpand = (id: string) => {
+        setExpandedItems(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const renderMenuItem = (item: MenuItem, isSubItem = false) => {
+        const hasChildren = item.children && item.children.length > 0;
+        const isExpanded = expandedItems.includes(item.id);
+        const href = item.href || (hasChildren ? undefined : getHref(item.id));
+
+        const existingRoutes = [
+            '/superadmin/dashboard', '/superadmin/organizations', '/superadmin/users', '/superadmin/settings',
+            '/superadmin/analytics', '/superadmin/audit-log', '/superadmin/users/invitations', '/superadmin/users/locked', '/superadmin/health',
+            '/superadmin/organizations/pending', '/superadmin/organizations/suspended', '/superadmin/organizations/add',
+            '/superadmin/seats', '/superadmin/auth/sso', '/superadmin/auth/mfa', '/superadmin/auth/sessions', '/superadmin/auth/ip-allowlist',
+            '/superadmin/finance/subscriptions', '/superadmin/finance/revenue',
+            '/superadmin/infra/server', '/superadmin/infra/database', '/superadmin/infra/gateway', '/superadmin/infra/cdn',
+            '/superadmin/settings/features', '/superadmin/settings/email', '/superadmin/settings/config', '/superadmin/support', '/superadmin/location',
+            '/dashboard', '/employees', '/attendance', '/leaves', '/payroll', '/statutory', '/reports', '/departments', '/recruitment', '/performance', '/payroll-reports', '/expenses', '/shifts', '/attendance-settings', '/salary-settings', '/salary-components', '/roles', '/assets', '/compliance', '/organizations',
+            '/admin/dashboard', '/hr/dashboard', '/manager/dashboard', '/admin/analytics', '/superadmin/analytics', '/projects', '/vendors', '/field-tracking', '/job-cards', '/travel', '/inventory', '/safety-inductions', '/incidents', '/ppe-records', '/reimbursements', '/allowances', '/authentication', '/location-tracking', '/compliance-logs', '/training', '/analytics', '/locations', '/revenue', '/ip-allowlist', '/email-settings', '/support-tickets', '/settings',
+            '/employee/attendance', '/employee/dashboard', '/employee/profile', '/employee/payslips', '/employee/leaves',
+            '/employee/site-attendance', '/employee/job-card', '/employee/shift-schedule', '/employee/timesheets',
+            '/employee/travel-request', '/employee/reimbursement', '/employee/allowance', '/employee/esi-pf', '/employee/tax',
+            '/employee/safety', '/employee/incident', '/employee/ppe', '/employee/training', '/employee/certifications', '/employee/skills',
+            '/employee/targets', '/employee/appraisals', '/employee/announcements', '/employee/documents', '/employee/team', '/employee/settings'
+        ];
+
+        // Ensure analytics works for admin even if it's named superadmin/analytics
+        const finalHref = href && (existingRoutes.includes(href) || href.startsWith('/superadmin/')) ? href : (hasChildren ? undefined : '#');
+        const isActive = finalHref && finalHref !== '#' ? (pathname === finalHref || (finalHref !== '/' && pathname.startsWith(finalHref))) : false;
+
+        const content = (
+            <>
+                {item.icon && (
+                   <span className="sidebar-item-icon">
+                        {typeof item.icon === 'string' ? item.icon : <item.icon />}
+                   </span>
+                )}
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.badge && (
+                    <span className={`sidebar-badge ${item.badgeColor || ''}`}
+                        style={{
+                            background: item.badgeColor === 'orange' ? 'var(--primary)' : 
+                                       item.badgeColor === 'gray' ? 'var(--bg-hover)' :
+                                       item.badgeColor === 'green' ? 'var(--secondary)' : 
+                                       item.badgeColor === 'red' ? 'rgba(139, 0, 0, 0.8)' : 'var(--bg-hover)',
+                             color: 'white'
+                        }}>
+                        {item.badge}
+                    </span>
+                )}
+                {hasChildren && <FiChevronDown className={`sidebar-item-chevron ${isExpanded ? 'expanded' : ''}`} />}
+            </>
+        );
+
+        if (hasChildren) {
+            return (
+                <div key={item.id}>
+                    <div
+                        className={`sidebar-item ${isActive ? "active" : ""}`}
+                        onClick={() => toggleExpand(item.id)}
+                    >
+                        {content}
+                    </div>
+                    {isExpanded && (
+                        <div className="sidebar-sub-menu">
+                            {filterByRole(item.children!).map(child => renderMenuItem(child, true))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
 
         return (
-            <>
+            <Link
+                key={item.id}
+                href={finalHref || '#'}
+                className={isSubItem ? `sidebar-sub-item ${isActive ? "active" : ""}` : `sidebar-item ${isActive ? "active" : ""}`}
+            >
+                {content}
+            </Link>
+        );
+    };
+
+    const renderSection = (title: string, items: MenuItem[]) => {
+        const filteredItems = filterByRole(items);
+        if (filteredItems.length === 0) return null;
+
+        return (
+            <div key={title} style={{ marginBottom: '24px' }}>
                 <div className="sidebar-section-title">{title}</div>
-                {items.map((item) => {
-                    const isActive = pathname === `/${item.id}`;
-                    return (
-                        <Link
-                            key={item.id}
-                            href={`/${item.id}`}
-                            className={`sidebar-item ${isActive ? "active" : ""}`}
-                        >
-                            <span className="sidebar-item-icon"><item.icon /></span>
-                            {item.label}
-                            {item.badge && <span className="sidebar-badge">{item.badge}</span>}
-                        </Link>
-                    );
-                })}
-            </>
+                {filteredItems.map(item => renderMenuItem(item))}
+            </div>
         );
     };
 
     return (
-        <aside className="sidebar">
-            <div className="sidebar-header">
+        <aside className="sidebar" style={{ background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-light)' }}>
+            <div className="sidebar-header" style={{ borderBottom: 'none', paddingBottom: '10px' }}>
                 <div className="sidebar-logo">
-                    <div className="sidebar-logo-icon">⚡</div>
+                    <div className="sidebar-logo-icon" style={{ borderRadius: '8px', background: 'var(--primary)' }}>
+                        <FiZap style={{ color: 'white' }} />
+                    </div>
                     <div>
-                        <h2>Ravi Zoho</h2>
-                        <p>HR & Payroll</p>
+                        <h2 style={{ fontSize: '18px', color: 'var(--text-primary)', background: 'none', WebkitTextFillColor: 'initial', fontWeight: 800 }}>Ravi Zoho</h2>
+                        <p style={{ fontSize: '10px' }}>{role === 'superadmin' ? 'Super Admin Console' : role === 'employee' ? 'Employee Self Service' : 'Business Management'}</p>
                     </div>
                 </div>
             </div>
 
             <nav className="sidebar-nav">
-                {renderSection("Main Menu", menuItems)}
-                {renderSection("Organization", filterByRole(organizationItems))}
-                {renderSection("Human Capital", filterByRole(hrModulesItems))}
-                {renderSection("Finance & Payroll", filterByRole(financeItems))}
-                {renderSection("Administration", filterByRole(adminItems))}
-                {renderSection("Portal", filterByRole(portalItems))}
+                {Object.keys(menuGroups).map(group => renderSection(group, menuGroups[group]))}
             </nav>
+
+            <div className="sidebar-footer-profile">
+                <div className="sidebar-profile-avatar">
+                    {user?.firstName?.charAt(0) || 'RZ'}
+                </div>
+                <div className="sidebar-profile-info">
+                    <div className="sidebar-profile-name">{user ? `${user.firstName} ${user.lastName}` : 'Ravi Zoho'}</div>
+                    <div className="sidebar-profile-role">{role === 'superadmin' ? 'Super Administrator' : (role.charAt(0).toUpperCase() + role.slice(1) + ' Administrator')}</div>
+                </div>
+                <div className="sidebar-profile-action" onClick={() => logout()}>
+                    <FiMoreVertical />
+                </div>
+            </div>
         </aside>
     );
 }

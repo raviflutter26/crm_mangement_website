@@ -5,8 +5,10 @@ import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
 import {
     FiClock, FiSettings, FiAlertTriangle, FiSave, FiRefreshCw,
-    FiCheckCircle, FiShield, FiSliders
+    FiCheckCircle, FiShield, FiSliders, FiAlertCircle
 } from "react-icons/fi";
+import EmptyState from "@/components/common/EmptyState";
+import LoadingSkeleton from "@/components/common/LoadingSkeleton";
 
 interface AttendanceSettingsPageProps {
     showNotify: (type: 'success' | 'failure' | 'warning', message: string) => void;
@@ -135,11 +137,16 @@ export default function AttendanceSettingsPage({ showNotify }: AttendanceSetting
 
     const numInputStyle = { ...inputStyle, width: "90px", textAlign: "center" as const };
 
-    if (loading) return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", flexDirection: "column", gap: "16px" }}>
-            <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
-            <div style={{ fontSize: "14px", color: "var(--text-muted)" }}>Loading settings...</div>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    if (loading) return <LoadingSkeleton />;
+    if (!settings && !loading) return (
+        <div style={{ padding: "80px 40px" }}>
+            <EmptyState 
+                title="Settings Unavailable"
+                description="Failed to load attendance configurations. This might be due to a server connection issue."
+                icon={FiSettings}
+                actionLabel="Retry Loading"
+                onAction={fetchSettings}
+            />
         </div>
     );
 

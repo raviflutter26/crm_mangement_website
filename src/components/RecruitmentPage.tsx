@@ -7,6 +7,8 @@ import {
     FiSearch, FiFilter, FiCalendar, FiCheckCircle, FiXCircle, FiUserPlus
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 const STATUS_COLORS: any = {
     draft: "pending", open: "active", "on-hold": "leave", closed: "inactive",
@@ -183,11 +185,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                 </div>
                 <div className="table-wrapper">
                     {loading ? (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", flexDirection: "column", gap: "16px" }}>
-                            <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
-                            <div style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 500 }}>Loading...</div>
-                            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                        </div>
+                        <TableSkeleton rows={6} />
                     ) : activeView === "postings" ? (
                         <table>
                             <thead>
@@ -213,7 +211,17 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                                     </tr>
                                 ))}
                                 {postings.length === 0 && (
-                                    <tr><td colSpan={7} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No job postings yet.</td></tr>
+                                    <tr>
+                                        <td colSpan={7} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                            <EmptyState 
+                                                title="No Job Postings"
+                                                description="Your careers page is currently empty. Post your first job opening to start attracting talent."
+                                                icon={FiBriefcase}
+                                                actionLabel="Post Job"
+                                                onAction={openAddPosting}
+                                            />
+                                        </td>
+                                    </tr>
                                 )}
                             </tbody>
                         </table>
@@ -242,7 +250,17 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                                     </tr>
                                 ))}
                                 {candidates.length === 0 && (
-                                    <tr><td colSpan={7} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No candidates yet.</td></tr>
+                                    <tr>
+                                        <td colSpan={7} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                            <EmptyState 
+                                                title="No Candidates Found"
+                                                description="No one has applied to your open positions yet. Add candidates manually to start the pipeline."
+                                                icon={FiUsers}
+                                                actionLabel="Add Candidate"
+                                                onAction={openAddCandidate}
+                                            />
+                                        </td>
+                                    </tr>
                                 )}
                             </tbody>
                         </table>

@@ -96,8 +96,8 @@ export default function EPFCalculatorPanel({ pfWage, onWageChange }: EPFCalculat
                     </div>
 
                     <div style={{ borderTop: "1px solid #E2E8F0", paddingTop: "12px", marginTop: "4px", display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: "14px" }}>
-                        <span>Total</span>
-                        <span>₹{calculation.totalEmployer.toLocaleString()}</span>
+                        <span>Total Monthly Contribution</span>
+                        <span>₹{calculation.total.toLocaleString()}</span>
                     </div>
                 </div>
             ) : null}

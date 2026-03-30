@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
-import {
-    FiMonitor, FiPlus, FiEdit2, FiTrash2, FiCheckCircle,
-    FiPackage, FiTool, FiAlertCircle
-} from "react-icons/fi";
+import { FiMonitor, FiPlus, FiEdit2, FiTrash2, FiCheckCircle, FiPackage, FiTool, FiAlertCircle } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 const STATUS_COLORS: any = {
     available: "active", assigned: "processing", "under-repair": "pending",
@@ -135,7 +134,7 @@ export default function AssetPage({ showNotify }: AssetPageProps) {
                     </select>
                 </div>
                 <div className="table-wrapper">
-                    {loading ? <div style={{ padding: "40px", textAlign: "center" }}>Loading...</div> : (
+                    {loading ? <TableSkeleton rows={5} /> : (
                         <table>
                             <thead><tr><th>Asset</th><th>Type</th><th>Brand/Model</th><th>Serial No.</th><th>Assigned To</th><th>Value</th><th>Condition</th><th>Status</th><th>Actions</th></tr></thead>
                             <tbody>
@@ -168,7 +167,19 @@ export default function AssetPage({ showNotify }: AssetPageProps) {
                                         </td>
                                     </tr>
                                 ))}
-                                {assets.length === 0 && <tr><td colSpan={9} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No assets found.</td></tr>}
+                                {assets.length === 0 && (
+                                    <tr>
+                                        <td colSpan={9} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                            <EmptyState 
+                                                title="No Assets Found"
+                                                description="Your inventory is empty. Register your first company asset to start tracking equipment."
+                                                icon={FiPackage}
+                                                actionLabel="Add Asset"
+                                                onAction={openAdd}
+                                            />
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     )}

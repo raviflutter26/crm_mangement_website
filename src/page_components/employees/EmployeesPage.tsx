@@ -96,10 +96,10 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
 
     return (
         <>
-            <div className="page-header">
+            <div className="page-header" style={{ padding: '16px 24px', marginBottom: '16px' }}>
                 <div>
-                    <h1 className="page-title">Employees</h1>
-                    <p className="page-subtitle">Manage your workforce — {employees.length} total employees</p>
+                    <h1 className="page-title" style={{ fontSize: '20px' }}>Employees</h1>
+                    <p className="page-subtitle" style={{ fontSize: '12px' }}>Manage your workforce — {employees.length} total employees</p>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
                     <button className="btn btn-secondary" onClick={handleExport}><FiDownload /> Export</button>
@@ -119,7 +119,7 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
                 managersList={managersList} currentUser={currentUser}
             />
 
-            <EmployeeTable employees={filtered} loading={loading} onEdit={onEditClick} onDelete={handleDelete} onView={onViewClick} />
+            <EmployeeTable employees={filtered} loading={loading} onEdit={onEditClick} onDelete={handleDelete} onView={onViewClick} onAdd={onAddClick} />
 
             {showDeleteConfirm && (
                 <div style={{

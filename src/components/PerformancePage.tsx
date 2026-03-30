@@ -7,6 +7,8 @@ import {
     FiPlus, FiEdit2, FiTrash2, FiCheckCircle
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 const PRIORITY_COLORS: any = { low: "active", medium: "pending", high: "leave", critical: "inactive" };
 const STATUS_COLORS: any = {
@@ -153,7 +155,7 @@ export default function PerformancePage({ showNotify }: PerformancePageProps) {
                     <h3 className="card-title">{activeView === "goals" ? "Goals & KPIs" : "Appraisal Cycles"}</h3>
                 </div>
                 <div className="table-wrapper">
-                    {loading ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", flexDirection: "column", gap: "16px" }}><div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} /><div style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 500 }}>Loading...</div><style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div> :
+                    {loading ? <TableSkeleton rows={5} /> :
                         activeView === "goals" ? (
                             <table>
                                 <thead><tr><th>Employee</th><th>Goal</th><th>Priority</th><th>Progress</th><th>Status</th><th>Target Date</th><th>Actions</th></tr></thead>
@@ -181,7 +183,19 @@ export default function PerformancePage({ showNotify }: PerformancePageProps) {
                                             </td>
                                         </tr>
                                     ))}
-                                    {goals.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No goals set yet.</td></tr>}
+                                    {goals.length === 0 && (
+                                        <tr>
+                                            <td colSpan={7} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                                <EmptyState 
+                                                    title="No Goals Found"
+                                                    description="Performance monitoring is inactive. Set the first goal for your team to start tracking progress."
+                                                    icon={FiTarget}
+                                                    actionLabel="Add Goal"
+                                                    onAction={openAddGoal}
+                                                />
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         ) : (
@@ -205,7 +219,19 @@ export default function PerformancePage({ showNotify }: PerformancePageProps) {
                                             </td>
                                         </tr>
                                     ))}
-                                    {appraisals.length === 0 && <tr><td colSpan={8} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No appraisals yet.</td></tr>}
+                                    {appraisals.length === 0 && (
+                                        <tr>
+                                            <td colSpan={8} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                                <EmptyState 
+                                                    title="No Appraisals Found"
+                                                    description="The current review cycle has no data. Launch your first appraisal to evaluate team performance."
+                                                    icon={FiAward}
+                                                    actionLabel="New Appraisal"
+                                                    onAction={openAddAppraisal}
+                                                />
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         )

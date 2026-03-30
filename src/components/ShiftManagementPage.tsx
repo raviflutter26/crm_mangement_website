@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import { FiPlus, FiEdit2, FiTrash2, FiClock, FiMoon, FiSun, FiUsers, FiX, FiCheck } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -28,7 +30,7 @@ export default function ShiftManagementPage() {
     useEffect(() => {
         const fetchOrgs = async () => {
             try {
-                const res = await axiosInstance.get('/api/organization');
+                const res = await axiosInstance.get('/api/organizations');
                 setOrganizations(res.data.data || []);
                 if (res.data.data?.length > 0) setSelectedOrgId(res.data.data[0]._id);
             } catch (err) { console.error("Fetch orgs error", err); }
@@ -128,28 +130,16 @@ export default function ShiftManagementPage() {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={7} style={{ textAlign: "center", padding: "50px" }}>
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-                                    <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#f97316", animation: "spin 0.8s linear infinite" }} />
-                                    <span style={{ color: "#9ca3af", fontSize: "13px" }}>Loading shifts...</span>
-                                </div>
-                                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                            </td></tr>
+                            <tr><td colSpan={7} style={{ textAlign: "center", padding: "20px" }}><TableSkeleton rows={5} /></td></tr>
                         ) : shifts.length === 0 ? (
-                            <tr><td colSpan={7} style={{ textAlign: "center", padding: "60px 20px" }}>
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                                    <div style={{ width: "64px", height: "64px", borderRadius: "16px", background: "#fff7ed", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <FiClock size={28} color="#f97316" />
-                                    </div>
-                                    <span style={{ fontSize: "15px", fontWeight: 600, color: "#374151" }}>No shifts defined</span>
-                                    <span style={{ fontSize: "13px", color: "#9ca3af" }}>Create your first shift for this organization to manage working hours</span>
-                                    <button onClick={openCreate} style={{
-                                        marginTop: "8px", padding: "8px 18px", borderRadius: "8px", border: "none",
-                                        background: "#f97316", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: "pointer"
-                                    }}>
-                                        <FiPlus size={14} style={{ marginRight: "6px", verticalAlign: "-2px" }} />Create Shift
-                                    </button>
-                                </div>
+                            <tr><td colSpan={7} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                <EmptyState 
+                                    title="No Shifts Defined"
+                                    description="Create your first shift for this organization to manage working hours, late policies, and night-shift rules."
+                                    icon={FiClock}
+                                    actionLabel="Create Shift"
+                                    onAction={openCreate}
+                                />
                             </td></tr>
                         ) : shifts.map((shift, i) => (
                             <tr key={shift._id} style={{ borderBottom: i < shifts.length - 1 ? "1px solid #f3f4f6" : "none", transition: "background 0.15s" }}
@@ -231,12 +221,12 @@ export default function ShiftManagementPage() {
                     </thead>
                     <tbody>
                         {orgEmployees.length === 0 ? (
-                            <tr><td colSpan={5} style={{ textAlign: "center", padding: "50px", color: "#9ca3af" }}>
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-                                    <span style={{ fontSize: "36px" }}>👥</span>
-                                    <span style={{ fontSize: "14px", fontWeight: 500, color: "#6b7280" }}>No employees found for this organization</span>
-                                    <span style={{ fontSize: "12px", color: "#9ca3af" }}>Add employees and assign them to this organization first</span>
-                                </div>
+                            <tr><td colSpan={5} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                <EmptyState 
+                                    title="No Employees Found"
+                                    description="No employees are currently linked to this organization. Add employees and assign them here to start shift management."
+                                    icon={FiUsers}
+                                />
                             </td></tr>
                         ) : orgEmployees.map((emp, i) => (
                             <tr key={emp._id} style={{ borderBottom: i < orgEmployees.length - 1 ? "1px solid #f3f4f6" : "none", transition: "background 0.15s" }}

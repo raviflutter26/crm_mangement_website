@@ -57,7 +57,9 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         email: editEmployee?.email || "",
         phone: editEmployee?.phone || "",
         gender: editEmployee?.gender || "Male",
-        organizationId: editEmployee?.organizationId?._id || editEmployee?.organizationId || "",
+        organizationId: (currentUser?.role !== 'superadmin' && currentUser?.organizationId) 
+            ? currentUser.organizationId 
+            : (editEmployee?.organizationId?._id || editEmployee?.organizationId || ""),
         dateOfBirth: (editEmployee?.dateOfBirth || "").split('T')[0],
         maritalStatus: editEmployee?.maritalStatus || "Single",
         profilePhoto: editEmployee?.profilePhoto || "",
@@ -154,7 +156,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 const [locRes, shiftRes, compRes, tempRes, statesRes, orgsRes] = await Promise.allSettled([
                     axiosInstance.get(API_ENDPOINTS.LOCATIONS),
                     axiosInstance.get(API_ENDPOINTS.SHIFTS),
-                    axiosInstance.get('/api/statutory/config'), // Use new statutory config
+                    axiosInstance.get(API_ENDPOINTS.COMPLIANCE), // Use COMPLIANCE instead of statutory/config
                     axiosInstance.get(`${API_BASE_URL}/api/salary-templates`),
                     axiosInstance.get(`${API_ENDPOINTS.LOCATIONS}/states?country=India`),
                     axiosInstance.get('/api/organization')
@@ -170,11 +172,13 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 if (shiftRes.status === 'fulfilled' && shiftRes.value.data.success) {
                     setShifts(shiftRes.value.data.data);
                 }
-                if (tempRes.status === 'fulfilled' && tempRes.value.data.success) {
-                    const temps = tempRes.value.data.data;
-                    setTemplates(temps);
-                    const def = temps.find((t: any) => t.isDefault);
-                    if (def) setSelectedTemplate(def);
+                if (tempRes.status === 'fulfilled') {
+                    const temps = tempRes.value.data.data || tempRes.value.data;
+                    if (Array.isArray(temps)) {
+                        setTemplates(temps);
+                        const def = temps.find((t: any) => t.isDefault);
+                        if (def) setSelectedTemplate(def);
+                    }
                 }
                 if (statesRes.status === 'fulfilled' && statesRes.value.data.success) {
                     setStatesList(statesRes.value.data.data);
@@ -299,7 +303,6 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     };
 
     const steps = [
-        { name: "Select Role", icon: <FiUser /> },
         { name: "Basic Info", icon: <FiUser /> },
         { name: "Work Info", icon: <FiBriefcase /> },
         { name: "Reporting", icon: <FiClock /> },
@@ -419,9 +422,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         const newErrors: { [key: string]: string } = {};
 
         const currentStepName = steps[currentStep - 1].name;
-        if (currentStepName === "Select Role") {
-            if (!formData.role) { isValid = false; newErrors.role = "Role is required"; missingFields.push("Role"); }
-        } else if (currentStepName === "Basic Info") {
+        if (currentStepName === "Basic Info") {
             if (!formData.firstName) { isValid = false; newErrors.firstName = "First Name is required"; missingFields.push("First Name"); }
             if (!formData.lastName) { isValid = false; newErrors.lastName = "Last Name is required"; missingFields.push("Last Name"); }
             if (!formData.email) { isValid = false; newErrors.email = "Email is required"; missingFields.push("Email"); }
@@ -584,27 +585,6 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         const stepName = steps[currentStep - 1].name;
 
         switch (stepName) {
-            case "Select Role":
-                return (
-                    <div className="card animate-in" style={{ padding: "40px", textAlign: "center" }}>
-                        <h2 style={{ marginBottom: "30px" }}>What is the employee's role?</h2>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "20px" }}>
-                            {["Admin", "HR", "Manager", "Employee"].map(role => (
-                                <div key={role} onClick={() => setFormData({ ...formData, role: role as any, reportingManager: "" })}
-                                    style={{
-                                        padding: "30px", borderRadius: "16px", border: "2px solid",
-                                        borderColor: formData.role === role ? "var(--primary)" : "var(--border)",
-                                        background: formData.role === role ? "var(--primary-bg-light)" : "var(--bg-secondary)",
-                                        cursor: "pointer", transition: "0.2s", textAlign: "left"
-                                    }}>
-                                    <div style={{ fontSize: "18px", fontWeight: 700, color: formData.role === role ? "var(--primary)" : "var(--text-primary)", marginBottom: "8px" }}>{role}</div>
-                                    <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Assign {role} access to the user.</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                );
-
             case "Basic Info":
                 return (
                     <div className="card animate-in" style={{ padding: "30px" }}>
@@ -655,22 +635,28 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                     <option value="Widowed">Widowed</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="form-label">Organization *</label>
-                                <select 
-                                    name="organizationId" 
-                                    value={formData.organizationId} 
-                                    onChange={handleInputChange} 
-                                    className="form-input"
-                                    required
-                                >
-                                    <option value="">Select Organization</option>
-                                    {organizationsList.map(org => (
-                                        <option key={org._id} value={org._id}>{org.name}</option>
-                                    ))}
-                                </select>
-                                {errors.organizationId && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.organizationId}</div>}
-                            </div>
+                            {currentUser?.role === 'superadmin' ? (
+                                <div>
+                                    <label className="form-label">Organization *</label>
+                                    <select 
+                                        name="organizationId" 
+                                        value={formData.organizationId} 
+                                        onChange={handleInputChange} 
+                                        className="form-input"
+                                        required
+                                    >
+                                        <option value="">Select Organization</option>
+                                        {organizationsList.map(org => (
+                                            <option key={org._id} value={org._id}>{org.name}</option>
+                                        ))}
+                                    </select>
+                                    {errors.organizationId && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.organizationId}</div>}
+                                </div>
+                            ) : (
+                                <div style={{ display: "none" }}>
+                                    <input type="hidden" name="organizationId" value={formData.organizationId} />
+                                </div>
+                            )}
                         </div>
                     </div>
                 );

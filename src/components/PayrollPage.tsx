@@ -8,6 +8,8 @@ import {
     FiUsers, FiXCircle, FiChevronRight, FiShield
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const STATUS_BADGE: any = {
@@ -133,10 +135,8 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
     const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN")}`;
 
     if (loading) return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", flexDirection: "column", gap: "16px" }}>
-            <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
-            <div style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>Loading Payroll...</div>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ padding: "20px" }}>
+            <TableSkeleton rows={8} />
         </div>
     );
 
@@ -212,7 +212,19 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
                                         </td>
                                     </tr>
                                 ))}
-                                {payrollRuns.length === 0 && <tr><td colSpan={8} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No payroll runs yet. Click &quot;Run Payroll&quot; to start.</td></tr>}
+                                {payrollRuns.length === 0 && (
+                                    <tr>
+                                        <td colSpan={8} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                            <EmptyState 
+                                                title="No Payroll Runs"
+                                                description="You haven't processed any salaries yet. Run your first payroll to generate slips and initiate payouts."
+                                                icon={FiPlay}
+                                                actionLabel="Run Payroll"
+                                                onAction={() => setShowRunModal(true)}
+                                            />
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -294,7 +306,17 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
                                         <td><button className="btn btn-secondary btn-sm" onClick={() => openPayslip(rec)}><FiDownload size={14} /></button></td>
                                     </tr>
                                 ))}
-                                {payrollRecords.length === 0 && <tr><td colSpan={10} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No payroll records.</td></tr>}
+                                {payrollRecords.length === 0 && (
+                                    <tr>
+                                        <td colSpan={10} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                            <EmptyState 
+                                                title="No Individual Records"
+                                                description="Employee-specific payroll data will appear here once you complete a payroll run cycle."
+                                                icon={FiFileText}
+                                            />
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>

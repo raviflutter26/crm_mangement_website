@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import { FiClock, FiCheckCircle, FiXCircle, FiFilter, FiAlertCircle, FiShield } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 interface PermissionsPageProps {
     showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
@@ -73,7 +75,11 @@ export default function PermissionsPage({ showNotify }: PermissionsPageProps) {
     ];
 
     if (loading && permissions.length === 0) {
-        return <div style={{ padding: "40px", textAlign: "center" }}>Loading Permissions...</div>;
+        return (
+            <div style={{ padding: "20px" }}>
+                <TableSkeleton rows={8} />
+            </div>
+        );
     }
 
     return (
@@ -145,44 +151,53 @@ export default function PermissionsPage({ showNotify }: PermissionsPageProps) {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredPermissions.length > 0 ? filteredPermissions.map((perm, i) => (
-                                <tr key={i}>
-                                    {activeTab === "team_requests" && (
-                                        <td style={{ fontWeight: 600 }}>
-                                            {perm.employee?.firstName} {perm.employee?.lastName}
-                                        </td>
-                                    )}
-                                    <td>{new Date(perm.date).toLocaleDateString()}</td>
-                                    <td style={{ fontWeight: 600 }}>{perm.hoursRequest} Hours</td>
-                                    <td style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={perm.reason}>
-                                        {perm.reason}
-                                    </td>
-                                    <td>
-                                        <span className={`badge ${perm.status.toLowerCase()}`}>
-                                            {perm.status}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {perm.status === "Pending" ? (
-                                            <div style={{ display: "flex", gap: "8px" }}>
-                                                {activeTab === "team_requests" ? (
-                                                    <>
-                                                        <button className="btn btn-success btn-sm" onClick={() => handleAction(perm._id, "Approved")}>Approve</button>
-                                                        <button className="btn btn-secondary btn-sm" style={{ borderColor: "var(--error)", color: "var(--error)" }} onClick={() => handleAction(perm._id, "Rejected")}>Reject</button>
-                                                    </>
-                                                ) : (
-                                                    <button className="btn btn-secondary btn-sm" style={{ borderColor: "var(--orange)", color: "var(--orange)" }} onClick={() => handleAction(perm._id, "Cancel")}>Cancel Request</button>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Processed</span>
+                            {filteredPermissions.length > 0 ? (
+                                filteredPermissions.map((perm, i) => (
+                                    <tr key={i}>
+                                        {activeTab === "team_requests" && (
+                                            <td style={{ fontWeight: 600 }}>
+                                                {perm.employee?.firstName} {perm.employee?.lastName}
+                                            </td>
                                         )}
-                                    </td>
-                                </tr>
-                            )) : (
+                                        <td>{new Date(perm.date).toLocaleDateString()}</td>
+                                        <td style={{ fontWeight: 600 }}>{perm.hoursRequest} Hours</td>
+                                        <td style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={perm.reason}>
+                                            {perm.reason}
+                                        </td>
+                                        <td>
+                                            <span className={`badge ${perm.status.toLowerCase()}`}>
+                                                {perm.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {perm.status === "Pending" ? (
+                                                <div style={{ display: "flex", gap: "8px" }}>
+                                                    {activeTab === "team_requests" ? (
+                                                        <>
+                                                            <button className="btn btn-success btn-sm" onClick={() => handleAction(perm._id, "Approved")}>Approve</button>
+                                                            <button className="btn btn-secondary btn-sm" style={{ borderColor: "var(--error)", color: "var(--error)" }} onClick={() => handleAction(perm._id, "Rejected")}>Reject</button>
+                                                        </>
+                                                    ) : (
+                                                        <button className="btn btn-secondary btn-sm" style={{ borderColor: "var(--orange)", color: "var(--orange)" }} onClick={() => handleAction(perm._id, "Cancel")}>Cancel Request</button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Processed</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
                                 <tr>
-                                    <td colSpan={activeTab === "team_requests" ? 6 : 5} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
-                                        No permission records found.
+                                    <td colSpan={activeTab === "team_requests" ? 6 : 5} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                        <EmptyState 
+                                            title="No Permission Requests"
+                                            description={activeTab === "my_requests" 
+                                                ? "You haven't submitted any short-leave permission requests yet."
+                                                : "No team permission requests match your current filters."
+                                            }
+                                            icon={FiShield}
+                                        />
                                     </td>
                                 </tr>
                             )}

@@ -1,0 +1,64 @@
+[dotenv@17.3.1] injecting env (28) from ../backend/.env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+🚀 Starting System Reset & Seeding (v4)...
+📦 Connected to MongoDB (Database: test)
+🧹 Clearing all existing data in the database...
+(node:61966) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"email":1} for model "User". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+🗑️  Clearing collection: payroll_reports
+🗑️  Clearing collection: auditlogs
+🗑️  Clearing collection: expenses
+🗑️  Clearing collection: assets
+🗑️  Clearing collection: payrollruns
+🗑️  Clearing collection: attendancepolicies
+🗑️  Clearing collection: departments
+🗑️  Clearing collection: payouttransactions
+🗑️  Clearing collection: permissions
+🗑️  Clearing collection: compliancesettings
+🗑️  Clearing collection: organizations
+🗑️  Clearing collection: leaves
+🗑️  Clearing collection: bankdetails
+🗑️  Clearing collection: appraisals
+🗑️  Clearing collection: orders
+🗑️  Clearing collection: supporttickets
+🗑️  Clearing collection: goals
+🗑️  Clearing collection: statutory_configs
+🗑️  Clearing collection: modulepermissions
+🗑️  Clearing collection: salarystructures
+🗑️  Clearing collection: attendanceconfigs
+🗑️  Clearing collection: solar_employees
+🗑️  Clearing collection: candidates
+🗑️  Clearing collection: solar_users
+🗑️  Clearing collection: customers
+🗑️  Clearing collection: payrolls
+🗑️  Clearing collection: warehouses
+🗑️  Clearing collection: locations
+🗑️  Clearing collection: designations
+🗑️  Clearing collection: holidays
+🗑️  Clearing collection: jobpostings
+🗑️  Clearing collection: employees
+🗑️  Clearing collection: shifts
+🗑️  Clearing collection: invoices
+🗑️  Clearing collection: stocks
+🗑️  Clearing collection: salarytemplates
+🗑️  Clearing collection: products
+🗑️  Clearing collection: branches
+🗑️  Clearing collection: attendances
+🗑️  Clearing collection: salarycomponents
+🗑️  Clearing collection: users
+🗑️  Clearing collection: categories
+✅ All collections cleared.
+👑 Creating Super Admin...
+✅ Super Admin created: superadmin@platform.com
+🏢 Creating Organization A...
+✅ Organization A created: Organization A
+👤 Creating Org Admin & Employee record...
+✅ Org Admin created: admin@orga.com
+👤 Creating Org HR & Employee record...
+✅ Org HR created: hr@orga.com
+🏢 Creating Departments...
+✅ Departments created: Engineering, Sales
+👤 Creating Managers & Employee records...
+✅ Managers created: mgr.eng@orga.com, mgr.sales@orga.com
+👤 Creating Employees & Employee records...
+✅ 4 Employees created with dual records.
+✨ Seeding Completed Successfully!

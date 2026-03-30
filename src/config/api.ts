@@ -50,11 +50,11 @@ export const API_ENDPOINTS = {
     SALARY_COMPONENTS: `${API_BASE_URL}/api/salary-components`,
 
     // Organization
-    DESIGNATIONS: `${API_BASE_URL}/api/organization/designations`,
-    BRANCHES: `${API_BASE_URL}/api/organization/branches`,
-    LOCATIONS: `${API_BASE_URL}/api/organization/locations`,
-    SHIFTS: `${API_BASE_URL}/api/organization/shifts`,
-    HOLIDAYS: `${API_BASE_URL}/api/organization/holidays`,
+    DESIGNATIONS: `${API_BASE_URL}/api/organizations/designations`,
+    BRANCHES: `${API_BASE_URL}/api/organizations/branches`,
+    LOCATIONS: `${API_BASE_URL}/api/organizations/locations`,
+    SHIFTS: `${API_BASE_URL}/api/organizations/shifts`,
+    HOLIDAYS: `${API_BASE_URL}/api/organizations/holidays`,
 
     // Recruitment
     JOB_POSTINGS: `${API_BASE_URL}/api/recruitment/job-postings`,

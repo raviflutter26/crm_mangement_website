@@ -1,18 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth";
 import { FiSearch, FiBell, FiMoon, FiSun, FiChevronDown, FiLogOut } from "react-icons/fi";
 
 export default function Topbar() {
+    const { user, logout } = useAuth();
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [userName, setUserName] = useState("Admin User");
-    const [userRole, setUserRole] = useState("Administrator");
     const [isDark, setIsDark] = useState(false);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem('ravi_zoho_theme');
         const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
+
         if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
             document.documentElement.setAttribute('data-theme', 'dark');
             setIsDark(true);
@@ -29,21 +29,11 @@ export default function Topbar() {
         setIsDark(!isDark);
     };
 
-    useEffect(() => {
-        try {
-            const raw = localStorage.getItem('ravi_zoho_user');
-            if (raw) {
-                const pb = JSON.parse(raw);
-                if (pb.name) setUserName(pb.name);
-                if (pb.role) setUserRole(pb.role);
-            }
-        } catch (e) { }
-    }, []);
+    const userName = user ? `${user.firstName} ${user.lastName}`.trim() : "User";
+    const userRole = user?.role || "Guest";
 
     const handleLogout = () => {
-        localStorage.removeItem("ravi_zoho_token");
-        localStorage.removeItem("ravi_zoho_user");
-        window.location.reload();
+        logout();
     };
 
     return (

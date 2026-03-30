@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import { FiCalendar, FiClock, FiCheckCircle, FiXCircle, FiPlus, FiFilter, FiAlertCircle } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 interface LeavePageProps {
     showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
@@ -125,10 +127,8 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
 
     if (loading || !userRole) {
         return (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", flexDirection: "column", gap: "16px" }}>
-                <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
-                <div style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>Loading Leaves...</div>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <div style={{ padding: "20px" }}>
+                <TableSkeleton rows={8} />
             </div>
         );
     }
@@ -193,7 +193,7 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredLeaves.length > 0 ?
+                            {filteredLeaves.length > 0 ? (
                                 filteredLeaves.map((leave, i) => (
                                     <tr key={i}>
                                         <td style={{ fontWeight: 600 }}>
@@ -221,13 +221,20 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
                                             </td>
                                         )}
                                     </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan={7} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
-                                            No leave records found.
-                                        </td>
-                                    </tr>
-                                )}
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={7} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                        <EmptyState 
+                                            title="No Leave Records"
+                                            description="Your leave history and pending requests will appear here. Apply for leave to start tracking your time off."
+                                            icon={FiCalendar}
+                                            actionLabel="Apply Leave"
+                                            onAction={() => setShowModal(true)}
+                                        />
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

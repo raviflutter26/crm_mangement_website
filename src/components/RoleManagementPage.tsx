@@ -7,6 +7,8 @@ import {
     FiUser, FiSearch, FiLock
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 
 const ROLES = [
     { value: "Admin", label: "Admin", color: "#EA4335", desc: "Full access to all modules" },
@@ -98,7 +100,11 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
         }
     };
 
-    if (loading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading Users...</div>;
+    if (loading) return (
+        <div style={{ padding: "20px" }}>
+            <TableSkeleton rows={8} />
+        </div>
+    );
 
     return (
         <>
@@ -176,7 +182,17 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
                                     </tr>
                                 );
                             })}
-                            {filteredUsers.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>No users found.</td></tr>}
+                             {filteredUsers.length === 0 && (
+                                 <tr>
+                                     <td colSpan={7} style={{ textAlign: "center", padding: "80px 40px" }}>
+                                         <EmptyState 
+                                             title="No Users Found"
+                                             description="No user accounts match your search criteria. Try a different name or email."
+                                             icon={FiUser}
+                                         />
+                                     </td>
+                                 </tr>
+                             )}
                         </tbody>
                     </table>
                 </div>
@@ -226,11 +242,17 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
                         </tbody>
                     </table>
                 </div>
-                {modulePermissions.length === 0 && (
-                    <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>
-                        No permission data found. Initializing module permissions might be required.
-                    </div>
-                )}
+                 {modulePermissions.length === 0 && (
+                     <div style={{ padding: "80px 40px" }}>
+                         <EmptyState 
+                             title="No Matrix Data"
+                             description="Module permission data is unavailable. Please initialize module permissions to configure access control."
+                             icon={FiLock}
+                             actionLabel="Initialize Permissions"
+                             onAction={fetchPermissions}
+                         />
+                     </div>
+                 )}
             </div>
 
             {/* Edit Role Modal */}
