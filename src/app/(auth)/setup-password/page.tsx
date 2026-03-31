@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/lib/auth";
 import { FiLock, FiCheckCircle, FiLoader, FiShield } from "react-icons/fi";
 import { useRouter, useSearchParams } from "next/navigation";
 import axiosInstance from "@/lib/axios";
 
-export default function SetupPasswordPage() {
+function SetupPasswordForm() {
     const searchParams = useSearchParams();
     const token = searchParams.get('token');
     const { login } = useAuth(); // We'll manually login after setup
@@ -16,14 +16,10 @@ export default function SetupPasswordPage() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [inviteData, setInviteData] = useState<any>(null);
 
     useEffect(() => {
         if (!token) {
             router.push('/login');
-        } else {
-            // Verify token on mount (optional but recommended)
-            // axiosInstance.get(`/api/auth/verify-invite?token=${token}`)...
         }
     }, [token, router]);
 
@@ -106,5 +102,17 @@ export default function SetupPasswordPage() {
                 </form>
             </div>
         </div>
+    );
+}
+
+export default function SetupPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC" }}>
+                <FiLoader className="animate-spin" size={32} color="#0084FF" />
+            </div>
+        }>
+            <SetupPasswordForm />
+        </Suspense>
     );
 }

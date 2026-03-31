@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -135,7 +135,7 @@ const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: s
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const { user, logout } = useAuth();
+    const { user, loading, logout } = useAuth();
     const [backendPermissions, setBackendPermissions] = useState<any[]>([]);
     const [empCount, setEmpCount] = useState<string>("");
     const [leaveCount, setLeaveCount] = useState<string>("");
@@ -148,8 +148,9 @@ export default function Sidebar() {
         systemHealth: 'OK'
     });
     const [expandedItems, setExpandedItems] = useState<string[]>([]);
-
-    const role = user?.role?.toLowerCase() || "";
+    
+    // Safety check for user role
+    const role = (user?.role || "").toLowerCase().trim();
     const menuGroups = getMenuItems(sidebarCounts, role, empCount, leaveCount);
 
     useEffect(() => {
@@ -190,17 +191,21 @@ export default function Sidebar() {
     }, [user, role]);
 
     const filterByRole = (items: MenuItem[]) => {
+        if (!role) return [];
         return items.filter(item => {
+            const itemRoles = (item.roles || []).map(r => r.toLowerCase().trim());
+            
             if (role === 'superadmin') {
-                if (item.roles.map(r => r.toLowerCase()).includes('superadmin')) return true;
-                return false;
+                return itemRoles.includes('superadmin');
             }
 
             const dynamicPerm = backendPermissions.find((p: any) => p.module === item.id);
             if (dynamicPerm) {
-                return dynamicPerm.roles.map((r: string) => r.toLowerCase()).includes(role);
+                const permRoles = (dynamicPerm.roles || []).map((r: string) => r.toLowerCase().trim());
+                return permRoles.includes(role);
             }
-            return item.roles.map(r => r.toLowerCase()).includes(role);
+            
+            return itemRoles.includes(role);
         });
     };
 
@@ -268,7 +273,7 @@ export default function Sidebar() {
             <>
                 {item.icon && (
                    <span className="sidebar-item-icon">
-                        {typeof item.icon === 'string' ? item.icon : <item.icon />}
+                        {typeof item.icon === 'string' ? item.icon : React.isValidElement(item.icon) ? item.icon : (typeof item.icon === 'function' ? <item.icon /> : null)}
                    </span>
                 )}
                 <span style={{ flex: 1 }}>{item.label}</span>
@@ -328,6 +333,23 @@ export default function Sidebar() {
             </div>
         );
     };
+
+    // If still loading or no user, show a simplified loading state for the sidebar
+    if (loading || !user) {
+        return (
+            <aside className="sidebar loading" style={{ background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-light)' }}>
+                <div className="sidebar-header">
+                   <div style={{ height: "40px", width: "120px", background: "var(--bg-hover)", borderRadius: "8px", animation: "pulse 1.5s infinite" }} />
+                </div>
+                <div className="sidebar-nav" style={{ padding: "20px" }}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                        <div key={i} style={{ height: "35px", background: "var(--bg-hover)", borderRadius: "8px", marginBottom: "12px", animation: "pulse 1.5s infinite" }} />
+                    ))}
+                </div>
+                <style>{`@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }`}</style>
+            </aside>
+        );
+    }
 
     return (
         <aside className="sidebar" style={{ background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-light)' }}>

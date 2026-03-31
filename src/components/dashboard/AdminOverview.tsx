@@ -383,7 +383,7 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.6} />
                             <XAxis dataKey="month" axisLine={{ stroke: "var(--border)" }} tickLine={false} tick={{ fontSize: 11, fill: "var(--text-muted)", fontWeight: 600 }} dy={10} />
                             <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => v.toFixed(1)} domain={[2.7, 3.3]} tick={{ fontSize: 11, fill: "var(--text-muted)", fontWeight: 600 }} />
-                            <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", fontWeight: 600 }} formatter={(v: number) => [`₹${v.toFixed(2)} Cr`, 'Payroll']} />
+                            <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", fontWeight: 600 }} formatter={(v) => ["₹" + Number(v).toFixed(2) + " Cr", "Payroll"]} />
                             <Area type="monotone" dataKey="total" stroke="#f59e0b" strokeWidth={4} fillOpacity={0} activeDot={{ r: 6, fill: "#f59e0b", stroke: "white", strokeWidth: 2 }} />
                         </AreaChart>
                     </ResponsiveContainer>

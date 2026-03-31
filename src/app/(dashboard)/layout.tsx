@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import Sidebar from "@/components/common/Sidebar";
 import Topbar from "@/components/common/Topbar";
 import { FiCheckCircle, FiXCircle, FiAlertCircle, FiX } from "react-icons/fi";
@@ -12,30 +13,38 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>("loading");
+  const { user, loading } = useAuth();
   const [notify, setNotify] = useState<{type: 'success' | 'failure' | 'warning' | null, message: string}>({ type: null, message: "" });
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("ravi_zoho_token");
-    if (!storedToken) {
-      router.push("/login");
-    } else {
-      setToken(storedToken);
+    // Only redirect if explicitly not loading and no user found
+    if (!loading && !user) {
+      const storedToken = localStorage.getItem("ravi_zoho_token");
+      if (!storedToken) {
+        router.push("/login");
+      }
     }
-  }, [router]);
+  }, [user, loading, router]);
 
   const showNotify = (type: 'success' | 'failure' | 'warning', message: string) => {
     setNotify({ type, message });
     setTimeout(() => setNotify({ type: null, message: "" }), 5000);
   };
 
-  if (token === "loading") {
+  if (loading) {
     return (
-      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p>Loading...</p>
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+        <div style={{ textAlign: "center" }}>
+           <div style={{ width: "40px", height: "40px", border: "4px solid var(--border)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }}></div>
+           <p style={{ fontWeight: 600 }}>Loading workspace...</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
+
+  // Final safety check
+  if (!user) return null;
 
   return (
     <div className="page-wrapper">

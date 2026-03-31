@@ -83,7 +83,7 @@ export default function EmployeeStatutoryPage({ params }: { params: Promise<{ id
         <div style={{ padding: "0 40px 40px", height: "100%", overflowY: "auto", background: "#f8fafc" }}>
             <div style={{ padding: "30px 0", borderBottom: "1px solid #e2e8f0", marginBottom: "30px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                    <button onClick={() => router.back()} style={{ display: "flex", alignItems: "center", gap: "8px", color: "#64748B", background: "none", border: "none", cursor: "pointer", fontSize: "14px", marginBottom: "12px",调整 fontWeight: 600 }}>
+                    <button onClick={() => router.back()} style={{ display: "flex", alignItems: "center", gap: "8px", color: "#64748B", background: "none", border: "none", cursor: "pointer", fontSize: "14px", marginBottom: "12px", fontWeight: 600 }}>
                         <FiArrowLeft /> Back to Employee Profile
                     </button>
                     <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#1E293B" }}>Statutory & Compliance Details</h1>
