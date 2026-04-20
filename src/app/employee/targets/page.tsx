@@ -5,13 +5,23 @@ import { FiTarget, FiTrendingUp, FiCheckCircle, FiClock, FiActivity, FiArrowLeft
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function TargetsPage() {
-    const targets = [
-        { name: "Solar Site Installations", current: 8, goal: 10, unit: "Sites", status: "On Track", color: "var(--primary)" },
-        { name: "First-Time Resolution (FTR)", current: 92, goal: 95, unit: "%", status: "Critical", color: "#ef4444" },
-        { name: "Safety Compliance Audits", current: 12, goal: 12, unit: "Audits", status: "Completed", color: "#10b981" },
-        { name: "Team Training Hours", current: 15, goal: 20, unit: "Hours", status: "On Track", color: "#3b82f6" }
-    ];
+    const [targets, setTargets] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.GOALS);
+                setTargets(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

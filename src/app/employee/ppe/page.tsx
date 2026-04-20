@@ -1,17 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiPackage, FiShield, FiCheckCircle, FiArrowLeft, FiAlertTriangle, FiPlus, FiGrid, FiClock, FiActivity } from "react-icons/fi";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function PpePage() {
-    const [kit, setKit] = useState([
-        { item: "Hard Hat (Industrial)", issue: "Jan 10, 2026", condition: "Good", status: "Issued" },
-        { item: "Safety Boots (S3)", issue: "Jan 10, 2026", condition: "Wear Detected", status: "Issued" },
-        { item: "Reflective Vest (Hi-Vis)", issue: "Mar 12, 2026", condition: "New", status: "Issued" },
-        { item: "Goggles (UV Protected)", issue: "Mar 12, 2026", condition: "Good", status: "Issued" }
-    ]);
+    const [kit, setKit] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.PPE_RECORDS_MY);
+                setKit(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

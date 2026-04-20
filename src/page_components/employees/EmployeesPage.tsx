@@ -37,7 +37,10 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
         if (raw) { try { setCurrentUser(JSON.parse(raw)); } catch (e) { } }
     }, []);
 
-    const managersList = employees.filter(e => ["Admin", "HR", "Manager"].includes(e.role));
+    const managersList = employees.filter(e => {
+        const r = (e.role || "").toLowerCase();
+        return ["admin", "superadmin", "hr", "manager"].includes(r);
+    });
 
 
     const handleDelete = (emp: any) => {

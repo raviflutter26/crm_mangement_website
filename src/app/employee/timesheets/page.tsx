@@ -4,13 +4,23 @@ import React, { useState } from "react";
 import { FiFileText, FiDownload, FiCheckSquare, FiClock, FiPlus, FiAlertCircle, FiTrendingUp, FiMoreHorizontal } from "react-icons/fi";
 import { motion } from "framer-motion";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function TimesheetsPage() {
-    const timesheets = [
-        { id: "TS-942", week: "Mar 23 - Mar 29, 2026", hours: "42.5h", status: "Approved", sub: "Regular Week" },
-        { id: "TS-943", week: "Mar 16 - Mar 22, 2026", hours: "44.0h", status: "Approved", sub: "Overtime (4.0h)" },
-        { id: "TS-944", week: "Mar 09 - Mar 15, 2026", hours: "38.0h", status: "Rejected", sub: "Missing Punches" },
-        { id: "TS-945", week: "Mar 02 - Mar 08, 2026", hours: "40.0h", status: "Draft", sub: "Saved draft" }
-    ];
+    const [timesheets, setTimesheets] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.TIMESHEETS_MY);
+                setTimesheets(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

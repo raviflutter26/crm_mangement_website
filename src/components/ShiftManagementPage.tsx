@@ -22,7 +22,9 @@ export default function ShiftManagementPage() {
     const [formData, setFormData] = useState<any>({
         name: "", startTime: "09:00", endTime: "18:00", workingHours: 8,
         graceMinutes: 15, maxLatePerMonth: 3, isNightShift: false,
-        workingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        workingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        permissionHoursMonthly: 2,
+        permissionCountMonthly: 2
     });
     const [orgEmployees, setOrgEmployees] = useState<any[]>([]);
     const [assigningLoading, setAssigningLoading] = useState(false);
@@ -52,6 +54,28 @@ export default function ShiftManagementPage() {
     };
 
     useEffect(() => { fetchShifts(); }, [selectedOrgId]);
+
+    useEffect(() => {
+        if (!formData.startTime || !formData.endTime) return;
+
+        const [sH, sM] = formData.startTime.split(':').map(Number);
+        const [eH, eM] = formData.endTime.split(':').map(Number);
+        
+        let diffMinutes = (eH * 60 + eM) - (sH * 60 + sM);
+        
+        // If end time is before start time, or same with night shift toggle, it's a cross-day shift
+        if (diffMinutes < 0) {
+            diffMinutes += 24 * 60;
+        } else if (formData.isNightShift && diffMinutes === 0) {
+            diffMinutes = 24 * 60;
+        }
+
+        const hours = Math.round((diffMinutes / 60) * 10) / 10;
+        
+        if (hours !== formData.workingHours) {
+            setFormData(prev => ({ ...prev, workingHours: hours }));
+        }
+    }, [formData.startTime, formData.endTime, formData.isNightShift]);
 
     const handleSubmit = async (e: any) => {
         e.preventDefault();
@@ -86,7 +110,13 @@ export default function ShiftManagementPage() {
 
     const openCreate = () => {
         setIsEditing(false); setEditId("");
-        setFormData({ name: "", startTime: "09:00", endTime: "18:00", workingHours: 8, graceMinutes: 15, maxLatePerMonth: 3, isNightShift: false, workingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] });
+        setFormData({ 
+            name: "", startTime: "09:00", endTime: "18:00", workingHours: 8, 
+            graceMinutes: 15, maxLatePerMonth: 3, isNightShift: false, 
+            workingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+            permissionHoursMonthly: 2,
+            permissionCountMonthly: 2
+        });
         setShowModal(true);
     };
 
@@ -333,6 +363,20 @@ export default function ShiftManagementPage() {
                                     <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Max Late/Mo</label>
                                     <input type="number" value={formData.maxLatePerMonth} required
                                         onChange={e => setFormData({ ...formData, maxLatePerMonth: parseInt(e.target.value) })}
+                                        style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none" }} />
+                                </div>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Permission Hours/Mo</label>
+                                    <input type="number" value={formData.permissionHoursMonthly} required
+                                        onChange={e => setFormData({ ...formData, permissionHoursMonthly: parseFloat(e.target.value) })}
+                                        style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none" }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Permission Count/Mo</label>
+                                    <input type="number" value={formData.permissionCountMonthly} required
+                                        onChange={e => setFormData({ ...formData, permissionCountMonthly: parseInt(e.target.value) })}
                                         style={{ width: "100%", padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", color: "#1f2937", outline: "none" }} />
                                 </div>
                             </div>

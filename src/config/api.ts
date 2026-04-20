@@ -50,9 +50,9 @@ export const API_ENDPOINTS = {
     SALARY_COMPONENTS: `${API_BASE_URL}/api/salary-components`,
 
     // Organization
+    LOCATIONS: `${API_BASE_URL}/api/locations`,
     DESIGNATIONS: `${API_BASE_URL}/api/organizations/designations`,
     BRANCHES: `${API_BASE_URL}/api/organizations/branches`,
-    LOCATIONS: `${API_BASE_URL}/api/organizations/locations`,
     SHIFTS: `${API_BASE_URL}/api/organizations/shifts`,
     HOLIDAYS: `${API_BASE_URL}/api/organizations/holidays`,
 
@@ -77,6 +77,8 @@ export const API_ENDPOINTS = {
     PERMISSIONS_REQUEST: `${API_BASE_URL}/api/permissions/request`,
     PERMISSIONS_MINE: `${API_BASE_URL}/api/permissions/my-permissions`,
     PERMISSIONS_TEAM: `${API_BASE_URL}/api/permissions/team-permissions`,
+    PERMISSIONS_QUOTA: `${API_BASE_URL}/api/permissions/quota`,
+    PERMISSIONS_CONFIG: `${API_BASE_URL}/api/admin/config/permission`,
     PERMISSIONS_APPROVE: (id: string) => `${API_BASE_URL}/api/permissions/${id}/approve`,
     PERMISSIONS_CANCEL: (id: string) => `${API_BASE_URL}/api/permissions/${id}/cancel`,
 
@@ -94,6 +96,56 @@ export const API_ENDPOINTS = {
     // Bank
     BANK_IFSC: (code: string) => `${API_BASE_URL}/api/bank/ifsc/${code}`,
     BANK_UPDATE: `${API_BASE_URL}/api/bank/update`,
+
+    // ─── NEW Phase 2 Modules ─────────────────────────────────────
+
+    // Projects
+    PROJECTS: `${API_BASE_URL}/api/projects`,
+
+    // Vendors
+    VENDORS: `${API_BASE_URL}/api/vendors`,
+
+    // Job Cards / Work Logs
+    JOB_CARDS: `${API_BASE_URL}/api/job-cards`,
+    JOB_CARDS_MY: `${API_BASE_URL}/api/job-cards/my`,
+
+    // Travel Requests
+    TRAVEL_REQUESTS: `${API_BASE_URL}/api/travel-requests`,
+    TRAVEL_REQUESTS_MY: `${API_BASE_URL}/api/travel-requests/my`,
+
+    // Incidents
+    INCIDENTS: `${API_BASE_URL}/api/incidents`,
+    INCIDENTS_MY: `${API_BASE_URL}/api/incidents/my`,
+
+    // PPE Records
+    PPE_RECORDS: `${API_BASE_URL}/api/ppe-records`,
+    PPE_RECORDS_MY: `${API_BASE_URL}/api/ppe-records/my`,
+
+    // Reimbursements
+    REIMBURSEMENTS: `${API_BASE_URL}/api/reimbursements`,
+    REIMBURSEMENTS_MY: `${API_BASE_URL}/api/reimbursements/my`,
+
+    // Site Allowances
+    SITE_ALLOWANCES: `${API_BASE_URL}/api/site-allowances`,
+    SITE_ALLOWANCES_MY: `${API_BASE_URL}/api/site-allowances/my`,
+
+    // Training
+    TRAININGS: `${API_BASE_URL}/api/trainings`,
+
+    // Certifications
+    CERTIFICATIONS: `${API_BASE_URL}/api/certifications`,
+    CERTIFICATIONS_MY: `${API_BASE_URL}/api/certifications/my`,
+
+    // Announcements
+    ANNOUNCEMENTS: `${API_BASE_URL}/api/announcements`,
+
+    // Employee Documents
+    EMPLOYEE_DOCUMENTS: `${API_BASE_URL}/api/employee-documents`,
+    EMPLOYEE_DOCUMENTS_MY: `${API_BASE_URL}/api/employee-documents/my`,
+
+    // Timesheets
+    TIMESHEETS: `${API_BASE_URL}/api/timesheets`,
+    TIMESHEETS_MY: `${API_BASE_URL}/api/timesheets/my`,
 };
 
 export default API_ENDPOINTS;

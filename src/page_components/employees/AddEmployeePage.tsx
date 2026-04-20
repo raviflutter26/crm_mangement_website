@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS, API_BASE_URL } from "@/config/api";
-import { FiUser, FiBriefcase, FiMapPin, FiClock, FiDollarSign, FiPercent, FiCreditCard, FiFileText, FiSettings, FiCheckCircle } from "react-icons/fi";
+import { FiUser, FiBriefcase, FiMapPin, FiClock, FiDollarSign, FiPercent, FiCreditCard, FiFileText, FiSettings, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 
 const Section = ({ title, children, defaultOpen = true }: { title: string, children: React.ReactNode, defaultOpen?: boolean }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -315,7 +315,7 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     ].filter(s => {
         if (currentUser?.role === "Manager" && (s.name === "Payroll" || s.name === "Statutory & Compliance")) return false;
         if (isEdit && s.name === "System") return false;
-        if (formData.role === "Admin" && s.name === "Reporting") return false;
+        if (["Admin", "HR"].includes(formData.role) && s.name === "Reporting") return false;
         return true;
     });
 
@@ -446,7 +446,18 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 isValid = false; newErrors.pincode = "Pincode must be exactly 6 digits"; missingFields.push("Invalid Pincode");
             }
         } else if (currentStepName === "Reporting") {
-            // No strict validations for reporting yet
+            if (formData.role !== "HR") {
+                if (!formData.reportingManager) {
+                    isValid = false;
+                    newErrors.reportingManager = "Reporting Manager is required";
+                    missingFields.push("Reporting Manager");
+                }
+            }
+            if (!formData.shift) {
+                isValid = false;
+                newErrors.shift = "Shift is required";
+                missingFields.push("Shift");
+            }
         } else if (currentStepName === "Payroll") {
             if (!formData.ctc) { isValid = false; newErrors.ctc = "Annual CTC is required"; missingFields.push("Annual CTC"); }
         } else if (currentStepName === "Statutory & Compliance") {
@@ -577,9 +588,23 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         }
     };
 
-    const availableManagers = Array.isArray(formData.department) && formData.department.length > 0
-        ? employees.filter(e => formData.department.includes(e.department) && ["Admin", "HR", "Manager"].includes(e.role))
-        : employees.filter(e => ["Admin", "HR", "Manager"].includes(e.role));
+    const availableManagers = employees.filter(e => {
+        const r = (e.role || "").toLowerCase();
+        if (formData.role === "Manager") {
+            // Managers report to HR or Admin
+            return ["hr", "admin", "superadmin"].includes(r);
+        }
+        if (formData.role === "Employee") {
+            // Employees report to Managers/HR/Admin in their department
+            const empDepts = Array.isArray(formData.department) ? formData.department : (formData.department ? [formData.department] : []);
+            const managerDepts = (e.department || "").split(',').map((s: string) => s.trim());
+            
+            const deptMatch = empDepts.some(d => managerDepts.includes(d));
+            return ["manager", "hr", "admin", "superadmin"].includes(r) && deptMatch;
+        }
+        // Others (like HR) see all potential managers
+        return ["admin", "superadmin", "hr", "manager"].includes(r);
+    });
 
     const renderStepContent = () => {
         const stepName = steps[currentStep - 1].name;
@@ -700,6 +725,15 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 </div>
                                 {errors.department && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.department}</div>}
                             </div>
+                            <div>
+                                <label className="form-label">System Role *</label>
+                                <select name="role" value={formData.role} onChange={handleInputChange} className="form-input">
+                                    <option value="Employee">Employee</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="HR">HR</option>
+                                    <option value="Admin">Admin</option>
+                                </select>
+                            </div>
                             <div><label className="form-label">Designation</label><input name="designation" value={formData.designation} onChange={handleInputChange} className="form-input" /></div>
                             <div>
                                 <label className="form-label">Employment Type</label>
@@ -780,19 +814,29 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                         <h3 style={{ marginBottom: "20px", color: "var(--primary)" }}>Reporting & Shift</h3>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
                             <div>
-                                <label className="form-label">Reporting Manager</label>
-                                <select name="reportingManager" value={formData.reportingManager} onChange={handleInputChange} className="form-input">
+                                <label className="form-label">Reporting Manager {formData.role !== "HR" && "*"}</label>
+                                <select name="reportingManager" value={formData.reportingManager} onChange={handleInputChange} className="form-input" style={{ borderColor: errors.reportingManager ? "red" : "var(--border)" }}>
                                     <option value="">Select Manager</option>
-                                    {availableManagers.map(m => <option key={m._id} value={m._id}>{m.firstName} {m.lastName}</option>)}
+                                    {availableManagers.map(m => <option key={m._id} value={m._id}>{m.firstName} {m.lastName} ({m.role})</option>)}
                                 </select>
+                                {errors.reportingManager && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.reportingManager}</div>}
                             </div>
                             <div>
-                                <label className="form-label">Shift</label>
-                                <select name="shift" value={formData.shift} onChange={handleInputChange} className="form-input">
+                                <label className="form-label">Shift *</label>
+                                <select name="shift" value={formData.shift} onChange={handleInputChange} className="form-input" style={{ borderColor: errors.shift ? "red" : "var(--border)" }}>
                                     <option value="">Select Shift</option>
                                     {shifts.map(s => <option key={s._id} value={s._id}>{s.name} ({s.startTime}-{s.endTime}){s.isNightShift ? ' 🌙' : ''}</option>)}
                                 </select>
+                                {errors.shift && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.shift}</div>}
                             </div>
+                            {formData.role === "Employee" && Array.isArray(formData.department) && formData.department.length > 0 && availableManagers.length === 0 && (
+                                <div style={{ gridColumn: "1 / -1", padding: "16px", background: "rgba(255, 193, 7, 0.1)", border: "1px solid #FFC107", borderRadius: "10px", color: "#856404", fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}>
+                                    <FiAlertCircle size={20} />
+                                    <div>
+                                        <strong>No Manager Assigned:</strong> This department does not have a manager assigned yet. Please assign a manager to this department to continue.
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );

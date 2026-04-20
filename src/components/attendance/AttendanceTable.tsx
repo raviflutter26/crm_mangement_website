@@ -23,48 +23,28 @@ export default function AttendanceTable({ records, activeView }: AttendanceTable
             <table>
                 <thead>
                     <tr>
-                        <th>Employee</th><th>ID</th>
-                        {activeView === "records" && <th>Date</th>}
-                        <th>Department</th>
-                        <th>Check In</th><th>Check Out</th><th>Hours</th>
-                        <th>Source</th><th>Late</th><th>Status</th>
+                        <th>Employee</th><th>Date</th>
+                        <th>Shift</th>
+                        <th>1st In</th><th>Last Out</th><th>Net Hrs</th>
+                        <th>Deviation</th><th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     {records.length > 0 ? records.map((rec: any, i: number) => {
-                        const SourceIcon = SOURCE_ICONS[rec.source] || FiMonitor;
                         return (
                             <tr key={i}>
                                 <td style={{ fontWeight: 600 }}>{rec.employee?.firstName} {rec.employee?.lastName}</td>
-                                <td style={{ fontFamily: "monospace", color: "var(--text-secondary)" }}>{rec.employee?.employeeId}</td>
-                                {activeView === "records" && (
-                                    <td style={{ color: "var(--text-secondary)", fontWeight: 500 }}>
-                                        {new Date(rec.date).toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' })}
-                                    </td>
-                                )}
-                                <td>{rec.employee?.department || "-"}</td>
-                                <td style={{ color: !rec.checkIn ? "var(--text-muted)" : "var(--text-primary)", fontFamily: "monospace" }}>
-                                    {rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "--:--"}
-                                </td>
-                                <td style={{ color: !rec.checkOut ? "var(--text-muted)" : "var(--text-primary)", fontFamily: "monospace" }}>
-                                    {rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "--:--"}
-                                </td>
-                                <td style={{ fontFamily: "monospace" }}>{rec.totalHours ? `${rec.totalHours.toFixed(1)}h` : "-"}</td>
+                                <td>{new Date(rec.date).toLocaleDateString("en-IN")}</td>
+                                <td><span style={{ fontSize: "12px", background: "var(--bg-card)", padding: "4px 8px", borderRadius: "10px" }}>{rec.shiftName || "Standard"}</span></td>
+                                <td style={{ fontFamily: "monospace" }}>{rec.firstIn || "--:--"}</td>
+                                <td style={{ fontFamily: "monospace" }}>{rec.lastOut || "--:--"}</td>
+                                <td style={{ fontWeight: 700 }}>{rec.netWorkingHours ? `${rec.netWorkingHours}h` : "-"}</td>
                                 <td>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px" }}>
-                                        <SourceIcon size={14} /> {rec.source || "web"}
-                                    </div>
-                                </td>
-                                <td>
-                                    {rec.isLate ? (
-                                        <span style={{ color: "var(--error)", fontWeight: 600, fontSize: "12px" }}>
-                                            <FiAlertTriangle size={12} /> {rec.lateBy}m
-                                        </span>
-                                    ) : rec.status === "Absent" ? (
-                                        <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>-</span>
-                                    ) : (
-                                        <span style={{ color: "var(--secondary)", fontSize: "12px" }}><FiCheckCircle size={12} /> On time</span>
-                                    )}
+                                    {rec.deviationTime > 0 ? (
+                                        <span style={{ color: "var(--error)", fontSize: "12px", fontWeight: 600 }}>-{rec.deviationTime}m</span>
+                                    ) : rec.deviationTime < 0 ? (
+                                        <span style={{ color: "var(--success)", fontSize: "12px", fontWeight: 600 }}>+{Math.abs(rec.deviationTime)}m</span>
+                                    ) : <span style={{ color: "var(--text-muted)" }}>-</span>}
                                 </td>
                                 <td>
                                     <span className={`badge ${STATUS_COLORS[rec.status] || "pending"}`}>

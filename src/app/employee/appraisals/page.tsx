@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiTarget, FiTrendingUp, FiCheckCircle, FiClock, FiActivity, FiArrowLeft, FiPlus, FiBox, FiStar, FiFileText } from "react-icons/fi";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function AppraisalsPage() {
-    const reviews = [
-        { cycle: "Annual Performance 2025", reviewer: "Vikram Singh (Manager)", rating: "4.5 / 5.0", status: "Completed", date: "Dec 30, 2025", feedback: "Excellent field work and mentorship." },
-        { cycle: "Mid-Term Review 2025", reviewer: "HR Compliance Team", rating: "4.0 / 5.0", status: "Completed", date: "Jun 15, 2025", feedback: "High compliance with safety protocols." }
-    ];
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.APPRAISALS);
+                setReviews(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, []);
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

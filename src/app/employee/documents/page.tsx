@@ -5,13 +5,23 @@ import { FiFileText, FiDownload, FiFolder, FiSearch, FiArrowLeft, FiPlus, FiGrid
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function DocumentsPage() {
-    const documents = [
-        { name: "Employment Contract", type: "PDF", size: "1.2MB", date: "Jan 10, 2026", category: "Personal" },
-        { name: "Code of Conduct", type: "PDF", size: "850KB", date: "Jan 12, 2026", category: "Corporate" },
-        { name: "Medical Insurance Card", type: "IMG", size: "2.4MB", date: "Feb 05, 2026", category: "Personal" },
-        { name: "Solar Site Safety Guide", type: "PDF", size: "4.8MB", date: "Mar 15, 2026", category: "Operations" }
-    ];
+    const [documents, setDocuments] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEE_DOCUMENTS_MY);
+                setDocuments(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

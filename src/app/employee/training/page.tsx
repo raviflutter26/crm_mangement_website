@@ -5,12 +5,23 @@ import { FiBookOpen, FiPlayCircle, FiCheckCircle, FiClock, FiStar, FiPlus, FiArr
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function TrainingPage() {
-    const courses = [
-        { id: "TRN-101", title: "Solar Inverter Advanced Diagnostics", progress: 75, duration: "4h 20m", status: "In-Progress", img: "#ebf5ff" },
-        { id: "TRN-102", title: "Smart Grid Integration Protocols", progress: 100, duration: "2h 45m", status: "Completed", img: "#f0fdf4" },
-        { id: "TRN-103", title: "High-Voltage Safety Reset 2026", progress: 10, duration: "1h 30m", status: "New", img: "#fff7ed" }
-    ];
+    const [courses, setCourses] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.TRAININGS);
+                setCourses(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

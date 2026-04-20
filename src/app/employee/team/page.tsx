@@ -5,13 +5,23 @@ import { FiUsers, FiSearch, FiMail, FiPhone, FiMapPin, FiArrowLeft, FiMessageSqu
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function TeamDirectoryPage() {
-    const team = [
-        { id: 1, name: "Vikram Singh", role: "Operations Head", dept: "Operations", site: "Corporate HQ", status: "Active", email: "vikram.s@ravizoho.com" },
-        { id: 2, name: "Elena Gilbert", role: "Site Supervisor", dept: "Field Service", site: "Solar Alpha", status: "On Site", email: "elena.g@ravizoho.com" },
-        { id: 3, name: "Rahul Sharma", role: "Maintenance Lead", dept: "Engineering", site: "Warehouse West", status: "Away", email: "rahul.s@ravizoho.com" },
-        { id: 4, name: "Sarah Connor", role: "Safety Compliance", dept: "HSEQ", site: "Solar Alpha", status: "Active", email: "sarah.c@ravizoho.com" }
-    ];
+    const [team, setTeam] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEES);
+                setTeam(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

@@ -120,7 +120,7 @@ export default function LoginPage() {
                             borderRadius: "10px", marginBottom: "20px", fontSize: "13px", color: "#16a34a",
                             display: "flex", alignItems: "center", gap: "8px"
                         }}>
-                             {message}
+                            {message}
                         </div>
                     )}
 
@@ -188,7 +188,6 @@ export default function LoginPage() {
                             {!isForgotPassword && !isRegister && (
                                 <>
                                     <button type="button" onClick={() => setIsForgotPassword(true)} style={{ background: "none", border: "none", color: "#f97316", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Forgot Password?</button>
-                                    <button type="button" onClick={() => setIsRegister(true)} style={{ background: "none", border: "none", color: "#f97316", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>New Employee?</button>
                                 </>
                             )}
                             {(isForgotPassword || isRegister) && (

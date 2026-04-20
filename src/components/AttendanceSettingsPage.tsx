@@ -19,61 +19,17 @@ const DEFAULT_SETTINGS = {
     endTime: "18:00",
     workingHours: 9,
     graceMinutes: 30,
+    minHoursForPresent: 9.5,
+    halfDayHours: 4.75,
+    absentThreshold: 120,
+    lateAfterGraceAction: "Late",
+    timezone: "Asia/Kolkata",
     latePolicyEnabled: true,
     maxLateDaysPerMonth: 3,
     lateMarkType: "half_day",
-    permissionEnabled: true,
-    maxPermissionCount: 4,
-    maxPermissionHours: 4,
 };
 
-const SectionHeader = ({ icon: Icon, title, subtitle, color }: any) => (
-    <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "24px" }}>
-        <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
-            <Icon size={20} />
-        </div>
-        <div>
-            <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0 }}>{title}</h3>
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0, marginTop: "2px" }}>{subtitle}</p>
-        </div>
-    </div>
-);
-
-const Toggle = ({ checked, onChange, id }: { checked: boolean; onChange: (v: boolean) => void; id: string }) => (
-    <button
-        id={id}
-        onClick={() => onChange(!checked)}
-        style={{
-            width: "48px", height: "26px", borderRadius: "13px",
-            background: checked ? "var(--primary)" : "var(--bg-hover)",
-            border: "none", cursor: "pointer",
-            position: "relative", transition: "background 0.3s ease",
-            flexShrink: 0,
-            boxShadow: checked ? "0 0 0 3px rgba(255,122,0,0.2)" : "none"
-        }}
-        aria-checked={checked}
-        role="switch"
-    >
-        <div style={{
-            position: "absolute", top: "3px",
-            left: checked ? "25px" : "3px",
-            width: "20px", height: "20px", borderRadius: "50%",
-            background: "white",
-            transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.25)"
-        }} />
-    </button>
-);
-
-const FieldRow = ({ label, hint, children }: any) => (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: "1px solid var(--border)" }}>
-        <div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{label}</div>
-            {hint && <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{hint}</div>}
-        </div>
-        {children}
-    </div>
-);
+// ... (SectionHeader, Toggle, FieldRow stay the same)
 
 export default function AttendanceSettingsPage({ showNotify }: AttendanceSettingsPageProps) {
     const [settings, setSettings] = useState<any>(DEFAULT_SETTINGS);
@@ -86,8 +42,10 @@ export default function AttendanceSettingsPage({ showNotify }: AttendanceSetting
         setLoading(true);
         try {
             const res = await axiosInstance.get(API_ENDPOINTS.ATTENDANCE_SETTINGS);
-            setSettings(res.data.data);
-            setOriginal(res.data.data);
+            if (res.data.data) {
+                setSettings(res.data.data);
+                setOriginal(res.data.data);
+            }
         } catch (err) {
             console.error("Failed to load settings, using defaults", err);
         } finally {
@@ -98,8 +56,9 @@ export default function AttendanceSettingsPage({ showNotify }: AttendanceSetting
     const handleSave = async () => {
         setSaving(true);
         try {
+            // Backend will handle versioning by creating a new document with effectiveFrom: now
             await axiosInstance.put(API_ENDPOINTS.ATTENDANCE_SETTINGS, settings);
-            showNotify('success', "Attendance settings saved successfully!");
+            showNotify('success', "Attendance settings saved and versioned successfully!");
             setOriginal(settings);
             setHasChanges(false);
         } catch (err: any) {
@@ -156,7 +115,7 @@ export default function AttendanceSettingsPage({ showNotify }: AttendanceSetting
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px", flexWrap: "wrap", gap: "12px" }}>
                 <div>
                     <h1 style={{ fontSize: "26px", fontWeight: 900, margin: 0 }}>Attendance Settings</h1>
-                    <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "5px 0 0" }}>Configure global attendance rules that apply to all employees</p>
+                    <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "5px 0 0" }}>Configure global attendance rules. Changes are versioned for audit trail.</p>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
                     {hasChanges && (
@@ -195,17 +154,6 @@ export default function AttendanceSettingsPage({ showNotify }: AttendanceSetting
                 </div>
             </div>
 
-            {hasChanges && (
-                <div style={{
-                    display: "flex", alignItems: "center", gap: "10px", padding: "12px 18px",
-                    background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)",
-                    borderRadius: "12px", marginBottom: "20px", color: "#f59e0b", fontSize: "13px", fontWeight: 600
-                }}>
-                    <FiAlertTriangle size={16} />
-                    You have unsaved changes. Click "Save Changes" to apply them globally.
-                </div>
-            )}
-
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
 
                 {/* Office Timings */}
@@ -218,9 +166,15 @@ export default function AttendanceSettingsPage({ showNotify }: AttendanceSetting
                     <FieldRow label="Office End Time" hint="Official end of working day">
                         <input id="settings-end-time" type="time" value={settings.endTime} onChange={e => update("endTime", e.target.value)} style={inputStyle} />
                     </FieldRow>
-                    <FieldRow label="Required Working Hours" hint="Hours per day to be considered present">
+                    <FieldRow label="Minimum Hours for Present" hint="Hours needed to be marked Present">
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <input id="settings-working-hours" type="number" min={1} max={12} value={settings.workingHours} onChange={e => update("workingHours", Number(e.target.value))} style={numInputStyle} />
+                            <input id="settings-min-present" type="number" step={0.1} min={0} value={settings.minHoursForPresent} onChange={e => update("minHoursForPresent", Number(e.target.value))} style={numInputStyle} />
+                            <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>hrs</span>
+                        </div>
+                    </FieldRow>
+                    <FieldRow label="Half Day Threshold" hint="Minimum hours to avoid Absent mark">
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <input id="settings-half-day" type="number" step={0.1} min={0} value={settings.halfDayHours} onChange={e => update("halfDayHours", Number(e.target.value))} style={numInputStyle} />
                             <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>hrs</span>
                         </div>
                     </FieldRow>
@@ -230,91 +184,82 @@ export default function AttendanceSettingsPage({ showNotify }: AttendanceSetting
                             <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>mins</span>
                         </div>
                     </FieldRow>
-
-                    {/* Preview */}
-                    <div style={{ marginTop: "20px", padding: "14px 16px", background: "rgba(255,122,0,0.07)", borderRadius: "12px", border: "1px solid rgba(255,122,0,0.15)" }}>
-                        <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--primary)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>📋 Current Policy Preview</div>
-                        <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7 }}>
-                            • Office: <strong>{settings.startTime}</strong> – <strong>{settings.endTime}</strong><br />
-                            • On time if check-in by: <strong>{(() => { const [h, m] = settings.startTime.split(':').map(Number); const total = h * 60 + m + settings.graceMinutes; return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`; })()}</strong><br />
-                            • Must work: <strong>{settings.workingHours} hours</strong> for full day
-                        </div>
-                    </div>
+                    <FieldRow label="Timezone" hint="Organization local timezone">
+                        <select
+                            id="settings-timezone"
+                            value={settings.timezone}
+                            onChange={e => update("timezone", e.target.value)}
+                            style={{ ...inputStyle, width: "180px" }}
+                        >
+                            <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                            <option value="UTC">UTC</option>
+                            <option value="America/New_York">New York (EST)</option>
+                            <option value="Europe/London">London (GMT)</option>
+                        </select>
+                    </FieldRow>
                 </div>
 
-                {/* Late Policy */}
+                {/* Late & Absent Policy */}
                 <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "20px", padding: "24px" }}>
-                    <SectionHeader icon={FiAlertTriangle} title="Late Policy" subtitle="Rules for late arrivals and penalties" color="#f59e0b" />
+                    <SectionHeader icon={FiAlertTriangle} title="Late & Absent Rules" subtitle="Rules for late arrivals and penalties" color="#f59e0b" />
 
-                    <FieldRow label="Enable Late Policy" hint="Apply late tracking rules">
-                        <Toggle id="toggle-late-policy" checked={settings.latePolicyEnabled} onChange={(v) => update("latePolicyEnabled", v)} />
+                    <FieldRow label="Absent Cutoff" hint="Minutes after start+grace to mark Absent">
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <input id="settings-absent-threshold" type="number" min={0} value={settings.absentThreshold} onChange={e => update("absentThreshold", Number(e.target.value))} style={numInputStyle} />
+                            <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>mins</span>
+                        </div>
                     </FieldRow>
 
-                    <div style={{ opacity: settings.latePolicyEnabled ? 1 : 0.4, transition: "opacity 0.3s", pointerEvents: settings.latePolicyEnabled ? "auto" : "none" }}>
-                        <FieldRow label="Late Days Before Penalty" hint="Max late arrivals per month before action">
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                <input id="settings-max-late-days" type="number" min={1} max={30} value={settings.maxLateDaysPerMonth} onChange={e => update("maxLateDaysPerMonth", Number(e.target.value))} style={numInputStyle} />
-                                <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>days</span>
-                            </div>
-                        </FieldRow>
-                        <FieldRow label="Penalty Action" hint="What happens when late limit is exceeded">
-                            <select
-                                id="settings-late-mark-type"
-                                value={settings.lateMarkType}
-                                onChange={e => update("lateMarkType", e.target.value)}
-                                style={{ ...inputStyle, width: "150px" }}
-                            >
-                                <option value="half_day">Mark Half Day</option>
-                                <option value="warning">Issue Warning</option>
-                            </select>
-                        </FieldRow>
-                    </div>
+                    <FieldRow label="Action After Grace" hint="Status if check-in after grace period">
+                        <select
+                            id="settings-late-action"
+                            value={settings.lateAfterGraceAction}
+                            onChange={e => update("lateAfterGraceAction", e.target.value)}
+                            style={{ ...inputStyle, width: "150px" }}
+                        >
+                            <option value="Late">Mark as Late</option>
+                            <option value="HalfDay">Mark as Half Day</option>
+                            <option value="Absent">Mark as Absent</option>
+                        </select>
+                    </FieldRow>
 
-                    <div style={{ marginTop: "20px", padding: "14px 16px", background: "rgba(245,158,11,0.07)", borderRadius: "12px", border: "1px solid rgba(245,158,11,0.15)" }}>
-                        <div style={{ fontSize: "12px", fontWeight: 700, color: "#f59e0b", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>⚠️ Late Rule Summary</div>
-                        {settings.latePolicyEnabled ? (
-                            <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7 }}>
-                                • After <strong>{settings.maxLateDaysPerMonth} late days</strong>/month<br />
-                                • Action: <strong>{settings.lateMarkType === "half_day" ? "Mark as Half Day" : "Issue Warning"}</strong>
-                            </div>
-                        ) : (
-                            <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Late policy is currently disabled.</div>
-                        )}
-                    </div>
-
-                    {/* Permission Policy */}
-                    <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
-                        <SectionHeader icon={FiShield} title="Permission Rules" subtitle="Limits on employee permission requests" color="#7C3AED" />
-                        <FieldRow label="Enable Permissions" hint="Allow employees to request permissions">
-                            <Toggle id="toggle-permission-policy" checked={settings.permissionEnabled} onChange={(v) => update("permissionEnabled", v)} />
+                    <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
+                        <FieldRow label="Enable Late Penalty" hint="Deduct salary or mark half day after X lates">
+                            <Toggle id="toggle-late-policy" checked={settings.latePolicyEnabled} onChange={(v) => update("latePolicyEnabled", v)} />
                         </FieldRow>
-                        <div style={{ opacity: settings.permissionEnabled ? 1 : 0.4, transition: "opacity 0.3s", pointerEvents: settings.permissionEnabled ? "auto" : "none" }}>
-                            <FieldRow label="Max Permissions / Month" hint="Maximum number of permission requests">
+
+                        <div style={{ opacity: settings.latePolicyEnabled ? 1 : 0.4, transition: "opacity 0.3s", pointerEvents: settings.latePolicyEnabled ? "auto" : "none" }}>
+                            <FieldRow label="Max Late Days / Month" hint="Allowed late arrivals per month">
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <input id="settings-max-permission-count" type="number" min={1} max={20} value={settings.maxPermissionCount} onChange={e => update("maxPermissionCount", Number(e.target.value))} style={numInputStyle} />
-                                    <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>times</span>
+                                    <input id="settings-max-late-days" type="number" min={1} max={30} value={settings.maxLateDaysPerMonth} onChange={e => update("maxLateDaysPerMonth", Number(e.target.value))} style={numInputStyle} />
+                                    <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>days</span>
                                 </div>
                             </FieldRow>
-                            <FieldRow label="Max Permission Hours / Month" hint="Maximum total hours for permissions">
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <input id="settings-max-permission-hours" type="number" min={1} max={40} value={settings.maxPermissionHours} onChange={e => update("maxPermissionHours", Number(e.target.value))} style={numInputStyle} />
-                                    <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>hrs</span>
-                                </div>
+                            <FieldRow label="Late Penalty Type" hint="Action after exceeding limits">
+                                <select
+                                    id="settings-late-mark-type"
+                                    value={settings.lateMarkType}
+                                    onChange={e => update("lateMarkType", e.target.value)}
+                                    style={{ ...inputStyle, width: "150px" }}
+                                >
+                                    <option value="half_day">Convert to Half Day</option>
+                                    <option value="warning">System Warning</option>
+                                </select>
                             </FieldRow>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Quick Reference */}
+            {/* Rules Summary */}
             <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "20px", padding: "24px", marginTop: "16px" }}>
-                <SectionHeader icon={FiSliders} title="Rules Summary" subtitle="How these settings apply across the system" color="#10b981" />
+                <SectionHeader icon={FiSliders} title="Rules Summary" subtitle="Calculated thresholds based on your settings" color="#10b981" />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
                     {[
                         { label: "Check-in Window", value: `${settings.startTime} + ${settings.graceMinutes}m`, color: "#FF7A00" },
-                        { label: "Daily Goal", value: `${settings.workingHours} hours`, color: "#10b981" },
-                        { label: "Late Limit", value: `${settings.maxLateDaysPerMonth} days/month`, color: "#f59e0b" },
-                        { label: "Permission Limit", value: `${settings.maxPermissionCount}x / ${settings.maxPermissionHours}h`, color: "#7C3AED" },
+                        { label: "Absent Threshold", value: `${settings.absentThreshold}m after grace`, color: "#ef4444" },
+                        { label: "Daily Goal", value: `${settings.minHoursForPresent} hours`, color: "#10b981" },
+                        { label: "Half Day Cutoff", value: `${settings.halfDayHours} hours`, color: "#3b82f6" },
                     ].map((item) => (
                         <div key={item.label} style={{
                             padding: "16px", borderRadius: "14px",

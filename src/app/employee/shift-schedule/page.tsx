@@ -4,16 +4,23 @@ import React, { useState } from "react";
 import { FiCalendar, FiClock, FiMapPin, FiChevronLeft, FiChevronRight, FiUsers, FiSunset, FiSunrise, FiMoon } from "react-icons/fi";
 import { motion } from "framer-motion";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function ShiftSchedulePage() {
-    const days = [
-        { d: "Mon", date: "30", current: true, shift: "Morning (06:00 - 14:00)", site: "Plant Alpha" },
-        { d: "Tue", date: "31", current: false, shift: "Morning (06:00 - 14:00)", site: "Plant Alpha" },
-        { d: "Wed", date: "01", current: false, shift: "General (09:00 - 17:00)", site: "Corporate HQ" },
-        { d: "Thu", date: "02", current: false, shift: "Night (22:00 - 06:00)", site: "Warehouse West" },
-        { d: "Fri", date: "03", current: false, shift: "OFF", site: "-" },
-        { d: "Sat", date: "04", current: false, shift: "OFF", site: "-" },
-        { d: "Sun", date: "05", current: false, shift: "General (09:00 - 17:00)", site: "Plant Alpha" }
-    ];
+    const [days, setDays] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.SHIFTS);
+                setDays(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

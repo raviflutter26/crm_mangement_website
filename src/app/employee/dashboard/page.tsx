@@ -26,15 +26,22 @@ export default function EmployeeDashboardPage() {
             const res = await axiosInstance.get(`${API_ENDPOINTS.DASHBOARD}${params}`);
             setData(res.data.data);
             
-            // Proactive Check: If today's sessions are empty, check general attendance history for any open session
+            // Proactive Check: If today's sessions are empty, check general attendance history for this SPECIFIC employee
             if (!res.data.data?.attendanceToday?.sessions?.length) {
-                const historyRes = await axiosInstance.get(API_ENDPOINTS.ATTENDANCE);
-                const history = historyRes.data.data || [];
-                // Elite Deep Scan: Check sessions across all historical records for any checkOut=null
-                const hasOpenSession = history.some((h: any) => 
-                    h.sessions?.some((s: any) => !s.checkOut)
-                );
-                setIsAlreadyCheckedIn(hasOpenSession);
+                // Determine the correct ID to scan: use employeeId first, fallback to user.id
+                const targetId = user?.employeeId || user?._id;
+                
+                if (targetId) {
+                    const historyRes = await axiosInstance.get(`${API_ENDPOINTS.ATTENDANCE}?employeeId=${targetId}`);
+                    const history = historyRes.data.data || [];
+                    
+                    // Elite Deep Scan: Only count it if the record belongs to the targetId
+                    const hasOpenSession = history.some((h: any) => 
+                        (h.employee?._id === targetId || h.employee === targetId) && 
+                        h.sessions?.some((s: any) => !s.checkOut)
+                    );
+                    setIsAlreadyCheckedIn(hasOpenSession);
+                }
             } else {
                 setIsAlreadyCheckedIn(false);
             }

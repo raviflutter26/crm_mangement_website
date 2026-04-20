@@ -5,12 +5,23 @@ import { FiTarget, FiDownload, FiCheckCircle, FiClock, FiShield, FiArrowLeft, Fi
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function CertificationsPage() {
-    const certs = [
-        { name: "Solar Design Professional", issuer: "IRENA Institute", date: "Jan 2026", expiry: "Jan 2026", status: "Active", id: "CERT-9421" },
-        { name: "Global EHS Standards Compliance", issuer: "OSHA Global", date: "Feb 2026", expiry: "Feb 2025", status: "Active", id: "CERT-9422" },
-        { name: "Project Management in Energy", issuer: "PMI Global", date: "Mar 2026", expiry: "Mar 2027", status: "Active", id: "CERT-9423" }
-    ];
+    const [certs, setCerts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.CERTIFICATIONS_MY);
+                setCerts(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

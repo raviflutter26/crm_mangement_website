@@ -23,10 +23,10 @@ export default function AttendancePunchPage() {
             setData(res.data.data);
             
             // Check global history for any open session if today is empty
-            if (!res.data.data?.attendanceToday?.sessions?.length) {
-                const historyRes = await axiosInstance.get(API_ENDPOINTS.ATTENDANCE);
+            if (!res.data.data?.attendanceToday?.sessions?.length && user?.employeeId) {
+                const historyRes = await axiosInstance.get(`${API_ENDPOINTS.ATTENDANCE}?employeeId=${user.employeeId}`);
                 const history = historyRes.data.data || [];
-                const hasOpenSession = history.some((h: any) => !h.checkOut || h.status === "Working");
+                const hasOpenSession = history.some((h: any) => h.sessions?.some((s: any) => !s.checkOut));
                 if (hasOpenSession) setIsAlreadyCheckedIn(true);
             } else {
                 setIsAlreadyCheckedIn(false);

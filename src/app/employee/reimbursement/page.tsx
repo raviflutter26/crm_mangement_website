@@ -1,15 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiDollarSign, FiPlus, FiArrowLeft, FiCheckCircle, FiClock, FiFileText, FiCamera, FiTrash2, FiEdit3, FiPaperclip } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function ReimbursementPage() {
-    const [expenses, setExpenses] = useState([
-        { id: "EXP-2401", category: "Fuel / Transport", amount: "₹2,450", date: "Mar 28, 2026", status: "Approved", site: "Solar Plant Alpha" },
-        { id: "EXP-2402", category: "Meals & Lodging", amount: "₹1,200", date: "Mar 29, 2026", status: "Pending", site: "Field Visit - Zone 3" }
-    ]);
+    const [expenses, setExpenses] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.REIMBURSEMENTS_MY);
+                setExpenses(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

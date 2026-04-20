@@ -1,15 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiAlertTriangle, FiPlus, FiArrowLeft, FiCheckCircle, FiClock, FiFileText, FiCamera, FiBarChart2, FiMapPin, FiActivity } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function IncidentPage() {
-    const [incidents, setIncidents] = useState([
-        { id: "INC-901", type: "Near Miss", site: "Solar Plant Alpha", date: "Mar 25, 2026", status: "Resolved", severity: "Low" },
-        { id: "INC-902", type: "Hazard Report", site: "Warehouse West", date: "Mar 28, 2026", status: "In-Progress", severity: "Medium" }
-    ]);
+    const [incidents, setIncidents] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.INCIDENTS_MY);
+                setIncidents(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

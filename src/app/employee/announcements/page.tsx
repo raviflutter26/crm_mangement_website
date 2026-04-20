@@ -1,16 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiMail, FiMessageSquare, FiBell, FiArrowLeft, FiClock, FiPlus, FiCheckCircle, FiChevronRight, FiMapPin, FiAward } from "react-icons/fi";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function AnnouncementsPage() {
-    const alerts = [
-        { id: 1, title: "New Leave Policy - FY 2026", date: "Mar 30, 2026", category: "Policy", priority: "High", body: "Updated annual leave rollover limits and sick leave accumulation protocols for the new fiscal year.", icon: FiFileText },
-        { id: 2, title: "Solar Plant Alpha Site Visit", date: "Mar 28, 2026", category: "Operations", priority: "Medium", body: "Scheduled maintenance visit for Zone 4. Safety gear mandatory.", icon: FiMapPin },
-        { id: 3, title: "Quarterly Town Hall", date: "Mar 25, 2026", category: "Meeting", priority: "Low", body: "Join the leadership team for a review of Q1 milestones and future roadmap.", icon: FiAward }
-    ];
+    const [alerts, setAlerts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.ANNOUNCEMENTS);
+                setAlerts(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, []);
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

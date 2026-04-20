@@ -127,6 +127,13 @@ export default function AnalyticsPage() {
             setError(null);
         } catch (err: any) {
             console.error("Failed to load analytics", err);
+
+            if (err.response?.status === 403) {
+                setError("ACCESS_DENIED");
+                setLoading(false);
+                return;
+            }
+
             // Elite Mock Data Fallback
             setData({
                 kpis: [
@@ -162,7 +169,21 @@ export default function AnalyticsPage() {
         fetchAnalytics();
     }, []);
 
-    if (loading && !data) return <div className="loading-container"><FiLoader className="rotate" /></div>;
+    if (loading && !data) return <div className="loading-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><FiLoader className="rotate" size={40} color="var(--primary)" /></div>;
+
+    if (error === "ACCESS_DENIED") {
+        return (
+            <div className="page-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+                <EmptyState 
+                    title="Access Denied"
+                    description="You do not have the required permissions to view super-admin analytics. Please contact your system administrator if you believe this is an error."
+                    icon={FiAlertCircle}
+                />
+            </div>
+        );
+    }
+
+    if (!data) return null;
 
     const { kpis, apiTraffic, growthGrowth, geoDistribution } = data;
 

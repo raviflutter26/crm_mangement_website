@@ -5,11 +5,23 @@ import { FiBriefcase, FiMapPin, FiClock, FiPlus, FiArrowLeft, FiCheckCircle, FiT
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function AllowancePage() {
-    const claims = [
-        { id: "ALW-882", type: "Site Daily Allowance", site: "Solar Plant Alpha", days: 5, rate: "₹500/day", total: "₹2,500", status: "Processed" },
-        { id: "ALW-883", type: "Night Shift Allowance", site: "Warehouse West", days: 2, rate: "₹750/night", total: "₹1,500", status: "Pending" }
-    ];
+    const [claims, setClaims] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.SITE_ALLOWANCES_MY);
+                setClaims(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

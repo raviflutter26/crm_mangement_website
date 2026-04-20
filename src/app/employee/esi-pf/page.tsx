@@ -5,12 +5,23 @@ import { FiShield, FiTrendingUp, FiArrowLeft, FiClock, FiFileText, FiPieChart, F
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function EsiPfPage() {
-    const contributions = [
-        { month: "March 2026", employee: "₹1,800", employer: "₹1,800", total: "₹3,600", status: "Deposited" },
-        { month: "February 2026", employee: "₹1,800", employer: "₹1,800", total: "₹3,600", status: "Deposited" },
-        { month: "January 2026", employee: "₹1,800", employer: "₹1,800", total: "₹3,600", status: "Deposited" }
-    ];
+    const [contributions, setContributions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.PAYROLL);
+                setContributions(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

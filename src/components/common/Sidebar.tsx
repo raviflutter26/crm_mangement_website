@@ -81,7 +81,10 @@ const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: s
                 { id: "email-settings", label: "Email & Notifications", icon: FiMail, roles: ["superadmin", "admin"] },
                 { id: "support-tickets", label: "Support Tickets", icon: FiTag, roles: ["superadmin", "admin"] },
                 { id: "compliance-logs", label: "Compliance & Logs", icon: FiFileText, roles: ["superadmin", "admin"] },
-                { id: "settings", label: "Settings", icon: FiSettings, roles: ["superadmin", "admin"] },
+                { id: "attendance-settings", label: "Attendance Rules", icon: FiClock, roles: ["superadmin", "admin"] },
+                { id: "permission-settings", label: "Permission Policy", icon: FiShield, roles: ["superadmin", "admin"] },
+                { id: "leave-settings", label: "Leave Policy", icon: FiCalendar, roles: ["superadmin", "admin"] },
+                { id: "settings", label: "General Settings", icon: FiSettings, roles: ["superadmin", "admin"] },
             ]
         };
     }
@@ -211,9 +214,18 @@ export default function Sidebar() {
 
     const getHref = (id: string | undefined) => {
         if (!id) return '#';
-        if (id.startsWith('superadmin/')) return `/${id}`;
-
+        
         const roleLower = role.toLowerCase();
+        
+        // SuperAdmin specific logic
+        if (roleLower === 'superadmin') {
+            const superAdminPaths = [
+                'dashboard', 'organizations', 'users', 'settings', 'analytics', 
+                'audit-log', 'health', 'infra', 'finance', 'support', 'locations', 'seats'
+            ];
+            if (superAdminPaths.includes(id)) return `/superadmin/${id}`;
+            if (id.startsWith('superadmin/')) return `/${id}`;
+        }
         
         // Base Role Routes
         if (id === 'dashboard' || id === 'profile' || id === 'payslips' || id === 'leaves' || id === 'analytics') {

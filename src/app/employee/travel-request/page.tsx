@@ -1,15 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiMapPin, FiCalendar, FiBriefcase, FiPlus, FiArrowLeft, FiCheckCircle, FiClock, FiFileText, FiChevronRight } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
+import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
+
 export default function TravelRequestPage() {
-    const [requests, setRequests] = useState([
-        { id: "TR-2026-001", site: "Solar Plant Alpha", type: "Site Visit", date: "April 05, 2026", status: "Approved", purpose: "Inverter diagnostic and software update." },
-        { id: "TR-2026-002", site: "Warehouse West", type: "Material Pickup", date: "April 08, 2026", status: "Pending", purpose: "Collect spare PV modules for Zone 4." }
-    ]);
+    const [requests, setRequests] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await axiosInstance.get(API_ENDPOINTS.TRAVEL_REQUESTS_MY);
+                setRequests(res.data.data || []);
+            } catch (err) { console.error("Fetch error:", err); }
+            finally { setLoading(false); }
+        };
+        fetchData();
+    }, [])
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>
