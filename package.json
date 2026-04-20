@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "echo '----------------------------------------' && echo '✅ BUILD SUCCESSFUL - READY FOR LIVE' && echo '📂 Files exported to: out/' && echo '----------------------------------------'",
     "start": "next start",
     "lint": "eslint"
   },
