@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiCalendar, FiClock, FiMapPin, FiChevronLeft, FiChevronRight, FiUsers, FiSunset, FiSunrise, FiMoon } from "react-icons/fi";
 import { motion } from "framer-motion";
 

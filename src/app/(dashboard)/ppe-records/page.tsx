@@ -15,7 +15,6 @@ export default function pperecordsPage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.PPE_RECORDS);
                 setData(res.data.data || []);
-                PPE_RECORDS
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

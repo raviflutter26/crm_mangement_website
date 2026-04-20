@@ -15,7 +15,6 @@ export default function analyticsPage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.DASHBOARD);
                 setData(res.data.data || []);
-                DASHBOARD
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

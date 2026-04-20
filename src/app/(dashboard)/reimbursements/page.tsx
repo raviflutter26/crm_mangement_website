@@ -15,7 +15,6 @@ export default function reimbursementsPage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.REIMBURSEMENTS);
                 setData(res.data.data || []);
-                REIMBURSEMENTS
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

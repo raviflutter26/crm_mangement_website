@@ -15,7 +15,6 @@ export default function allowancesPage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.SITE_ALLOWANCES);
                 setData(res.data.data || []);
-                SITE_ALLOWANCES
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

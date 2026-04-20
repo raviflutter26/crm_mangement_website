@@ -15,7 +15,6 @@ export default function supportticketsPage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.SUPPORT_TICKETS);
                 setData(res.data.data || []);
-                SUPPORT_TICKETS
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

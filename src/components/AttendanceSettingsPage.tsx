@@ -29,7 +29,45 @@ const DEFAULT_SETTINGS = {
     lateMarkType: "half_day",
 };
 
-// ... (SectionHeader, Toggle, FieldRow stay the same)
+const SectionHeader = ({ icon: Icon, title, subtitle, color }: any) => (
+    <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "24px" }}>
+        <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
+            <Icon size={20} />
+        </div>
+        <div>
+            <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0 }}>{title}</h3>
+            <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0, marginTop: "2px" }}>{subtitle}</p>
+        </div>
+    </div>
+);
+
+const FieldRow = ({ label, hint, children }: any) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: "1px solid var(--border)" }}>
+        <div>
+            <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{label}</div>
+            {hint && <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{hint}</div>}
+        </div>
+        {children}
+    </div>
+);
+
+const Toggle = ({ id, checked, onChange }: any) => (
+    <div 
+        id={id}
+        onClick={() => onChange(!checked)} 
+        style={{ 
+            width: "44px", height: "24px", borderRadius: "12px", 
+            background: checked ? "var(--primary)" : "var(--border)", 
+            cursor: "pointer", position: "relative", transition: "0.3s" 
+        }}
+    >
+        <div style={{ 
+            width: "18px", height: "18px", borderRadius: "50%", background: "white", 
+            position: "absolute", top: "3px", left: checked ? "23px" : "3px", 
+            transition: "0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" 
+        }} />
+    </div>
+);
 
 export default function AttendanceSettingsPage({ showNotify }: AttendanceSettingsPageProps) {
     const [settings, setSettings] = useState<any>(DEFAULT_SETTINGS);
@@ -225,7 +263,7 @@ export default function AttendanceSettingsPage({ showNotify }: AttendanceSetting
 
                     <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
                         <FieldRow label="Enable Late Penalty" hint="Deduct salary or mark half day after X lates">
-                            <Toggle id="toggle-late-policy" checked={settings.latePolicyEnabled} onChange={(v) => update("latePolicyEnabled", v)} />
+                            <Toggle id="toggle-late-policy" checked={settings.latePolicyEnabled} onChange={(v: boolean) => update("latePolicyEnabled", v)} />
                         </FieldRow>
 
                         <div style={{ opacity: settings.latePolicyEnabled ? 1 : 0.4, transition: "opacity 0.3s", pointerEvents: settings.latePolicyEnabled ? "auto" : "none" }}>

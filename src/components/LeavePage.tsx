@@ -11,6 +11,32 @@ interface LeavePageProps {
     showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
 }
 
+export default function LeavePage({ showNotify }: LeavePageProps) {
+    const [loading, setLoading] = useState(true);
+    const [leaves, setLeaves] = useState<any[]>([]);
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [userRole, setUserRole] = useState("employee");
+    const [currentUserId, setCurrentUserId] = useState("");
+    
+    // UI Local State
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterStatus, setFilterStatus] = useState("");
+    const [showModal, setShowModal] = useState(false);
+    
+    const [formData, setFormData] = useState({
+        leaveType: "",
+        startDate: "",
+        endDate: "",
+        reason: ""
+    });
+
+    const [dialogState, setDialogState] = useState({
+        show: false,
+        type: "success",
+        title: "",
+        message: ""
+    });
+
     const [balances, setBalances] = useState<any[]>([]);
     const [policies, setPolicies] = useState<any[]>([]);
     const [stats, setStats] = useState<any>({ pending: 0, approved: 0 });

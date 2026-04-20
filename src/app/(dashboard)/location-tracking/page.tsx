@@ -15,7 +15,6 @@ export default function locationtrackingPage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.ASSETS);
                 setData(res.data.data || []);
-                ASSETS
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

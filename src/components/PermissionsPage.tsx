@@ -14,6 +14,12 @@ interface PermissionsPageProps {
 export default function PermissionsPage({ showNotify }: PermissionsPageProps) {
     const [quota, setQuota] = useState<any>({ remainingHours: 0, totalHours: 0, remainingTimes: 0, totalTimes: 0 });
     const [showApplyModal, setShowApplyModal] = useState(false);
+    const [permissions, setPermissions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState("employee");
+    const [activeTab, setActiveTab] = useState("my_requests");
+    const [filterStatus, setFilterStatus] = useState("");
+    const [dialogState, setDialogState] = useState({ show: false, type: "success", title: "", message: "" });
     const [formLoading, setFormLoading] = useState(false);
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],

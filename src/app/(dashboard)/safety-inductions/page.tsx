@@ -15,7 +15,6 @@ export default function safetyinductionsPage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.TRAININGS);
                 setData(res.data.data || []);
-                TRAININGS
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

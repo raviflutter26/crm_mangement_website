@@ -73,7 +73,7 @@ export default function ShiftManagementPage() {
         const hours = Math.round((diffMinutes / 60) * 10) / 10;
         
         if (hours !== formData.workingHours) {
-            setFormData(prev => ({ ...prev, workingHours: hours }));
+            setFormData((prev: any) => ({ ...prev, workingHours: hours }));
         }
     }, [formData.startTime, formData.endTime, formData.isNightShift]);
 

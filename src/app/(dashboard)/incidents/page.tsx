@@ -15,7 +15,6 @@ export default function incidentsPage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.INCIDENTS);
                 setData(res.data.data || []);
-                INCIDENTS
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

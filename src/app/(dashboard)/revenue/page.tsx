@@ -15,7 +15,6 @@ export default function revenuePage() {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.PROJECTS);
                 setData(res.data.data || []);
-                PROJECTS
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {
