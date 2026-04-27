@@ -588,21 +588,47 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         }
     };
 
-    const availableManagers = employees.filter(e => {
-        const r = (e.role || "").toLowerCase();
-        if (formData.role === "Manager") {
-            // Managers report to HR or Admin
-            return ["hr", "admin", "superadmin"].includes(r);
+    const getAllPotentialManagers = () => {
+        const list = [...employees];
+        if (currentUser && ["admin", "hr", "manager", "superadmin"].includes(currentUser.role?.toLowerCase())) {
+            const alreadyInList = list.some(e => e.email?.toLowerCase() === currentUser.email?.toLowerCase());
+            if (!alreadyInList) {
+                list.push({
+                    _id: currentUser._id || currentUser.id,
+                    firstName: currentUser.firstName || currentUser.name?.split(' ')[0] || "Admin",
+                    lastName: currentUser.lastName || currentUser.name?.split(' ')[1] || "User",
+                    email: currentUser.email,
+                    role: currentUser.role,
+                    department: currentUser.department || ""
+                });
+            }
         }
+        return list;
+    };
+
+    const availableManagers = getAllPotentialManagers().filter(e => {
+        if (isEdit && e._id === editEmployee?._id) return false;
+        
+        const r = (e.role || "").toLowerCase().trim();
+        const empDepts = Array.isArray(formData.department) ? formData.department : (formData.department ? [formData.department] : []);
+        const managerDepts = (e.department || "").split(',').map((s: string) => s.trim());
+        
+        // Match if no department is selected yet OR if there's at least one common department
+        const deptMatch = empDepts.length === 0 || empDepts.some(d => managerDepts.includes(d));
+
+        if (formData.role === "Manager") {
+            // Managers can report to other Managers (in same dept), HR, or Admin
+            if (["hr", "admin", "superadmin"].includes(r)) return true;
+            if (r === "manager" && deptMatch) return true;
+            return false;
+        }
+        
         if (formData.role === "Employee") {
             // Employees report to Managers/HR/Admin in their department
-            const empDepts = Array.isArray(formData.department) ? formData.department : (formData.department ? [formData.department] : []);
-            const managerDepts = (e.department || "").split(',').map((s: string) => s.trim());
-            
-            const deptMatch = empDepts.some(d => managerDepts.includes(d));
             return ["manager", "hr", "admin", "superadmin"].includes(r) && deptMatch;
         }
-        // Others (like HR) see all potential managers
+        
+        // Others (like HR/Admin) see all potential managers (HR, Admin, Superadmin, Manager)
         return ["admin", "superadmin", "hr", "manager"].includes(r);
     });
 

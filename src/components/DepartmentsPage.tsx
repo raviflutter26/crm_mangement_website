@@ -55,9 +55,15 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
             // Calculate headcount
             const counts: any = {};
             empRes.data.data.forEach((emp: any) => {
-                const dName = emp.department;
-                if (dName) {
-                    counts[dName] = (counts[dName] || 0) + 1;
+                const dNames = emp.department;
+                if (dNames) {
+                    // Handle comma-separated multiple departments
+                    const deptArray = dNames.split(',').map((s: string) => s.trim());
+                    deptArray.forEach((name: string) => {
+                        if (name) {
+                            counts[name] = (counts[name] || 0) + 1;
+                        }
+                    });
                 }
             });
             setEmployeeCounts(counts);

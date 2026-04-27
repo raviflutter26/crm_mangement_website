@@ -27,7 +27,7 @@ type Organization = {
     industry?: string;
     planType?: string;
     maxEmployees?: number;
-    status: "active" | "suspended" | "pending";
+    status: "active" | "suspended" | "pending" | "inactive";
     createdAt: string;
     employeeCount?: number;
 };
@@ -50,6 +50,11 @@ const StatusBadge = ({ status }: { status: string }) => {
             label: "Pending",
             dot: "bg-amber-400",
             cls: "bg-amber-50 text-amber-700 border-amber-200/60 shadow-[0_1px_3px_rgba(245,158,11,0.1)]"
+        },
+        inactive: {
+            label: "Inactive",
+            dot: "bg-slate-400",
+            cls: "bg-slate-50 text-slate-600 border-slate-200/60 shadow-[0_1px_3px_rgba(71,85,105,0.1)]"
         },
     };
     const s = map[status] ?? map["pending"];
@@ -84,10 +89,10 @@ const SkeletonRow = () => (
     </tr>
 );
 
-const ActionMenu = ({ org, onView, onImpersonate, onToggle, onDelete }: any) => {
+const ActionMenu = ({ org, onView, onEdit, onImpersonate, onToggle, onDelete }: any) => {
     const [open, setOpen] = useState(false);
     return (
-        <div className="relative" onBlur={() => setTimeout(() => setOpen(false), 150)}>
+        <div className="relative" tabIndex={0} onBlur={() => setTimeout(() => setOpen(false), 150)}>
             <button
                 onClick={() => setOpen(v => !v)}
                 className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200 active:scale-90"
@@ -99,6 +104,7 @@ const ActionMenu = ({ org, onView, onImpersonate, onToggle, onDelete }: any) => 
                     style={{ animation: 'orgFadeScaleIn 0.15s ease-out' }}>
                     {[
                         { label: "View Details", icon: FiEye, onClick: onView, cls: "text-slate-600 hover:bg-slate-50 hover:text-slate-900" },
+                        { label: "Edit Details", icon: FiEdit2, onClick: onEdit, cls: "text-blue-600 hover:bg-blue-50 hover:text-blue-700" },
                         { label: "Login as Admin", icon: FiKey, onClick: onImpersonate, cls: "text-[#FF7A00] hover:bg-orange-50" },
                         {
                             label: org.status === "active" ? "Suspend" : "Activate",
@@ -394,7 +400,7 @@ export default function OrganizationListPage() {
             <div className="max-w-[1400px] mx-auto relative z-20"
                 style={{ marginTop: -40, padding: '0 24px 24px 24px' }}>
 
-                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1),0_8px_16px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
+                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1),0_8px_16px_-4px_rgba(0,0,0,0.05)]">
 
                     {/* ── Search & Filter Bar — Reduced to 16px padding ── */}
                     <div style={{ padding: 16 }}
@@ -468,7 +474,7 @@ export default function OrganizationListPage() {
                     </div>
 
                     {/* ── Data Table ─────────────────────────────────────── */}
-                    <div className="overflow-x-auto px-4">
+                    <div className="overflow-x-auto px-4 min-h-[300px]">
                         <table className="w-full border-separate" style={{ borderSpacing: '0 8px' }}>
                             <thead>
                                 <tr className="text-left font-black text-slate-400 uppercase tracking-widest text-[9px]">
@@ -493,7 +499,8 @@ export default function OrganizationListPage() {
                                 {loading ? (
                                     [...Array(5)].map((_, i) => <SkeletonRow key={i} />)
                                 ) : organizations.length === 0 ? (
-                                <td colSpan={7} style={{ padding: '80px 24px' }} className="text-center">
+                                    <tr>
+                                        <td colSpan={7} style={{ padding: '80px 24px' }} className="text-center">
                                             <EmptyState
                                                 title="No Organizations Found"
                                                 description="Your business directory is currently empty. Start by registering the first tenant on the platform."
@@ -502,6 +509,7 @@ export default function OrganizationListPage() {
                                                 onAction={() => router.push("/superadmin/organizations/add")}
                                             />
                                         </td>
+                                    </tr>
                                 ) : (
                                     organizations.map(org => (
                                         <tr
@@ -583,6 +591,7 @@ export default function OrganizationListPage() {
                                                     <ActionMenu
                                                         org={org}
                                                         onView={() => router.push(`/superadmin/organizations/${org._id}`)}
+                                                        onEdit={() => router.push(`/superadmin/organizations/${org._id}/edit`)}
                                                         onImpersonate={() => handleImpersonate(org._id)}
                                                         onToggle={() => handleToggleStatus(org._id, org.status)}
                                                         onDelete={() => handleDelete(org._id, org.name)}

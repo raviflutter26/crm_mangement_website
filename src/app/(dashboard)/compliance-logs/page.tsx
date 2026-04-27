@@ -14,7 +14,8 @@ export default function compliancelogsPage() {
         const fetchData = async () => {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.COMPLIANCE);
-                setData(res.data.data || []);
+                const result = res.data.data;
+                setData(Array.isArray(result) ? result : result ? [result] : []);
             } catch (err) {
                 console.error("Fetch error:", err);
             } finally {

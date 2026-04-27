@@ -33,6 +33,10 @@ const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: s
             "COMMAND CENTER": [
                 { id: "dashboard", label: "Dashboard", icon: FiGrid, roles: ["admin", "hr", "manager", "superadmin"] },
                 { id: "analytics", label: "Analytics & Reports", icon: FiBarChart2, roles: ["superadmin", "admin"] },
+                ...(isSuperAdmin ? [
+                    { id: "organizations", label: "Organizations", icon: FiLayers, roles: ["superadmin"] },
+                    { id: "users", label: "Global Users", icon: FiUsers, roles: ["superadmin"] },
+                ] : []),
             ],
             "ORGANISATION": [
                 { id: "departments", label: "Departments", icon: FiBriefcase, roles: ["superadmin", "admin", "hr"] },
@@ -225,10 +229,17 @@ export default function Sidebar() {
             ];
             if (superAdminPaths.includes(id)) return `/superadmin/${id}`;
             if (id.startsWith('superadmin/')) return `/${id}`;
+            
+            // For other modules, SuperAdmins should use the standard dashboard routes
+            const standardModules = [
+                'employees', 'attendance', 'leaves', 'shifts', 'payroll', 'projects',
+                'compliance-logs', 'attendance-settings', 'leave-settings', 'settings'
+            ];
+            if (standardModules.includes(id)) return `/${id}`;
         }
         
-        // Base Role Routes
-        if (id === 'dashboard' || id === 'profile' || id === 'payslips' || id === 'leaves' || id === 'analytics') {
+        // Base Role Routes (Admin/HR/Manager)
+        if (roleLower !== 'superadmin' && (id === 'dashboard' || id === 'profile' || id === 'payslips' || id === 'leaves' || id === 'analytics')) {
             return `/${roleLower}/${id}`;
         }
         

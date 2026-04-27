@@ -158,6 +158,10 @@ export default function OrganizationEditComponent({ id }: { id: string }) {
                                 <input required name="name" value={formData.name} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 placeholder:text-slate-300 shadow-inner" placeholder="e.g. Acme Corp" />
                             </div>
                             <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">URL Slug (System ID)</label>
+                                <input name="slug" value={formData.slug} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner" placeholder="acme-corp" />
+                            </div>
+                            <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Business Sector</label>
                                 <select name="industry" value={formData.industry} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner">
                                     <option value="">Select Sector</option>
@@ -165,7 +169,57 @@ export default function OrganizationEditComponent({ id }: { id: string }) {
                                     <option value="Healthcare">Healthcare</option>
                                     <option value="Finance">Financial Services</option>
                                     <option value="Manufacturing">Manufacturing</option>
+                                    <option value="Retail">Retail & E-commerce</option>
+                                    <option value="Education">Education</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Company Size</label>
+                                <select name="companySize" value={formData.companySize} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner">
+                                    <option value="1-10">1-10 Employees</option>
+                                    <option value="11-50">11-50 Employees</option>
+                                    <option value="51-200">51-200 Employees</option>
+                                    <option value="201-500">201-500 Employees</option>
+                                    <option value="500+">500+ Employees</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Founded Year</label>
+                                <input name="foundedYear" type="number" value={formData.foundedYear} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner" placeholder="2024" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Contact & Address Section */}
+                    <div className="bg-white p-14 rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/40 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-2.5 h-full bg-blue-500" />
+                        <div className="flex items-center gap-6 mb-12">
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100 shadow-sm">
+                                <FiMapPin size={22} />
+                            </div>
+                            <h2 className="text-xl font-black text-slate-900 uppercase tracking-[0.1em]">Contact & Location</h2>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Official Email</label>
+                                <input name="email" type="email" value={formData.email} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner" placeholder="contact@company.com" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Phone Number</label>
+                                <input name="phone" value={formData.phone} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner" placeholder="+1 234 567 890" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Street Address</label>
+                                <input name="address" value={formData.address} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner" placeholder="123 Business Way" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">City</label>
+                                <input name="city" value={formData.city} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner" placeholder="San Francisco" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">State / Province</label>
+                                <input name="state" value={formData.state} onChange={handleChange} className="w-full px-6 py-5 bg-[#F8FAFC] border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-[#FF7A00]/5 focus:border-[#FF7A00] transition-all text-base font-bold text-slate-900 shadow-inner" placeholder="California" />
                             </div>
                         </div>
                     </div>

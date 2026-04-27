@@ -75,6 +75,44 @@ export default function SuperAdminDashboard() {
                 }} />
             </div>
 
+            {/* Quick Actions */}
+            <div style={{ marginBottom: "32px" }}>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "16px", color: "var(--text-primary)" }}>Quick Actions</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
+                    {[
+                        { label: "Add Organization", icon: FiBox, path: "/superadmin/organizations/add", color: "#FF7A00" },
+                        { label: "Invite Global User", icon: FiUsers, path: "/superadmin/users", color: "#3b82f6" },
+                        { label: "System Config", icon: FiServer, path: "/superadmin/settings", color: "#10b981" },
+                        { label: "Audit Logs", icon: FiActivity, path: "/superadmin/audit-log", color: "#8b5cf6" },
+                    ].map((action, i) => (
+                        <div
+                            key={i}
+                            onClick={() => router.push(action.path)}
+                            style={{
+                                background: "white", border: "1px solid var(--border)",
+                                borderRadius: "16px", padding: "24px",
+                                display: "flex", alignItems: "center", gap: "16px",
+                                cursor: "pointer", transition: "all 0.2s"
+                            }}
+                            className="stat-card-hover"
+                        >
+                            <div style={{ 
+                                width: "48px", height: "48px", borderRadius: "12px", 
+                                background: `${action.color}15`, color: action.color,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: "24px"
+                            }}>
+                                <action.icon />
+                            </div>
+                            <div>
+                                <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{action.label}</div>
+                                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Management Task</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             {/* Stats Grid */}
             <div className="stats-grid">
                 {cards.map((card) => (
