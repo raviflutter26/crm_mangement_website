@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios";
 import { FiUsers, FiBox, FiActivity, FiShield, FiTrendingUp, FiServer, FiGlobe } from "react-icons/fi";
 
 export default function SuperAdminDashboard() {
+    const router = useRouter();
     const [stats, setStats] = useState({
         totalOrgs: 0,
         totalUsers: 0,
