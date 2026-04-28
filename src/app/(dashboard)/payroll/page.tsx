@@ -1,3 +1,5 @@
-"use client";
-import PayrollPage from "@/components/PayrollPage";
-export default function Payroll() { return <PayrollPage showNotify={() => {}} />; }
+import { redirect } from "next/navigation";
+
+export default function PayrollOldPage() {
+    redirect("/admin/dashboard/payroll/payroll-runs");
+}

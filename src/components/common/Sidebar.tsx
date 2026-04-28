@@ -8,7 +8,7 @@ import axiosInstance from "@/lib/axios";
 import {
     FiGrid, FiUsers, FiClock, FiCalendar, FiDollarSign, FiBriefcase,
     FiSettings, FiHelpCircle, FiZap, FiLayers, FiUserPlus, FiTarget,
-    FiFileText, FiPackage, FiUser, FiBarChart2, FiShield, FiLock, FiSliders, FiLogOut, FiActivity, FiSearch, FiGlobe, FiDatabase, FiServer, FiKey, FiMail, FiFlag, FiTag, FiMapPin, FiChevronDown, FiMoreVertical
+    FiFileText, FiPackage, FiUser, FiBarChart2, FiShield, FiLock, FiSliders, FiLogOut, FiActivity, FiSearch, FiGlobe, FiDatabase, FiServer, FiKey, FiMail, FiFlag, FiTag, FiMapPin, FiChevronDown, FiMoreVertical, FiPlay, FiCreditCard
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 
@@ -66,8 +66,22 @@ const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: s
                 { id: "compliance", label: "Compliance & Licences", icon: FiFileText, roles: ["superadmin", "admin", "hr"] },
             ],
             "FINANCE & BILLING": [
-                { id: "payroll", label: "Payroll processing", icon: FiDollarSign, roles: ["superadmin", "admin", "hr"] },
-                { id: "payroll-reports", label: "Payroll reports", icon: FiFileText, roles: ["superadmin", "admin", "hr"] },
+                { 
+                    id: "payroll-module", 
+                    label: "Payroll Module", 
+                    icon: FiDollarSign, 
+                    href: "/payroll-module", 
+                    roles: ["admin", "hr"],
+                    children: [
+                        { id: "payroll-module", label: "Overview", icon: FiGrid, href: "/payroll-module", roles: ["admin", "hr"] },
+                        { id: "payroll-module/employees", label: "Employees & Bank", icon: FiUsers, href: "/payroll-module/employees", roles: ["admin", "hr"] },
+                        { id: "payroll-module/attendance", label: "Attendance", icon: FiClock, href: "/payroll-module/attendance", roles: ["admin", "hr"] },
+                        { id: "payroll-module/payroll-runs", label: "Payroll Runs", icon: FiPlay, href: "/payroll-module/payroll-runs", roles: ["admin", "hr"] },
+                        { id: "payroll-module/payouts", label: "Payout Status", icon: FiCreditCard, href: "/payroll-module/payouts", roles: ["admin", "hr"] },
+                        { id: "payroll-module/reports", label: "Reports", icon: FiBarChart2, href: "/payroll-module/reports", roles: ["admin", "hr"] },
+                        { id: "payroll-module/audit", label: "Audit Logs", icon: FiShield, href: "/payroll-module/audit", roles: ["admin", "hr"] },
+                    ]
+                },
                 { id: "reimbursements", label: "Reimbursements", icon: FiFileText, roles: ["superadmin", "admin", "hr", "manager"], badge: "3", badgeColor: "red" },
                 { id: "allowances", label: "Site Allowances", icon: FiBriefcase, roles: ["superadmin", "admin", "manager"] },
                 { id: "revenue", label: "Revenue & Invoices", icon: FiFileText, roles: ["superadmin", "admin"] },
@@ -281,6 +295,8 @@ export default function Sidebar() {
             '/superadmin/settings/features', '/superadmin/settings/email', '/superadmin/settings/config', '/superadmin/support', '/superadmin/location',
             '/dashboard', '/employees', '/attendance', '/leaves', '/payroll', '/statutory', '/reports', '/departments', '/recruitment', '/performance', '/payroll-reports', '/expenses', '/shifts', '/attendance-settings', '/salary-settings', '/salary-components', '/roles', '/assets', '/compliance', '/organizations',
             '/admin/dashboard', '/hr/dashboard', '/manager/dashboard', '/admin/analytics', '/superadmin/analytics', '/projects', '/vendors', '/field-tracking', '/job-cards', '/travel', '/inventory', '/safety-inductions', '/incidents', '/ppe-records', '/reimbursements', '/allowances', '/authentication', '/location-tracking', '/compliance-logs', '/training', '/analytics', '/locations', '/revenue', '/ip-allowlist', '/email-settings', '/support-tickets', '/settings',
+            '/admin/dashboard/payroll', '/admin/dashboard/payroll/employees', '/admin/dashboard/payroll/attendance', '/admin/dashboard/payroll/payroll-runs', '/admin/dashboard/payroll/payouts', '/admin/dashboard/payroll/reports', '/admin/dashboard/payroll/audit',
+            '/payroll-module', '/payroll-module/employees', '/payroll-module/attendance', '/payroll-module/payroll-runs', '/payroll-module/payouts', '/payroll-module/reports', '/payroll-module/audit',
             '/employee/attendance', '/employee/dashboard', '/employee/profile', '/employee/payslips', '/employee/leaves',
             '/employee/site-attendance', '/employee/job-card', '/employee/shift-schedule', '/employee/timesheets',
             '/employee/travel-request', '/employee/reimbursement', '/employee/allowance', '/employee/esi-pf', '/employee/tax',

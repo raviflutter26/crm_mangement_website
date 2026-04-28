@@ -92,10 +92,29 @@ export const API_ENDPOINTS = {
     // Payouts (RazorpayX)
     PAYOUTS_INITIATE: `${API_BASE_URL}/api/payouts/initiate`,
     PAYOUTS_PREPARE: (empId: string) => `${API_BASE_URL}/api/payouts/prepare/${empId}`,
+    PAYOUTS_STATUS: `${API_BASE_URL}/api/payouts/status`,
+    PAYOUTS_BY_RUN: (runId: string) => `${API_BASE_URL}/api/payouts/run/${runId}`,
+    PAYOUTS_RETRY: (payoutId: string) => `${API_BASE_URL}/api/payouts/${payoutId}/retry`,
+    PAYOUTS_HISTORY: `${API_BASE_URL}/api/payouts/history`,
 
     // Bank
     BANK_IFSC: (code: string) => `${API_BASE_URL}/api/bank/ifsc/${code}`,
     BANK_UPDATE: `${API_BASE_URL}/api/bank/update`,
+    BANK_EMPLOYEE: (empId: string) => `${API_BASE_URL}/api/employees/${empId}/bank`,
+    BANK_VERIFY: (empId: string) => `${API_BASE_URL}/api/employees/${empId}/bank/verify`,
+
+    // Payroll Lock
+    PAYROLL_LOCK: (runId: string) => `${API_BASE_URL}/api/payroll-runs/${runId}/lock`,
+    PAYROLL_UNLOCK: (runId: string) => `${API_BASE_URL}/api/payroll-runs/${runId}/unlock`,
+
+    // Payroll Attendance Integration
+    PAYROLL_ATTENDANCE_SUMMARY: `${API_BASE_URL}/api/payroll/attendance-summary`,
+
+    // Salary Structures (per employee)
+    EMPLOYEE_SALARY_STRUCTURE: (empId: string) => `${API_BASE_URL}/api/employees/${empId}/salary-structure`,
+
+    // Audit Logs
+    PAYROLL_AUDIT_LOGS: `${API_BASE_URL}/api/payroll/audit-logs`,
 
     // ─── NEW Phase 2 Modules ─────────────────────────────────────
 
