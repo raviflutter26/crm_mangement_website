@@ -111,7 +111,7 @@ export default function PayslipModal({ data, onClose, companyName = "Solar Opera
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+            } as const;
 
             await html2pdf().set(opt).from(wrapper).save();
         } catch (error) {
