@@ -41,7 +41,9 @@ function BarChart({ data, labels, colors }: any) {
         return (
           <g key={gi}>
             {data.map((series: any, si: number) => {
-              const bh = (series[gi] / max) * h;
+              const val = Number(series[gi]) || 0;
+              const currentMax = Math.max(max, 1);
+              const bh = (val / currentMax) * h;
               return (
                 <rect key={si}
                   x={gx + si * (barW + gap)} y={h - bh} width={barW} height={bh}
@@ -122,7 +124,7 @@ export default function AnalyticsPage() {
 
     const fetchAnalytics = async () => {
         try {
-            const res = await axiosInstance.get('/api/superadmin/analytics');
+            const res = await axiosInstance.get('/api/dashboard/analytics');
             setData(res.data.data);
             setError(null);
         } catch (err: any) {
@@ -175,8 +177,8 @@ export default function AnalyticsPage() {
         return (
             <div className="page-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
                 <EmptyState 
-                    title="Access Denied"
-                    description="You do not have the required permissions to view super-admin analytics. Please contact your system administrator if you believe this is an error."
+                    title="Analytics Not Available"
+                    description="We could not load the organization analytics at this time. Please ensure you have the correct permissions or try again later."
                     icon={FiAlertCircle}
                 />
             </div>
@@ -196,8 +198,8 @@ export default function AnalyticsPage() {
                 style={{ marginBottom: "32px" }}
             >
                 <div>
-                    <h1 className="page-title" style={{ fontSize: "28px", fontWeight: 900 }}>Platform Analytics</h1>
-                    <p className="page-subtitle">Unified intelligence across all managed organizations and clusters.</p>
+                    <h1 className="page-title" style={{ fontSize: "28px", fontWeight: 900 }}>Organization Analytics</h1>
+                    <p className="page-subtitle">Detailed insights and performance trends for your organization.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                    <button className="btn btn-secondary" onClick={fetchAnalytics} style={{ fontWeight: 800 }}>
@@ -251,8 +253,8 @@ export default function AnalyticsPage() {
                 >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>API REQUEST VOLUME</div>
-                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Requests logged per endpoint clusters</div>
+                            <div style={{ fontSize: "14px", fontWeight: 800, color: "#1e293b" }}>ATTENDANCE TRENDS</div>
+                            <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>Daily presence logs across all teams</div>
                         </div>
                         <FiTrendingUp style={{ color: "var(--primary)" }} size={20} />
                     </div>
@@ -268,8 +270,8 @@ export default function AnalyticsPage() {
                 >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>ENTERPRISE GROWTH</div>
-                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Tenant acquisition and retention trends</div>
+                            <div style={{ fontSize: "14px", fontWeight: 800, color: "#1e293b" }}>HIRING GROWTH</div>
+                            <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>New employee onboarding trends</div>
                         </div>
                         <FiLayers style={{ color: "var(--primary)" }} size={20} />
                     </div>
@@ -286,8 +288,8 @@ export default function AnalyticsPage() {
             >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
                     <div>
-                        <div style={{ fontSize: '16px', fontWeight: 900, color: "#1e293b", marginBottom: '4px' }}>GEOGRAPHIC DISTRIBUTION</div>
-                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Real-time enterprise client connection origins across global availability zones</div>
+                        <div style={{ fontSize: '16px', fontWeight: 900, color: "#1e293b", marginBottom: '4px' }}>LOCATION DISTRIBUTION</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Employee distribution across various sites and office locations</div>
                     </div>
                     <FiGlobe style={{ color: "var(--primary)" }} size={24} />
                 </div>

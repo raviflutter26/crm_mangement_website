@@ -206,16 +206,7 @@ a {
   color: var(--primary);
 }
 
-.sidebar-item.active::after {
-  content: '';
-  position: absolute;
-  right: 12px;
-  width: 6px;
-  height: 6px;
-  background: var(--primary);
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(255, 122, 0, 0.4);
-}
+
 
 .sidebar-item-icon {
   font-size: 18px;
@@ -321,15 +312,7 @@ a {
   background: transparent;
 }
 
-.sidebar-sub-item.active::before {
-  content: '';
-  width: 4px;
-  height: 4px;
-  background: var(--primary);
-  border-radius: 50%;
-  position: absolute;
-  left: 0;
-}
+
 
 .sidebar-footer-profile {
   margin-top: auto;

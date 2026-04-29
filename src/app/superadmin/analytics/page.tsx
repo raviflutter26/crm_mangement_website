@@ -41,7 +41,9 @@ function BarChart({ data, labels, colors }: any) {
         return (
           <g key={gi}>
             {data.map((series: any, si: number) => {
-              const bh = (series[gi] / max) * h;
+              const val = Number(series[gi]) || 0;
+              const currentMax = Math.max(max, 1);
+              const bh = (val / currentMax) * h;
               return (
                 <rect key={si}
                   x={gx + si * (barW + gap)} y={h - bh} width={barW} height={bh}
