@@ -9,6 +9,7 @@ import {
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const STATUS_COLORS: any = {
     draft: "pending", open: "active", "on-hold": "leave", closed: "inactive",
@@ -21,6 +22,8 @@ interface RecruitmentPageProps {
 }
 
 export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [activeView, setActiveView] = useState<"postings" | "candidates">("postings");
     const [postings, setPostings] = useState<any[]>([]);
     const [candidates, setCandidates] = useState<any[]>([]);
@@ -29,7 +32,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState("");
     const [formData, setFormData] = useState<any>({});
-    const [toast, setToast] = useState("");
+    const [successToast, setSuccessToast] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
 
     const fetchData = async () => {
@@ -51,8 +54,8 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     useEffect(() => { fetchData(); }, []);
 
     const showToast = (msg: string) => {
-        setToast(msg);
-        setTimeout(() => setToast(""), 3000);
+        setSuccessToast(msg);
+        setTimeout(() => setSuccessToast(""), 3000);
     };
 
     // ========== JOB POSTINGS ==========
@@ -116,19 +119,24 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
             setShowModal(false);
             fetchData();
         } catch (err: any) {
-            alert("Error: " + (err.response?.data?.message || err.message));
+            toast.error(err.response?.data?.message || err.message);
         }
     };
 
     const handleDelete = async (id: string, type: "postings" | "candidates") => {
-        if (!confirm("Are you sure?")) return;
+        const ok = await confirmDialog({
+            title: "Are you sure?",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         const endpoint = type === "postings" ? API_ENDPOINTS.JOB_POSTINGS : API_ENDPOINTS.CANDIDATES;
         try {
             await axiosInstance.delete(`${endpoint}/${id}`);
             showToast("Deleted!");
             fetchData();
         } catch (err: any) {
-            alert("Error: " + (err.response?.data?.message || err.message));
+            toast.error(err.response?.data?.message || err.message);
         }
     };
 
@@ -351,6 +359,15 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                                             <input type="text" className="form-input" value={formData.phone || ""} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
                                         </div>
                                     </div>
+                                    <div>
+                                        <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Applying For</label>
+                                        <select className="form-input" value={formData.jobPosting || ""} onChange={e => setFormData({ ...formData, jobPosting: e.target.value || undefined })}>
+                                            <option value="">— No specific position —</option>
+                                            {postings.map((p: any) => (
+                                                <option key={p._id} value={p._id}>{p.title}{p.department ? ` (${p.department})` : ""}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                     <div className="grid-2">
                                         <div>
                                             <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Experience (yrs)</label>
@@ -398,7 +415,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                 </div>
             )}
 
-            {toast && (
+            {successToast && (
                 <div style={{
                     position: "fixed", bottom: "20px", right: "20px",
                     background: "var(--success-bg)", color: "white",
@@ -406,7 +423,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                     boxShadow: "var(--shadow-lg)", display: "flex", alignItems: "center", gap: "10px",
                     fontWeight: 600, animation: "fadeInUp 0.3s ease-out"
                 }}>
-                    <FiCheckCircle size={20} /> {toast}
+                    <FiCheckCircle size={20} /> {successToast}
                 </div>
             )}
         </>

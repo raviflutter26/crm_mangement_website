@@ -46,20 +46,27 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
             setLoading(true);
             const user = JSON.parse(localStorage.getItem("ravi_zoho_user") || "{}");
             const role = user.role || "employee";
+            const userId = user._id || user.id || "";
             setUserRole(role);
-            setCurrentUserId(user._id || user.id || "");
+            setCurrentUserId(userId);
 
             // Parallel fetches
             const [leavesRes, empRes, balanceRes, policyRes] = await Promise.all([
                 axiosInstance.get(API_ENDPOINTS.LEAVES),
                 role !== 'employee' ? axiosInstance.get(API_ENDPOINTS.EMPLOYEES) : Promise.resolve({ data: { data: [] } }),
-                axiosInstance.get('/api/leaves/balances'),
+                userId ? axiosInstance.get(`/api/leaves/balance/${userId}`) : Promise.resolve({ data: { data: [] } }),
                 axiosInstance.get('/api/admin/config/leave-policy')
             ]);
 
             setLeaves(leavesRes.data?.data || []);
             setEmployees(empRes.data?.data || []);
-            setBalances(balanceRes.data?.data || []);
+            setBalances((balanceRes.data?.data || []).map((b: any) => ({
+                leaveType: b.leaveType,
+                total: b.totalEntitled,
+                used: b.used,
+                pending: b.pendingApproval,
+                available: b.totalEntitled - b.used - b.pendingApproval,
+            })));
             setPolicies(policyRes.data?.data || []);
             
             setStats({

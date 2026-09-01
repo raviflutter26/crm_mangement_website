@@ -165,6 +165,25 @@ export const API_ENDPOINTS = {
     // Timesheets
     TIMESHEETS: `${API_BASE_URL}/api/timesheets`,
     TIMESHEETS_MY: `${API_BASE_URL}/api/timesheets/my`,
+
+    // Skills
+    SKILLS: `${API_BASE_URL}/api/skills`,
+    SKILLS_MY: `${API_BASE_URL}/api/skills/my`,
+
+    // Tax Documents
+    TAX_DOCUMENTS: `${API_BASE_URL}/api/tax-documents`,
+    TAX_DOCUMENTS_MY: `${API_BASE_URL}/api/tax-documents/my`,
+
+    // IP Allowlist
+    IP_ALLOWLIST: `${API_BASE_URL}/api/ip-allowlist`,
+
+    // Authentication: MFA, Sessions, SSO config
+    MFA_SETUP: `${API_BASE_URL}/api/auth/mfa/setup`,
+    MFA_VERIFY: `${API_BASE_URL}/api/auth/mfa/verify`,
+    MFA_DISABLE: `${API_BASE_URL}/api/auth/mfa/disable`,
+    SESSIONS: `${API_BASE_URL}/api/auth/sessions`,
+    SESSIONS_REVOKE_ALL: `${API_BASE_URL}/api/auth/sessions/revoke-all`,
+    SSO_CONFIG: `${API_BASE_URL}/api/auth/sso-config`,
 };
 
 export default API_ENDPOINTS;

@@ -7,6 +7,7 @@ import {
     FiClock, FiLoader, FiAlertCircle, FiCheck, FiX, FiShield
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import { useConfirm } from "@/components/common/DialogProvider";
 
 interface Invitation {
     id: string;
@@ -19,6 +20,7 @@ interface Invitation {
 }
 
 export default function InvitationsPage() {
+    const confirmDialog = useConfirm();
     const [invites, setInvites] = useState<Invitation[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -47,8 +49,13 @@ export default function InvitationsPage() {
         fetchInvites();
     }, []);
 
-    const revokeStatus = (id: string) => {
-        if (!confirm("Are you sure you want to revoke this invitation?")) return;
+    const revokeStatus = async (id: string) => {
+        const ok = await confirmDialog({
+            title: "Revoke this invitation?",
+            confirmLabel: "Revoke",
+            danger: true,
+        });
+        if (!ok) return;
         setInvites(prev => prev.filter(inv => inv.id !== id));
     };
 

@@ -136,13 +136,13 @@ export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentU
 
                     {isVisible("Statutory & Compliance") && (
                         <DetailSection title="Compliance (PF & ESI)" icon={<FiCheckCircle />}>
-                            <DetailField label="PF Enabled" value={employee.pfEnabled ? "Yes" : "No"} />
-                            <DetailField label="UAN Number" value={employee.uan} />
-                            <DetailField label="PF Number" value={employee.pfNumber} />
-                            <DetailField label="PF Joining Date" value={employee.pfJoiningDate?.split('T')[0]} />
-                            <DetailField label="ESI Enabled" value={employee.esiEnabled ? "Yes" : "No"} />
-                            <DetailField label="ESI Number" value={employee.esiNumber} />
-                            <DetailField label="ESI Dispensary" value={employee.esiDispensary} />
+                            <DetailField label="PF Enabled" value={employee.statutory?.pf?.enabled ? "Yes" : "No"} />
+                            <DetailField label="UAN Number" value={employee.statutory?.pf?.uanNumber} />
+                            <DetailField label="PF Number" value={employee.statutory?.pf?.pfNumber} />
+                            <DetailField label="PF Joining Date" value={employee.statutory?.pf?.pfJoiningDate?.split('T')[0]} />
+                            <DetailField label="ESI Enabled" value={employee.statutory?.esi?.enabled ? "Yes" : "No"} />
+                            <DetailField label="ESI Number" value={employee.statutory?.esi?.esiNumber} />
+                            <DetailField label="ESI Dispensary" value={employee.statutory?.esi?.dispensary} />
                         </DetailSection>
                     )}
 
@@ -156,7 +156,7 @@ export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentU
                     </DetailSection>
 
                     <DetailSection title="Identity Documents" icon={<FiFileText />}>
-                        <DetailField label="PAN Card" value={employee.pan} />
+                        <DetailField label="PAN Card" value={employee.panNumber} />
                         <DetailField label="Aadhaar Number" value={employee.aadhaar} />
                         <DetailField label="Passport Number" value={employee.passportNumber} />
                         <DetailField label="Driving License" value={employee.drivingLicense} />

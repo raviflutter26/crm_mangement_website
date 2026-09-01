@@ -51,6 +51,9 @@ export default function CreateOrganizationPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<{ email: string; tempPassword: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [industries, setIndustries] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -125,7 +128,10 @@ export default function CreateOrganizationPage() {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (step === 1 && !formData.name.trim()) newErrors.name = "Business name is required";
+    if (step === 1) {
+      if (!formData.name.trim()) newErrors.name = "Business name is required";
+      if (!formData.industry) newErrors.industry = "Industry is required";
+    }
     if (step === 2) {
       if (!formData.adminFirstName.trim()) newErrors.adminFirstName = "First name is required";
       if (!formData.adminLastName.trim()) newErrors.adminLastName = "Last name is required";
@@ -153,6 +159,7 @@ export default function CreateOrganizationPage() {
 
   const handleSubmit = async () => {
     setLoading(true);
+    setSubmitError(null);
     try {
       const payload = {
         orgData: {
@@ -174,19 +181,31 @@ export default function CreateOrganizationPage() {
         admin: {
           firstName: formData.adminFirstName,
           lastName: formData.adminLastName,
-          email: formData.email, 
-          password: "InitialPassword123!",
-          role: "Organization Admin",
-          employeeId: "ADM001",
+          email: formData.email,
+          // No password: the backend generates a random temp password and emails it to the admin.
         },
       };
-      await axiosInstance.post("/api/organizations", payload);
+      const res = await axiosInstance.post("/api/organizations", payload);
+      const admin = res.data?.data?.admin;
+      if (admin?.tempPassword) {
+        setCredentials({ email: admin.email ?? formData.email, tempPassword: admin.tempPassword });
+      }
       setSuccess(true);
-      setTimeout(() => router.push("/superadmin/organizations"), 2000);
     } catch (err: any) {
-      alert(err.response?.data?.message || "Registration failed");
+      setSubmitError(err.response?.data?.message || "Registration failed. Please review the details and try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopyCredentials = async () => {
+    if (!credentials) return;
+    try {
+      await navigator.clipboard.writeText(`Email: ${credentials.email}\nTemporary Password: ${credentials.tempPassword}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy credentials", err);
     }
   };
 
@@ -197,6 +216,52 @@ export default function CreateOrganizationPage() {
     { id: 4, label: "Agreement", icon: Icons.CreditCard },
     { id: 5, label: "Review", icon: Icons.Check },
   ];
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6 py-12 font-sans text-slate-900">
+        <div className="max-w-lg w-full bg-white border-[0.5px] border-slate-200 rounded-2xl p-10 text-center">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-6">
+            <Icons.Check />
+          </div>
+          <h2 className="text-xl font-bold text-[#1E2A3A] mb-2">Organization Created</h2>
+          <p className="text-sm text-slate-500 mb-8">
+            <span className="font-semibold text-[#1E2A3A]">{formData.name}</span> is live on the platform.
+          </p>
+
+          {credentials && (
+            <div className="text-left bg-gray-50 border border-slate-200 rounded-xl p-5 mb-8">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-3">Administrator Login</div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-slate-400">Email</span>
+                <span className="text-xs font-bold">{credentials.email}</span>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-xs text-slate-400">Temporary Password</span>
+                <span className="text-xs font-bold font-mono">{credentials.tempPassword}</span>
+              </div>
+              <button
+                onClick={handleCopyCredentials}
+                className="w-full h-10 rounded-lg border border-slate-200 text-xs font-bold uppercase tracking-widest text-slate-600 hover:border-[#F97316] hover:text-[#F97316] transition-colors"
+              >
+                {copied ? "Copied!" : "Copy Credentials"}
+              </button>
+              <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+                This has also been emailed to the administrator. It won&apos;t be shown again — save it now if email delivery isn&apos;t configured.
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={() => router.push("/superadmin/organizations")}
+            className="w-full h-12 bg-[#1E2A3A] text-white rounded-full font-bold text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all"
+          >
+            Go to Organizations
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-slate-900 selection:bg-orange-100 selection:text-orange-900">
@@ -259,11 +324,12 @@ export default function CreateOrganizationPage() {
                     {errors.name && <p className="text-red-500 text-[11px] mt-1 font-semibold">{errors.name}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2 tracking-widest">Industry</label>
-                    <select className="w-full h-12 px-4 bg-gray-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#F97316]" value={formData.industry} onChange={e => handleChange("industry", e.target.value)}>
+                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2 tracking-widest">Industry <span className="text-orange-500">*</span></label>
+                    <select className={`w-full h-12 px-4 bg-gray-50 border ${errors.industry ? "border-red-500" : "border-slate-200"} rounded-lg focus:outline-none focus:border-[#F97316]`} value={formData.industry} onChange={e => handleChange("industry", e.target.value)}>
                       <option value="">Select Domain</option>
                       {industries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
                     </select>
+                    {errors.industry && <p className="text-red-500 text-[11px] mt-1 font-semibold">{errors.industry}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-500 mb-2 tracking-widest">Company size</label>
@@ -355,8 +421,9 @@ export default function CreateOrganizationPage() {
                         disabled={loadingStates}
                         onChange={e => {
                           handleChange("state", e.target.value, "address");
-                          fetchCitiesForState(e.target.value, formData.address.country);
                           handleChange("city", "", "address");
+                          setCitiesList([]);
+                          fetchCitiesForState(e.target.value, formData.address.country);
                         }}
                       >
                         <option value="">Select State</option>
@@ -490,18 +557,20 @@ export default function CreateOrganizationPage() {
               </div>
             )}
 
+            {submitError && (
+              <div className="mt-6 px-5 py-4 bg-red-50 border border-red-200 rounded-xl text-sm font-semibold text-red-600">
+                {submitError}
+              </div>
+            )}
+
             <div className="mt-auto pt-10 border-t border-slate-100 flex items-center justify-between">
-              <button 
+              <button
                 onClick={handleBack}
                 className={`flex items-center gap-2 text-slate-400 hover:text-[#1E2A3A] transition-colors text-xs font-bold uppercase tracking-widest ${step === 1 ? "opacity-0 pointer-events-none" : ""}`}
               >
                 <Icons.ArrowLeft /> Back
               </button>
-              {success ? (
-                <div className="flex items-center gap-2 px-8 py-3 bg-emerald-500 text-white rounded-full font-bold text-xs uppercase tracking-widest animate-in zoom-in duration-300">
-                  <Icons.Check /> Organization Registered!
-                </div>
-              ) : step === 5 ? (
+              {step === 5 ? (
                 <button 
                   onClick={handleSubmit} 
                   disabled={loading}

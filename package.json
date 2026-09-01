@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "postbuild": "echo '----------------------------------------' && echo '✅ BUILD SUCCESSFUL - READY FOR LIVE' && echo '📂 Files exported to: out/' && echo '----------------------------------------'",
-    "start": "next start",
+    "start": "serve out",
     "lint": "eslint"
   },
   "dependencies": {
@@ -28,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "serve": "^14.2.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

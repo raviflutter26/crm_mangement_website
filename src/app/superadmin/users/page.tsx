@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
-import { FiSearch, FiFilter, FiMoreVertical, FiUser, FiShield, FiMail, FiCheckCircle, FiXCircle } from "react-icons/fi";
+import { FiSearch, FiFilter, FiMoreVertical, FiUser, FiShield, FiMail, FiCheckCircle, FiXCircle, FiLock } from "react-icons/fi";
 
 export default function GlobalUsersPage() {
     const [users, setUsers] = useState<any[]>([]);
+    const [orgNames, setOrgNames] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
 
@@ -16,7 +17,20 @@ export default function GlobalUsersPage() {
         } catch (err) { console.error(err); } finally { setLoading(false); }
     };
 
+    // getAllUsers doesn't populate organizationId, so it arrives as a raw ID —
+    // resolve names client-side from the full org list.
+    const fetchOrgNames = useCallback(async () => {
+        try {
+            const res = await axiosInstance.get("/api/organizations", { params: { limit: 10000 } });
+            const orgs = res.data?.data || [];
+            const map: Record<string, string> = {};
+            orgs.forEach((org: any) => { map[org._id] = org.name; });
+            setOrgNames(map);
+        } catch (err) { console.error("Failed to load organization names", err); }
+    }, []);
+
     useEffect(() => { fetchUsers(); }, [search]);
+    useEffect(() => { fetchOrgNames(); }, [fetchOrgNames]);
 
     return (
         <div>
@@ -77,13 +91,21 @@ export default function GlobalUsersPage() {
                                         </div>
                                     </td>
                                     <td style={{ padding: "16px 24px", fontSize: "13px", color: "#1E293B", fontWeight: 500 }}>
-                                        {user.organizationId?.name || "N/A (Platform)"}
+                                        {orgNames[user.organizationId] || (user.organizationId ? "—" : "N/A (Platform)")}
                                     </td>
                                     <td style={{ padding: "16px 24px" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: user.employment?.status === 'active' ? '#10B981' : '#F87171', fontWeight: 600 }}>
-                                            {user.employment?.status === 'active' ? <FiCheckCircle /> : <FiXCircle />}
-                                            {user.employment?.status || 'Active'}
-                                        </div>
+                                        {(() => {
+                                            const isLocked = user.lockUntil && new Date(user.lockUntil).getTime() > Date.now();
+                                            const isActive = user.isActive !== false && !isLocked;
+                                            const label = isLocked ? "Locked" : isActive ? "Active" : "Inactive";
+                                            const color = isLocked ? "#F59E0B" : isActive ? "#10B981" : "#F87171";
+                                            const Icon = isLocked ? FiLock : isActive ? FiCheckCircle : FiXCircle;
+                                            return (
+                                                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color, fontWeight: 600 }}>
+                                                    <Icon /> {label}
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
                                     <td style={{ padding: "16px 24px", fontSize: "13px", color: "#64748B" }}>
                                         {new Date(user.createdAt).toLocaleDateString()}

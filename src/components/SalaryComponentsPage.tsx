@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from "@/config/api";
 import { FiPlus, FiTrash2, FiX, FiChevronDown, FiInfo, FiSettings } from "react-icons/fi";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const TABS = [
     { id: "earning", label: "Earnings" },
@@ -75,6 +76,8 @@ const FREQ_LABELS: any = { monthly: "Monthly", one_time: "One Time", recurring: 
 const CALC_LABELS: any = { fixed_percentage: "Fixed; Percentage", fixed_flat: "Fixed; Flat Amount", variable_flat: "Variable; Flat Amount", variable_percentage: "Variable; Percentage" };
 
 export default function SalaryComponentsPage() {
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState("earning");
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -117,11 +120,16 @@ export default function SalaryComponentsPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Delete this component?")) return;
+        const ok = await confirmDialog({
+            title: "Delete this component?",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await axiosInstance.delete(`${API_ENDPOINTS.SALARY_COMPONENTS}/${id}`);
             fetchData();
-        } catch (err: any) { alert(err.response?.data?.message || "Error deleting"); }
+        } catch (err: any) { toast.error(err.response?.data?.message || "Error deleting"); }
     };
 
     const handleSubmit = async (e: any) => {
@@ -144,7 +152,7 @@ export default function SalaryComponentsPage() {
             }
             setShowModal(false);
             fetchData();
-        } catch (err: any) { alert(err.response?.data?.message || "Error saving"); }
+        } catch (err: any) { toast.error(err.response?.data?.message || "Error saving"); }
     };
 
     const openCreate = (cat?: string) => {

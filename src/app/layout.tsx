@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from "@/lib/auth";
+import { DialogProvider } from "@/components/common/DialogProvider";
 
 export default function RootLayout({
   children,
@@ -24,7 +25,9 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          {children}
+          <DialogProvider>
+            {children}
+          </DialogProvider>
         </AuthProvider>
       </body>
     </html>

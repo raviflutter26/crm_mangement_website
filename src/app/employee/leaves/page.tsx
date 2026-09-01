@@ -6,11 +6,23 @@ import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
 import { FiPlus, FiCalendar, FiClock, FiCheckCircle, FiXCircle, FiArrowLeft, FiPieChart, FiAlertCircle } from "react-icons/fi";
 import Link from "next/link";
+import { useToast } from "@/components/common/DialogProvider";
+
+const LEAVE_TYPE_COLORS: Record<string, string> = {
+    "Earned Leave": "#3b82f6",
+    "Sick Leave": "#ef4444",
+    "Casual Leave": "#f59e0b",
+    "Maternity Leave": "#ec4899",
+    "Paternity Leave": "#8b5cf6",
+    "Compensatory Off": "#14b8a6",
+};
 
 export default function EmployeeLeavesPage() {
     const { user } = useAuth();
+    const toast = useToast();
     const [showRequestModal, setShowRequestModal] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
+    const [balances, setBalances] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
@@ -31,13 +43,30 @@ export default function EmployeeLeavesPage() {
         }
     };
 
+    const fetchBalances = async () => {
+        if (!user?._id) return;
+        try {
+            const res = await axiosInstance.get(`/api/leaves/balance/${user._id}`);
+            setBalances((res.data.data || []).map((b: any) => ({
+                type: b.leaveType,
+                total: b.totalEntitled,
+                used: b.used,
+                available: b.totalEntitled - b.used - b.pendingApproval,
+                color: LEAVE_TYPE_COLORS[b.leaveType] || "#64748b",
+            })));
+        } catch (err) {
+            console.error("Failed to fetch leave balances", err);
+        }
+    };
+
     useEffect(() => {
         fetchLeaves();
-    }, []);
+        fetchBalances();
+    }, [user?._id]);
 
     const handleApplyLeave = async () => {
         if (!fromDate || !toDate || !reason) {
-            alert("Please fill in all fields");
+            toast.error("Please fill in all fields");
             return;
         }
 
@@ -63,17 +92,11 @@ export default function EmployeeLeavesPage() {
             setToDate("");
             setReason("");
         } catch (err: any) {
-            alert(err.response?.data?.message || "Failed to submit leave request");
+            toast.error(err.response?.data?.message || "Failed to submit leave request");
         } finally {
             setSubmitting(false);
         }
     };
-
-    const balances = [
-        { type: "Earned Leave", total: 12, used: history.filter(h => h.leaveType === 'Earned Leave' && h.status === 'Approved').length, available: 10, color: "#3b82f6" },
-        { type: "Sick Leave", total: 8, used: history.filter(h => h.leaveType === 'Sick Leave' && h.status === 'Approved').length, available: 7, color: "#ef4444" },
-        { type: "Casual Leave", total: 6, used: history.filter(h => h.leaveType === 'Casual Leave' && h.status === 'Approved').length, available: 2, color: "#f59e0b" },
-    ];
 
     if (loading) return (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: "16px" }}>
@@ -106,7 +129,7 @@ export default function EmployeeLeavesPage() {
 
             {/* Leave Balances Grid */}
             <div className="stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-                {balances.map((bal, i) => (
+                {balances.length > 0 ? balances.map((bal, i) => (
                     <div key={i} className="card" style={{ padding: "24px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                             <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase" }}>{bal.type}</div>
@@ -123,10 +146,14 @@ export default function EmployeeLeavesPage() {
                             </div>
                         </div>
                         <div style={{ marginTop: "16px", height: "6px", background: "var(--bg-hover)", borderRadius: "3px", overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${(bal.used / bal.total) * 100}%`, background: bal.color }} />
+                            <div style={{ height: "100%", width: `${bal.total > 0 ? (bal.used / bal.total) * 100 : 0}%`, background: bal.color }} />
                         </div>
                     </div>
-                ))}
+                )) : (
+                    <div style={{ gridColumn: "1/-1", padding: "20px", borderRadius: "12px", background: "var(--bg-secondary)", textAlign: "center", color: "var(--text-muted)", fontSize: "13px", fontWeight: 600 }}>
+                        No leave balance records yet — they're created the first time you apply for each leave type.
+                    </div>
+                )}
             </div>
 
             {/* History Table */}

@@ -6,6 +6,7 @@ import { FiDollarSign, FiPlus, FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiFile
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const STATUS_COLORS: any = {
     draft: "pending", submitted: "processing", approved: "active",
@@ -22,6 +23,8 @@ interface ExpensePageProps {
 }
 
 export default function ExpensePage({ showNotify }: ExpensePageProps) {
+    const confirmDialog = useConfirm();
+    const dialogToast = useToast();
     const [expenses, setExpenses] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -73,20 +76,26 @@ export default function ExpensePage({ showNotify }: ExpensePageProps) {
                 showToast("Expense submitted!");
             }
             setShowModal(false); fetchData();
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure?")) return;
+        const ok = await confirmDialog({
+            title: "Delete this expense?",
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try { await axiosInstance.delete(`${API_ENDPOINTS.EXPENSES}/${id}`); showToast("Deleted!"); fetchData(); }
-        catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const handleStatusUpdate = async (id: string, status: string) => {
         try {
             await axiosInstance.patch(`${API_ENDPOINTS.EXPENSES}/${id}/status`, { status });
             showToast(`Expense ${status}!`); fetchData();
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const totalAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);

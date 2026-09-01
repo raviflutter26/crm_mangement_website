@@ -9,6 +9,7 @@ import {
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const PRIORITY_COLORS: any = { low: "active", medium: "pending", high: "leave", critical: "inactive" };
 const STATUS_COLORS: any = {
@@ -21,6 +22,8 @@ interface PerformancePageProps {
 }
 
 export default function PerformancePage({ showNotify }: PerformancePageProps) {
+    const confirmDialog = useConfirm();
+    const dialogToast = useToast();
     const [activeView, setActiveView] = useState<"goals" | "appraisals">("goals");
     const [goals, setGoals] = useState<any[]>([]);
     const [appraisals, setAppraisals] = useState<any[]>([]);
@@ -97,14 +100,20 @@ export default function PerformancePage({ showNotify }: PerformancePageProps) {
                 showToast("Created!");
             }
             setShowModal(false); fetchData();
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const handleDelete = async (id: string, type: "goals" | "appraisals") => {
-        if (!confirm("Are you sure?")) return;
+        const ok = await confirmDialog({
+            title: "Are you sure?",
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         const endpoint = type === "goals" ? API_ENDPOINTS.GOALS : API_ENDPOINTS.APPRAISALS;
         try { await axiosInstance.delete(`${endpoint}/${id}`); showToast("Deleted!"); fetchData(); }
-        catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const stats = [

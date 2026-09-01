@@ -11,10 +11,12 @@ import Link from "next/link";
 // Components
 import EmployeePunchWidget from "@/components/attendance/EmployeePunchWidget";
 import TimelineStepper from "@/components/attendance/TimelineStepper";
+import { useToast } from "@/components/common/DialogProvider";
 
 
 export default function EmployeeDashboardPage() {
     const { user } = useAuth();
+    const toast = useToast();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export default function EmployeeDashboardPage() {
                 // Optionally refresh to see if data arrives
                 await fetchDashboard();
             } else {
-                alert(msg || "Failed to check in");
+                toast.error(msg || "Failed to check in");
             }
         }
     };

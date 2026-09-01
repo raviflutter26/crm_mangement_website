@@ -5,10 +5,12 @@ import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
 import EmployeeBankStatus from "@/components/payroll/EmployeeBankStatus";
 import { FiSearch, FiUsers, FiLock, FiPlus, FiX, FiSave } from "react-icons/fi";
+import { useToast } from "@/components/common/DialogProvider";
 
 const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN")}`;
 
 export default function PayrollEmployeesPage() {
+    const toast = useToast();
     const [employees, setEmployees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -53,7 +55,7 @@ export default function PayrollEmployeesPage() {
             await axiosInstance.put(API_ENDPOINTS.BANK_EMPLOYEE(selectedEmp._id), bankForm);
             setShowBankModal(false);
             fetchEmployees();
-        } catch (e: any) { alert(e.response?.data?.message || "Failed to save bank details"); }
+        } catch (e: any) { toast.error(e.response?.data?.message || "Failed to save bank details"); }
         finally { setSaving(false); }
     };
 
@@ -64,7 +66,7 @@ export default function PayrollEmployeesPage() {
             await axiosInstance.put(API_ENDPOINTS.EMPLOYEE_SALARY_STRUCTURE(selectedEmp._id), structureForm);
             setShowStructureModal(false);
             fetchEmployees();
-        } catch (e: any) { alert(e.response?.data?.message || "Failed to save salary structure"); }
+        } catch (e: any) { toast.error(e.response?.data?.message || "Failed to save salary structure"); }
         finally { setSaving(false); }
     };
 

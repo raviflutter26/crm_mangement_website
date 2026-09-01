@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
 import { FiShield, FiSave, FiCheckCircle, FiAlertTriangle, FiPercent, FiDollarSign, FiClock } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import { useToast } from "@/components/common/DialogProvider";
 
 interface CompliancePageProps {
     showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
 }
 
 export default function CompliancePage({ showNotify }: CompliancePageProps) {
+    const dialogToast = useToast();
     const [settings, setSettings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -33,7 +35,7 @@ export default function CompliancePage({ showNotify }: CompliancePageProps) {
         try {
             await axiosInstance.put(API_ENDPOINTS.COMPLIANCE, settings);
             showToast("Compliance settings saved! ✅");
-        } catch (err: any) { alert(err.response?.data?.message || "Save failed"); }
+        } catch (err: any) { dialogToast.error(err.response?.data?.message || "Save failed"); }
         finally { setSaving(false); }
     };
 

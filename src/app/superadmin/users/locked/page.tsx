@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import { FiLoader, FiAlertCircle, FiLock, FiUnlock, FiRefreshCw, FiExternalLink, FiMapPin, FiCalendar, FiShield } from "react-icons/fi";
+import { useConfirm } from "@/components/common/DialogProvider";
 
 interface LockedAccount {
     id: number;
@@ -19,6 +20,7 @@ interface LockedAccount {
 }
 
 export default function LockedAccountsPage() {
+    const confirmDialog = useConfirm();
     const [accounts, setAccounts] = useState<LockedAccount[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,11 @@ export default function LockedAccountsPage() {
     }, []);
 
     const unlockStatus = async (id: number) => {
-        if (!confirm("Are you sure you want to unlock this account?")) return;
+        const ok = await confirmDialog({
+            title: "Unlock this account?",
+            confirmLabel: "Unlock",
+        });
+        if (!ok) return;
         try {
             setAccounts(prev => prev.filter(a => a.id !== id));
         } catch (err) {

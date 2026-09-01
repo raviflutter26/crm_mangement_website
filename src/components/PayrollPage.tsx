@@ -10,6 +10,7 @@ import {
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useToast } from "@/components/common/DialogProvider";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const STATUS_BADGE: any = {
@@ -23,6 +24,7 @@ interface PayrollProps {
 }
 
 export default function PayrollPage({ showNotify }: PayrollProps) {
+    const dialogToast = useToast();
     const [activeTab, setActiveTab] = useState<"runs" | "records" | "payslip">("runs");
     const [payrollRuns, setPayrollRuns] = useState<any[]>([]);
     const [payrollRecords, setPayrollRecords] = useState<any[]>([]);
@@ -67,7 +69,7 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
             setShowRunModal(false);
             fetchAll();
         } catch (err: any) {
-            alert(err.response?.data?.message || "Failed to initiate payroll run");
+            dialogToast.error(err.response?.data?.message || "Failed to initiate payroll run");
         } finally { setRunningPayroll(false); }
     };
 
@@ -76,7 +78,7 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
             await axiosInstance.patch(`${API_ENDPOINTS.PAYROLL_RUNS}/${id}/approve`);
             showToast("Payroll approved! ✅");
             fetchAll();
-        } catch (err: any) { alert(err.response?.data?.message || "Approval failed"); }
+        } catch (err: any) { dialogToast.error(err.response?.data?.message || "Approval failed"); }
     };
 
     const handlePay = async (id: string) => {
@@ -84,10 +86,10 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
             const res = await axiosInstance.post(API_ENDPOINTS.PAYOUTS_INITIATE, { runId: id });
             if (showNotify) showNotify('success', res.data.message || "Payroll disbursed via RazorpayX! 💰");
             fetchAll();
-        } catch (err: any) { 
+        } catch (err: any) {
             const msg = err.response?.data?.message || "Payment failed";
             if (showNotify) showNotify('failure', msg);
-            else alert(msg);
+            else dialogToast.error(msg);
         }
     };
 

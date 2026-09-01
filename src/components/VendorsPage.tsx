@@ -7,6 +7,7 @@ import { FiPlus, FiUsers, FiEdit2, FiTrash2, FiPhone, FiMail, FiCheckCircle, FiS
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const STATUS_COLORS: any = { Active: "active", Inactive: "inactive", "Pending Approval": "pending", Blacklisted: "inactive" };
 
@@ -16,6 +17,8 @@ interface VendorsPageProps {
 
 export default function VendorsPage({ showNotify }: VendorsPageProps) {
     const { user } = useAuth();
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [vendors, setVendors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -57,13 +60,18 @@ export default function VendorsPage({ showNotify }: VendorsPageProps) {
             if (isEditing) { await axiosInstance.put(`${API_ENDPOINTS.VENDORS}/${editId}`, formData); }
             else { await axiosInstance.post(API_ENDPOINTS.VENDORS, formData); }
             setShowModal(false); fetchData();
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { toast.error(err.response?.data?.message || err.message); }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Delete this vendor?")) return;
+        const ok = await confirmDialog({
+            title: "Delete this vendor?",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try { await axiosInstance.delete(`${API_ENDPOINTS.VENDORS}/${id}`); fetchData(); }
-        catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        catch (err: any) { toast.error(err.response?.data?.message || err.message); }
     };
 
     const stats = [

@@ -5,10 +5,12 @@ import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
 import PayoutStatusTable from "@/components/payroll/PayoutStatusTable";
 import { FiRefreshCw, FiCreditCard, FiCheckCircle, FiAlertCircle, FiClock, FiActivity } from "react-icons/fi";
+import { useToast } from "@/components/common/DialogProvider";
 
 const fmt = (n: number) => `₹${(n || 0).toLocaleString("en-IN")}`;
 
 export default function PayoutsPage() {
+    const toast = useToast();
     const [payouts, setPayouts] = useState<any[]>([]);
     const [summary, setSummary] = useState({ total: 0, pending: 0, processing: 0, processed: 0, failed: 0, totalAmount: 0 });
     const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export default function PayoutsPage() {
         try {
             await axiosInstance.post(API_ENDPOINTS.PAYOUTS_RETRY(payoutId));
             fetchPayouts(true);
-        } catch (e: any) { alert(e.response?.data?.message || "Retry failed"); }
+        } catch (e: any) { toast.error(e.response?.data?.message || "Retry failed"); }
         finally { setRetryingId(null); }
     };
 

@@ -13,6 +13,7 @@ import {
     PieChart, Pie, Cell, AreaChart, Area, Legend
 } from "recharts";
 import { motion } from "framer-motion";
+import { useToast } from "@/components/common/DialogProvider";
 
 interface AdminOverviewProps {
     data: any;
@@ -26,6 +27,7 @@ const DEPT_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec
 
 export default function AdminOverview({ data, userName, filter, setFilter, onRefresh }: AdminOverviewProps) {
     const router = useRouter();
+    const toast = useToast();
 
     const handleLeaveAction = async (leaveId: string, action: 'Approved' | 'Rejected') => {
         try {
@@ -101,8 +103,8 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                     { label: "Process Payroll", icon: FiDollarSign, path: "/payroll", color: "#f59e0b" },
                     { label: "Approve Leaves", icon: FiInbox, path: "/leaves", color: "#10b981" },
                     { label: "New Site / Project", icon: FiBriefcase, path: "/projects", color: "#8b5cf6" },
-                    { label: "Generate Report", icon: FiBarChart2, action: () => alert("Generating Report..."), color: "#06b6d4" },
-                    { label: "Send Announcement", icon: FiSend, action: () => alert("Opening Announcement Modal..."), color: "#ec4899" }
+                    { label: "Generate Report", icon: FiBarChart2, action: () => toast.info("Generating Report..."), color: "#06b6d4" },
+                    { label: "Send Announcement", icon: FiSend, action: () => toast.info("Opening Announcement Modal..."), color: "#ec4899" }
                 ].map((action, i) => (
                     <motion.div
                         key={i}
@@ -127,12 +129,12 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
             {/* 3. Numbers Row (KPIs) */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "16px" }}>
                 {[
-                    { val: data.employees?.active || 48, label: "Total Employees", sub: `↑ ${data.employees?.newThisMonth || 3} this month`, subColor: "#10b981" },
-                    { val: `${data.attendance?.attendanceRate || 91}%`, label: "Attendance Today", sub: `${data.attendance?.presentToday || 44} / ${data.employees?.active || 48} present`, subColor: "#10b981" },
-                    { val: "6", label: "Active Sites", sub: "Chennai & suburbs", subColor: "var(--text-muted)" },
+                    { val: data.employees?.active || 0, label: "Total Employees", sub: `↑ ${data.employees?.newThisMonth || 0} this month`, subColor: "#10b981" },
+                    { val: `${data.attendance?.attendanceRate || 0}%`, label: "Attendance Today", sub: `${data.attendance?.presentToday || 0} / ${data.employees?.active || 0} present`, subColor: "#10b981" },
+                    { val: data.projects?.length || 0, label: "Active Sites", sub: "Currently in progress", subColor: "var(--text-muted)" },
                     { val: payrollFormatted, label: "Monthly Payroll", sub: "Disbursed amount", subColor: "var(--text-muted)" },
-                    { val: data.leaves?.pending || 5, label: "Pending Approvals", sub: `↑ 2 since yesterday`, subColor: "#ef4444" },
-                    { val: "1", label: "Open Incidents", sub: "Needs attention", subColor: "#ef4444" }
+                    { val: data.leaves?.pending || 0, label: "Pending Approvals", sub: `Need review`, subColor: "#ef4444" },
+                    { val: data.incidentStats?.open || 0, label: "Open Incidents", sub: "Needs attention", subColor: "#ef4444" }
                 ].map((stat, i) => (
                     <div key={i} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "16px", padding: "20px" }}>
                         <div style={{ fontSize: "28px", fontWeight: 900, color: "var(--text-primary)", letterSpacing: "-0.5px", lineHeight: 1 }}>{stat.val}</div>
@@ -217,24 +219,20 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                         <a href="#" style={{ fontSize: "11px", color: "#3b82f6", fontWeight: 800, textDecoration: "none" }}>View all</a>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        {[
-                            { name: "Anna Nagar — Block A", workers: "8 workers", status: "Live", color: "#10b981", bg: "#d1fae5" },
-                            { name: "Tambaram Industrial", workers: "6 workers", status: "Live", color: "#10b981", bg: "#d1fae5" },
-                            { name: "Porur Residential", workers: "4 workers", status: "In progress", color: "#f59e0b", bg: "#fef3c7" },
-                            { name: "Sholinganallur Plot", workers: "5 workers", status: "In progress", color: "#f59e0b", bg: "#fef3c7" },
-                            { name: "Avadi Factory Roof", workers: "3 assigned", status: "Pending", color: "#64748b", bg: "#f1f5f9" }
-                        ].map((site, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: i !== 4 ? "12px" : 0, borderBottom: i !== 4 ? "1px solid var(--border-light)" : "none" }}>
-                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: site.color }} />
+                        {(data.projects && data.projects.length > 0) ? data.projects.map((site: any, i: number) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: i !== data.projects.length - 1 ? "12px" : 0, borderBottom: i !== data.projects.length - 1 ? "1px solid var(--border-light)" : "none" }}>
+                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--text-primary)" }}>{site.name}</div>
+                                    {site.site && <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{site.site}</div>}
                                 </div>
-                                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>{site.workers}</div>
-                                <div style={{ fontSize: "10px", fontWeight: 800, background: site.bg, color: site.color, padding: "4px 10px", borderRadius: "100px" }}>
+                                <div style={{ fontSize: "10px", fontWeight: 800, background: "#dbeafe", color: "#3b82f6", padding: "4px 10px", borderRadius: "100px" }}>
                                     {site.status}
                                 </div>
                             </div>
-                        ))}
+                        )) : (
+                            <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "12px" }}>No active projects found</div>
+                        )}
                     </div>
                 </div>
 
@@ -248,13 +246,8 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                         <a href="/leaves" style={{ fontSize: "11px", color: "#3b82f6", fontWeight: 800, textDecoration: "none" }}>View all</a>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        {(data.leaveApprovals && data.leaveApprovals.length > 0 ? data.leaveApprovals : [
-                            { employee: { firstName: "Ravi", lastName: "Kumar" }, leaveType: "Sick Leave - 1 day", startDate: new Date("2026-03-31") },
-                            { employee: { firstName: "Suresh", lastName: "M" }, leaveType: "Casual Leave - 2 days", startDate: new Date("2026-04-01") },
-                            { employee: { firstName: "Karthik", lastName: "R" }, leaveType: "Earned Leave - 3 days", startDate: new Date("2026-04-04") },
-                            { employee: { firstName: "Murugan", lastName: "S" }, leaveType: "Sick Leave - 1 day", startDate: new Date("2026-04-02") }
-                        ]).slice(0, 4).map((l: any, i: number) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: i !== 3 ? "12px" : 0, borderBottom: i !== 3 ? "1px solid var(--border-light)" : "none" }}>
+                        {(data.leaveApprovals && data.leaveApprovals.length > 0) ? data.leaveApprovals.slice(0, 4).map((l: any, i: number) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: i !== data.leaveApprovals.length - 1 ? "12px" : 0, borderBottom: i !== data.leaveApprovals.length - 1 ? "1px solid var(--border-light)" : "none" }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>{l.employee?.firstName} {l.employee?.lastName}</div>
                                     <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)" }}>{l.leaveType}</div>
@@ -267,7 +260,9 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                                     <button onClick={() => l._id && handleLeaveAction(l._id, 'Rejected')} style={{ width: "32px", height: "32px", background: "#fef2f2", color: "#ef4444", border: "1px solid #fee2e2", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><FiX size={16} /></button>
                                 </div>
                             </div>
-                        ))}
+                        )) : (
+                            <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "12px" }}>No pending leave requests</div>
+                        )}
                     </div>
                 </div>
 
@@ -280,48 +275,44 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                         </div>
                         <a href="/incidents" style={{ fontSize: "11px", color: "#3b82f6", fontWeight: 800, textDecoration: "none" }}>View all</a>
                     </div>
-                    
-                    <div style={{ display: "flex", flexDirection: "column", gap: "16px", flex: 1 }}>
-                        <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid var(--border-light)", paddingBottom: "12px" }}>
-                            <FiAlertTriangle color="#f59e0b" size={18} style={{ marginTop: "2px" }} />
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>Rooftop slip — Porur site</div>
-                                <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", marginTop: "2px" }}>Reported 30 Mar • Minor injury</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "16px", flex: 1 }}>
+                        {(data.incidents && data.incidents.length > 0) ? data.incidents.map((inc: any, i: number) => (
+                            <div key={i} style={{ display: "flex", gap: "12px", borderBottom: i !== data.incidents.length - 1 ? "1px solid var(--border-light)" : "none", paddingBottom: "12px" }}>
+                                <FiAlertTriangle color={inc.severity === 'High' || inc.severity === 'Critical' ? "#ef4444" : "#f59e0b"} size={18} style={{ marginTop: "2px" }} />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>{inc.type} — {inc.site}</div>
+                                    <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", marginTop: "2px" }}>
+                                        Reported {new Date(inc.date).toLocaleDateString("en-IN", { day: 'numeric', month: 'short' })} • {inc.severity}
+                                    </div>
+                                </div>
+                                <div style={{ 
+                                    fontSize: "10px", fontWeight: 800, 
+                                    color: inc.status === 'Closed' ? "#10b981" : "#ef4444", 
+                                    background: inc.status === 'Closed' ? "#f0fdf4" : "#fef2f2", 
+                                    padding: "4px 10px", borderRadius: "100px", alignSelf: "flex-start", 
+                                    border: `1px solid ${inc.status === 'Closed' ? "#dcfce7" : "#fee2e2"}` 
+                                }}>
+                                    {inc.status}
+                                </div>
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 800, color: "#ef4444", background: "#fef2f2", padding: "4px 10px", borderRadius: "100px", alignSelf: "flex-start", border: "1px solid #fee2e2" }}>Open</div>
-                        </div>
-
-                        <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid var(--border-light)", paddingBottom: "12px" }}>
-                            <FiActivity color="#64748b" size={18} style={{ marginTop: "2px" }} />
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>Electrical fault — Tambaram</div>
-                                <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", marginTop: "2px" }}>Reported 22 Mar • Equipment</div>
-                            </div>
-                            <div style={{ fontSize: "10px", fontWeight: 800, color: "#10b981", background: "#f0fdf4", padding: "4px 10px", borderRadius: "100px", alignSelf: "flex-start", border: "1px solid #dcfce7" }}>Closed</div>
-                        </div>
-
-                        <div style={{ display: "flex", gap: "12px", paddingBottom: "12px" }}>
-                            <FiAlertTriangle color="#ef4444" size={18} style={{ marginTop: "2px" }} />
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>PPE not worn — Anna Nagar</div>
-                                <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", marginTop: "2px" }}>Reported 18 Mar • Warning issued</div>
-                            </div>
-                            <div style={{ fontSize: "10px", fontWeight: 800, color: "#10b981", background: "#f0fdf4", padding: "4px 10px", borderRadius: "100px", alignSelf: "flex-start", border: "1px solid #dcfce7" }}>Closed</div>
-                        </div>
+                        )) : (
+                            <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "12px" }}>No recent incidents reported</div>
+                        )}
                     </div>
+
 
                     {/* Bottom Summary Row */}
                     <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border)", paddingTop: "16px", marginTop: "auto" }}>
                         <div style={{ textAlign: "center", flex: 1 }}>
-                            <div style={{ fontSize: "16px", fontWeight: 900, color: "#ef4444" }}>1</div>
+                            <div style={{ fontSize: "16px", fontWeight: 900, color: "#ef4444" }}>{data.incidentStats?.open || 0}</div>
                             <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>Open</div>
                         </div>
                         <div style={{ textAlign: "center", flex: 1 }}>
-                            <div style={{ fontSize: "16px", fontWeight: 900, color: "#10b981" }}>2</div>
+                            <div style={{ fontSize: "16px", fontWeight: 900, color: "#10b981" }}>{data.incidentStats?.closed || 0}</div>
                             <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>Closed</div>
                         </div>
                         <div style={{ textAlign: "center", flex: 1 }}>
-                            <div style={{ fontSize: "16px", fontWeight: 900, color: "var(--text-primary)" }}>3</div>
+                            <div style={{ fontSize: "16px", fontWeight: 900, color: "var(--text-primary)" }}>{data.incidentStats?.total || 0}</div>
                             <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>Total</div>
                         </div>
                     </div>
@@ -341,14 +332,10 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                     </div>
                     
                     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        {((data.recentHires?.length > 0) ? data.recentHires.slice(0, 3) : [
-                            { firstName: "Ravi", lastName: "Kumar", designation: "Solar Technician", createdAt: new Date("2026-03-23") },
-                            { firstName: "Priya", lastName: "S", designation: "Factory Operator", createdAt: new Date("2026-03-18") },
-                            { firstName: "Karthik", lastName: "M", designation: "Field Supervisor", createdAt: new Date("2026-03-10") }
-                        ]).map((h: any, i: number) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "14px", borderBottom: i !== 2 ? "1px solid var(--border-light)" : "none", paddingBottom: i !== 2 ? "12px" : "0" }}>
+                        {(data.recentHires && data.recentHires.length > 0) ? data.recentHires.slice(0, 3).map((h: any, i: number) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "14px", borderBottom: i !== data.recentHires.length - 1 ? "1px solid var(--border-light)" : "none", paddingBottom: i !== data.recentHires.length - 1 ? "12px" : "0" }}>
                                 <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, var(--primary) 0%, #FF8C00 100%)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800, boxShadow: "0 4px 10px rgba(255,107,0,0.2)" }}>
-                                    {h.firstName[0]}{h.lastName[0]}
+                                    {h.firstName?.[0] || '?'}{h.lastName?.[0] || ''}
                                 </div>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>{h.firstName} {h.lastName}</div>
@@ -358,7 +345,9 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                                     {new Date(h.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                                 </div>
                             </div>
-                        ))}
+                        )) : (
+                            <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "12px" }}>No recent hires found</div>
+                        )}
                     </div>
                 </div>
 

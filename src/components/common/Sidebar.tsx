@@ -25,52 +25,113 @@ interface MenuItem {
 }
 
 const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: string): { [key: string]: MenuItem[] } => {
-    const isSuperAdmin = role === 'superadmin';
+    // SuperAdmin: dedicated platform-operator console, entirely separate from any tenant's
+    // operational menu. SuperAdmin has no organizationId of its own, so tenant modules like
+    // Attendance/Leave/Payroll/Assets have no meaningful data to show here.
+    if (role === 'superadmin') {
+        return {
+            "COMMAND CENTER": [
+                { id: "dashboard", label: "Dashboard", icon: FiGrid, href: "/superadmin/dashboard", roles: ["superadmin"] },
+                { id: "analytics", label: "Analytics & Reports", icon: FiBarChart2, href: "/superadmin/analytics", roles: ["superadmin"] },
+                {
+                    id: "organizations", label: "Organizations", icon: FiLayers, roles: ["superadmin"],
+                    badge: counts?.pendingOrgs ? String(counts.pendingOrgs) : undefined, badgeColor: "orange",
+                    children: [
+                        { id: "organizations-all", label: "All Organizations", icon: FiLayers, href: "/superadmin/organizations", roles: ["superadmin"] },
+                        { id: "organizations-pending", label: "Pending Approval", icon: FiLayers, href: "/superadmin/organizations/pending", roles: ["superadmin"], badge: counts?.pendingOrgs ? String(counts.pendingOrgs) : undefined, badgeColor: "orange" },
+                        { id: "organizations-suspended", label: "Suspended", icon: FiLayers, href: "/superadmin/organizations/suspended", roles: ["superadmin"] },
+                        { id: "organizations-add", label: "Add New", icon: FiUserPlus, href: "/superadmin/organizations/add", roles: ["superadmin"] },
+                    ]
+                },
+                {
+                    id: "users", label: "Global Users", icon: FiUsers, roles: ["superadmin"],
+                    badge: counts?.lockedAccounts ? String(counts.lockedAccounts) : undefined, badgeColor: "red",
+                    children: [
+                        { id: "users-all", label: "All Users", icon: FiUsers, href: "/superadmin/users", roles: ["superadmin"] },
+                        { id: "users-invitations", label: "Invitations", icon: FiMail, href: "/superadmin/users/invitations", roles: ["superadmin"], badge: counts?.pendingInvites ? String(counts.pendingInvites) : undefined, badgeColor: "orange" },
+                        { id: "users-locked", label: "Locked Accounts", icon: FiLock, href: "/superadmin/users/locked", roles: ["superadmin"], badge: counts?.lockedAccounts ? String(counts.lockedAccounts) : undefined, badgeColor: "red" },
+                    ]
+                },
+            ],
+            "PLATFORM OPERATIONS": [
+                { id: "health", label: "System Health", icon: FiActivity, href: "/superadmin/health", roles: ["superadmin"] },
+                {
+                    id: "infra", label: "Infrastructure", icon: FiServer, roles: ["superadmin"],
+                    children: [
+                        { id: "infra-server", label: "Server", icon: FiServer, href: "/superadmin/infra/server", roles: ["superadmin"] },
+                        { id: "infra-database", label: "Database", icon: FiDatabase, href: "/superadmin/infra/database", roles: ["superadmin"] },
+                        { id: "infra-gateway", label: "Gateway", icon: FiGlobe, href: "/superadmin/infra/gateway", roles: ["superadmin"] },
+                        { id: "infra-cdn", label: "CDN", icon: FiZap, href: "/superadmin/infra/cdn", roles: ["superadmin"] },
+                    ]
+                },
+            ],
+            "BILLING & SUBSCRIPTIONS": [
+                { id: "finance-subscriptions", label: "Subscriptions", icon: FiCreditCard, href: "/superadmin/finance/subscriptions", roles: ["superadmin"] },
+                { id: "finance-revenue", label: "Platform Revenue", icon: FiDollarSign, href: "/superadmin/finance/revenue", roles: ["superadmin"] },
+                { id: "seats", label: "Seats & Licenses", icon: FiUsers, href: "/superadmin/seats", roles: ["superadmin"] },
+            ],
+            "SECURITY": [
+                { id: "audit-log", label: "Audit Log", icon: FiShield, href: "/superadmin/audit-log", roles: ["superadmin"], badge: counts?.criticalLogs ? String(counts.criticalLogs) : undefined, badgeColor: "red" },
+                { id: "auth-sso", label: "SSO", icon: FiKey, href: "/superadmin/auth/sso", roles: ["superadmin"] },
+                { id: "auth-mfa", label: "MFA", icon: FiLock, href: "/superadmin/auth/mfa", roles: ["superadmin"] },
+                { id: "auth-sessions", label: "Sessions", icon: FiClock, href: "/superadmin/auth/sessions", roles: ["superadmin"] },
+                { id: "auth-ip-allowlist", label: "IP Allowlist", icon: FiGlobe, href: "/superadmin/auth/ip-allowlist", roles: ["superadmin"] },
+            ],
+            "SUPPORT & CONFIG": [
+                { id: "support", label: "Support", icon: FiHelpCircle, href: "/superadmin/support", roles: ["superadmin"], badge: counts?.openTickets ? String(counts.openTickets) : undefined, badgeColor: "orange" },
+                {
+                    id: "platform-settings", label: "Platform Settings", icon: FiSettings, roles: ["superadmin"],
+                    children: [
+                        { id: "settings-config", label: "General Config", icon: FiSliders, href: "/superadmin/settings/config", roles: ["superadmin"] },
+                        { id: "settings-email", label: "Email Templates", icon: FiMail, href: "/superadmin/settings/email", roles: ["superadmin"] },
+                        { id: "settings-features", label: "Feature Flags", icon: FiFlag, href: "/superadmin/settings/features", roles: ["superadmin"] },
+                    ]
+                },
+            ],
+        };
+    }
 
-    // Standard Admin/SuperAdmin Groups based on Command Center UI
+    // Standard Admin/HR/Manager Groups based on Command Center UI
     if (role !== 'employee') {
         return {
             "COMMAND CENTER": [
-                { id: "dashboard", label: "Dashboard", icon: FiGrid, roles: ["admin", "hr", "manager", "superadmin"] },
-                { id: "analytics", label: "Analytics & Reports", icon: FiBarChart2, roles: ["superadmin", "admin"] },
-                ...(isSuperAdmin ? [
-                    { id: "organizations", label: "Organizations", icon: FiLayers, roles: ["superadmin"] },
-                    { id: "users", label: "Global Users", icon: FiUsers, roles: ["superadmin"] },
-                ] : []),
+                { id: "dashboard", label: "Dashboard", icon: FiGrid, roles: ["admin", "hr", "manager"] },
+                { id: "analytics", label: "Analytics & Reports", icon: FiBarChart2, roles: ["admin"] },
             ],
             "ORGANISATION": [
-                { id: "departments", label: "Departments", icon: FiBriefcase, roles: ["superadmin", "admin", "hr"] },
-                { id: "employees", label: "Employees", icon: FiUsers, roles: ["superadmin", "admin", "hr", "manager"], badge: empCount || undefined, badgeColor: "green" },
-                { id: "locations", label: "Sites & Locations", icon: FiMapPin, roles: ["superadmin", "admin", "hr"] },
-                { id: "projects", label: "Project Management", icon: FiLayers, roles: ["superadmin", "admin", "manager"] },
-                { id: "vendors", label: "Vendors & Contractors", icon: FiUserPlus, roles: ["superadmin", "admin"] },
+                { id: "departments", label: "Departments", icon: FiBriefcase, roles: ["admin", "hr"] },
+                { id: "employees", label: "Employees", icon: FiUsers, roles: ["admin", "hr", "manager"], badge: empCount || undefined, badgeColor: "green" },
+                { id: "locations", label: "Sites & Locations", icon: FiMapPin, roles: ["admin", "hr"] },
+                { id: "projects", label: "Project Management", icon: FiLayers, roles: ["admin", "manager"] },
+                { id: "vendors", label: "Vendors & Contractors", icon: FiUserPlus, roles: ["admin"] },
             ],
             "HUMAN CAPITAL": [
-                { id: "recruitment", label: "Recruitment", icon: FiSearch, roles: ["superadmin", "admin", "hr"] },
-                { id: "attendance", label: "Attendance tracking", icon: FiClock, roles: ["superadmin", "admin", "hr", "manager"], badge: "2", badgeColor: "red" },
-                { id: "leaves", label: "Leave management", icon: FiCalendar, roles: ["superadmin", "admin", "hr", "manager"], badge: leaveCount || "5", badgeColor: "red" },
-                { id: "shifts", label: "Shift & Roster", icon: FiCalendar, roles: ["superadmin", "admin", "hr"] },
-                { id: "performance", label: "Performance", icon: FiTarget, roles: ["superadmin", "admin", "hr", "manager"] },
-                { id: "training", label: "Training & Certifications", icon: FiTarget, roles: ["superadmin", "admin", "hr"] },
+                { id: "recruitment", label: "Recruitment", icon: FiSearch, roles: ["admin", "hr"] },
+                { id: "attendance", label: "Attendance tracking", icon: FiClock, roles: ["admin", "hr", "manager"], badge: "2", badgeColor: "red" },
+                { id: "leaves", label: "Leave management", icon: FiCalendar, roles: ["admin", "hr", "manager"], badge: leaveCount || "5", badgeColor: "red" },
+                { id: "shifts", label: "Shift & Roster", icon: FiCalendar, roles: ["admin", "hr"] },
+                { id: "performance", label: "Performance", icon: FiTarget, roles: ["admin", "hr", "manager"] },
+                { id: "training", label: "Training & Certifications", icon: FiTarget, roles: ["admin", "hr"] },
             ],
             "FIELD OPERATIONS": [
-                { id: "field-tracking", label: "Field Team Tracking", icon: FiMapPin, roles: ["superadmin", "admin", "manager"] },
-                { id: "job-cards", label: "Job Cards / Work Logs", icon: FiBriefcase, roles: ["superadmin", "admin", "manager"] },
-                { id: "travel", label: "Travel & Site Visits", icon: FiMapPin, roles: ["superadmin", "admin", "manager"] },
-                { id: "inventory", label: "Inventory & Materials", icon: FiPackage, roles: ["superadmin", "admin", "manager"] },
+                { id: "field-tracking", label: "Field Team Tracking", icon: FiMapPin, roles: ["admin", "manager"] },
+                { id: "job-cards", label: "Job Cards / Work Logs", icon: FiBriefcase, roles: ["admin", "manager"] },
+                { id: "timesheets", label: "Timesheets", icon: FiFileText, roles: ["admin", "hr", "manager"] },
+                { id: "travel", label: "Travel & Site Visits", icon: FiMapPin, roles: ["admin", "manager"] },
+                { id: "inventory", label: "Inventory & Materials", icon: FiPackage, roles: ["admin", "manager"] },
             ],
             "SAFETY & COMPLIANCE": [
-                { id: "safety-inductions", label: "Safety Inductions", icon: FiShield, roles: ["superadmin", "admin", "hr"] },
-                { id: "incidents", label: "Incident Reports", icon: FiActivity, roles: ["superadmin", "admin", "hr", "manager"], badge: "1", badgeColor: "red" },
-                { id: "ppe-records", label: "PPE & Tool Records", icon: FiPackage, roles: ["superadmin", "admin", "manager"] },
-                { id: "compliance", label: "Compliance & Licences", icon: FiFileText, roles: ["superadmin", "admin", "hr"] },
+                { id: "safety-inductions", label: "Safety Inductions", icon: FiShield, roles: ["admin", "hr"] },
+                { id: "incidents", label: "Incident Reports", icon: FiActivity, roles: ["admin", "hr", "manager"], badge: "1", badgeColor: "red" },
+                { id: "ppe-records", label: "PPE & Tool Records", icon: FiPackage, roles: ["admin", "manager"] },
+                { id: "compliance", label: "Compliance & Licences", icon: FiFileText, roles: ["admin", "hr"] },
             ],
             "FINANCE & BILLING": [
-                { 
-                    id: "payroll-module", 
-                    label: "Payroll Module", 
-                    icon: FiDollarSign, 
-                    href: "/payroll-module", 
+                {
+                    id: "payroll-module",
+                    label: "Payroll Module",
+                    icon: FiDollarSign,
+                    href: "/payroll-module",
                     roles: ["admin", "hr"],
                     children: [
                         { id: "payroll-module", label: "Overview", icon: FiGrid, href: "/payroll-module", roles: ["admin", "hr"] },
@@ -82,27 +143,27 @@ const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: s
                         { id: "payroll-module/audit", label: "Audit Logs", icon: FiShield, href: "/payroll-module/audit", roles: ["admin", "hr"] },
                     ]
                 },
-                { id: "reimbursements", label: "Reimbursements", icon: FiFileText, roles: ["superadmin", "admin", "hr", "manager"], badge: "3", badgeColor: "red" },
-                { id: "allowances", label: "Site Allowances", icon: FiBriefcase, roles: ["superadmin", "admin", "manager"] },
-                { id: "revenue", label: "Revenue & Invoices", icon: FiFileText, roles: ["superadmin", "admin"] },
+                { id: "reimbursements", label: "Reimbursements", icon: FiFileText, roles: ["admin", "hr", "manager"], badge: "3", badgeColor: "red" },
+                { id: "allowances", label: "Site Allowances", icon: FiBriefcase, roles: ["admin", "manager"] },
+                { id: "revenue", label: "Project Financials", icon: FiFileText, roles: ["admin"] },
             ],
             "ACCESS CONTROL": [
-                { id: "roles", label: "Roles & Permissions", icon: FiLock, roles: ["superadmin", "admin"] },
-                { id: "authentication", label: "Authentication", icon: FiKey, roles: ["superadmin", "admin"] },
-                { id: "ip-allowlist", label: "IP Allowlist", icon: FiGlobe, roles: ["superadmin", "admin"] },
+                { id: "roles", label: "Roles & Permissions", icon: FiLock, roles: ["admin"] },
+                { id: "authentication", label: "Authentication", icon: FiKey, roles: ["admin"] },
+                { id: "ip-allowlist", label: "IP Allowlist", icon: FiGlobe, roles: ["admin"] },
             ],
             "ASSETS": [
-                { id: "assets", label: "Asset Management", icon: FiPackage, roles: ["superadmin", "admin", "hr"] },
-                { id: "location-tracking", label: "Location Tracking", icon: FiMapPin, roles: ["superadmin", "admin"] },
+                { id: "assets", label: "Asset Management", icon: FiPackage, roles: ["admin", "hr"] },
+                { id: "location-tracking", label: "Location Tracking", icon: FiMapPin, roles: ["admin"] },
             ],
             "PLATFORM SETTINGS": [
-                { id: "email-settings", label: "Email & Notifications", icon: FiMail, roles: ["superadmin", "admin"] },
-                { id: "support-tickets", label: "Support Tickets", icon: FiTag, roles: ["superadmin", "admin"] },
-                { id: "compliance-logs", label: "Compliance & Logs", icon: FiFileText, roles: ["superadmin", "admin"] },
-                { id: "attendance-settings", label: "Attendance Rules", icon: FiClock, roles: ["superadmin", "admin"] },
-                { id: "permission-settings", label: "Permission Policy", icon: FiShield, roles: ["superadmin", "admin"] },
-                { id: "leave-settings", label: "Leave Policy", icon: FiCalendar, roles: ["superadmin", "admin"] },
-                { id: "settings", label: "General Settings", icon: FiSettings, roles: ["superadmin", "admin"] },
+                { id: "email-settings", label: "Email & Notifications", icon: FiMail, roles: ["admin"] },
+                { id: "support-tickets", label: "Support Tickets", icon: FiTag, roles: ["admin"] },
+                { id: "compliance-logs", label: "Compliance & Logs", icon: FiFileText, roles: ["admin"] },
+                { id: "attendance-settings", label: "Attendance Rules", icon: FiClock, roles: ["admin"] },
+                { id: "permission-settings", label: "Permission Policy", icon: FiShield, roles: ["admin"] },
+                { id: "leave-settings", label: "Leave Policy", icon: FiCalendar, roles: ["admin"] },
+                { id: "settings", label: "General Settings", icon: FiSettings, roles: ["admin"] },
             ]
         };
     }
@@ -139,7 +200,7 @@ const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: s
         "TRAINING & SKILLS": [
             { id: "training", label: "Training Courses", icon: FiBriefcase, roles: ["employee"] },
             { id: "certifications", label: "Certifications", icon: FiTarget, roles: ["employee"] },
-            { id: "skills", label: "Solar Installation Skills", icon: FiZap, roles: ["employee"], badge: "Field", badgeColor: "orange" },
+            { id: "skills", label: "Solar & Technical Skills", icon: FiZap, roles: ["employee"], badge: "Field", badgeColor: "orange" },
         ],
         "PERFORMANCE": [
             { id: "targets", label: "My Targets", icon: FiTarget, roles: ["employee"] },
@@ -253,13 +314,26 @@ export default function Sidebar() {
         }
         
         // Base Role Routes (Admin/HR/Manager)
-        if (roleLower !== 'superadmin' && (id === 'dashboard' || id === 'profile' || id === 'payslips' || id === 'leaves' || id === 'analytics')) {
+        if (roleLower !== 'superadmin' && (id === 'dashboard' || id === 'analytics')) {
             return `/${roleLower}/${id}`;
         }
-        
+
+        // HR-prefixed module routes
+        if (roleLower === 'hr' && ['employees', 'attendance', 'leaves', 'recruitment'].includes(id)) {
+            return `/hr/${id}`;
+        }
+
+        // Manager-prefixed module routes
+        if (roleLower === 'manager' && ['employees', 'attendance', 'leaves', 'projects'].includes(id)) {
+            return `/manager/${id}`;
+        }
+
         // Employee Module Hub
         if (roleLower === 'employee') {
             if (id === 'checkin') return '/employee/check-in';
+            if (id === 'leaves') return '/employee/leaves';
+            if (id === 'profile') return '/employee/profile';
+            if (id === 'payslips') return '/employee/payslips';
             const employeeSpecificRoutes = [
                 'site-attendance', 'job-card', 'shift-schedule', 'timesheets',
                 'travel-request', 'reimbursement', 'allowance', 'esi-pf', 'tax',
@@ -293,15 +367,17 @@ export default function Sidebar() {
             '/superadmin/finance/subscriptions', '/superadmin/finance/revenue',
             '/superadmin/infra/server', '/superadmin/infra/database', '/superadmin/infra/gateway', '/superadmin/infra/cdn',
             '/superadmin/settings/features', '/superadmin/settings/email', '/superadmin/settings/config', '/superadmin/support', '/superadmin/location',
-            '/dashboard', '/employees', '/attendance', '/leaves', '/payroll', '/statutory', '/reports', '/departments', '/recruitment', '/performance', '/payroll-reports', '/expenses', '/shifts', '/attendance-settings', '/salary-settings', '/salary-components', '/roles', '/assets', '/compliance', '/organizations',
-            '/admin/dashboard', '/hr/dashboard', '/manager/dashboard', '/admin/analytics', '/superadmin/analytics', '/projects', '/vendors', '/field-tracking', '/job-cards', '/travel', '/inventory', '/safety-inductions', '/incidents', '/ppe-records', '/reimbursements', '/allowances', '/authentication', '/location-tracking', '/compliance-logs', '/training', '/analytics', '/locations', '/revenue', '/ip-allowlist', '/email-settings', '/support-tickets', '/settings',
+            '/dashboard', '/employees', '/attendance', '/leaves', '/payroll', '/statutory', '/reports', '/departments', '/recruitment', '/performance', '/payroll-reports', '/expenses', '/shifts', '/attendance-settings', '/leave-settings', '/permission-settings', '/salary-settings', '/salary-components', '/roles', '/assets', '/compliance', '/organizations',
+            '/admin/dashboard', '/hr/dashboard', '/manager/dashboard', '/admin/analytics', '/superadmin/analytics', '/projects', '/vendors', '/field-tracking', '/job-cards', '/timesheets', '/travel', '/inventory', '/safety-inductions', '/incidents', '/ppe-records', '/reimbursements', '/allowances', '/authentication', '/location-tracking', '/compliance-logs', '/training', '/analytics', '/locations', '/revenue', '/ip-allowlist', '/email-settings', '/support-tickets', '/settings',
             '/admin/dashboard/payroll', '/admin/dashboard/payroll/employees', '/admin/dashboard/payroll/attendance', '/admin/dashboard/payroll/payroll-runs', '/admin/dashboard/payroll/payouts', '/admin/dashboard/payroll/reports', '/admin/dashboard/payroll/audit',
             '/payroll-module', '/payroll-module/employees', '/payroll-module/attendance', '/payroll-module/payroll-runs', '/payroll-module/payouts', '/payroll-module/reports', '/payroll-module/audit',
             '/employee/attendance', '/employee/dashboard', '/employee/profile', '/employee/payslips', '/employee/leaves',
             '/employee/site-attendance', '/employee/job-card', '/employee/shift-schedule', '/employee/timesheets',
             '/employee/travel-request', '/employee/reimbursement', '/employee/allowance', '/employee/esi-pf', '/employee/tax',
             '/employee/safety', '/employee/incident', '/employee/ppe', '/employee/training', '/employee/certifications', '/employee/skills',
-            '/employee/targets', '/employee/appraisals', '/employee/announcements', '/employee/documents', '/employee/team', '/employee/settings'
+            '/employee/targets', '/employee/appraisals', '/employee/announcements', '/employee/documents', '/employee/team', '/employee/settings',
+            '/hr/employees', '/hr/attendance', '/hr/leaves', '/hr/recruitment', '/hr/statutory',
+            '/manager/employees', '/manager/attendance', '/manager/leaves', '/manager/projects'
         ];
 
         // Ensure analytics works for admin even if it's named superadmin/analytics

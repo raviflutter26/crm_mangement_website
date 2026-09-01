@@ -6,12 +6,14 @@ import { API_ENDPOINTS } from "@/config/api";
 import PayrollTrendChart from "@/components/payroll/PayrollTrendChart";
 import PayslipModal from "@/components/payroll/PayslipModal";
 import { FiBarChart2, FiDownload, FiSearch, FiFileText } from "react-icons/fi";
+import { useToast } from "@/components/common/DialogProvider";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN")}`;
 
 export default function ReportsPage() {
+    const toast = useToast();
     const [records, setRecords] = useState<any[]>([]);
     const [runs, setRuns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -41,7 +43,7 @@ export default function ReportsPage() {
             document.body.removeChild(a);
         } catch (e) {
             console.error(e);
-            alert("Failed to download report");
+            toast.error("Failed to download report");
         } finally {
             setDownloadingReport(null);
         }

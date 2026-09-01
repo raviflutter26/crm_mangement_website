@@ -2,6 +2,7 @@
 
 import { FiDownload, FiPrinter } from "react-icons/fi";
 import { useState } from "react";
+import { useToast } from "@/components/common/DialogProvider";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -13,6 +14,7 @@ interface PayslipModalProps {
 }
 
 export default function PayslipModal({ data, onClose, companyName = "Solar Operations Pvt. Ltd." }: PayslipModalProps) {
+    const toast = useToast();
     const [isDownloading, setIsDownloading] = useState(false);
     if (!data) return null;
     const emp = data.employee || {};
@@ -116,7 +118,7 @@ export default function PayslipModal({ data, onClose, companyName = "Solar Opera
             await html2pdf().set(opt).from(wrapper).save();
         } catch (error) {
             console.error("PDF generation failed:", error);
-            alert("Failed to generate PDF. Please try using the Print button.");
+            toast.error("Failed to generate PDF. Please try using the Print button.");
         } finally {
             setIsDownloading(false);
         }

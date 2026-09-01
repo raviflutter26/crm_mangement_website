@@ -7,12 +7,14 @@ import {
     FiCalendar, FiAlertCircle, FiSettings, FiCheck, FiInfo 
 } from "react-icons/fi";
 import LoadingSkeleton from "@/components/common/LoadingSkeleton";
+import { useConfirm } from "@/components/common/DialogProvider";
 
 interface LeavePolicyPageProps {
     showNotify: (type: 'success' | 'failure' | 'warning', message: string) => void;
 }
 
 export default function LeavePolicyPage({ showNotify }: LeavePolicyPageProps) {
+    const confirmDialog = useConfirm();
     const [policies, setPolicies] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -59,7 +61,13 @@ export default function LeavePolicyPage({ showNotify }: LeavePolicyPageProps) {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this leave type?")) return;
+        const ok = await confirmDialog({
+            title: "Delete this leave type?",
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await axiosInstance.delete(`/api/admin/config/leave-policy/${id}`);
             showNotify('success', "Leave policy deleted.");

@@ -6,11 +6,14 @@ import { FiPlus, FiEdit2, FiTrash2, FiClock, FiMoon, FiSun, FiUsers, FiX, FiChec
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function ShiftManagementPage() {
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [organizations, setOrganizations] = useState<any[]>([]);
     const [selectedOrgId, setSelectedOrgId] = useState<string>("");
     const [shifts, setShifts] = useState<any[]>([]);
@@ -85,12 +88,17 @@ export default function ShiftManagementPage() {
             else await axiosInstance.post('/api/shifts', data);
             setShowModal(false);
             fetchShifts();
-        } catch (err: any) { alert("Error saving shift: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { toast.error(err.response?.data?.message || err.message); }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Delete this shift?")) return;
-        try { await axiosInstance.delete(`/api/shifts/${id}`); fetchShifts(); } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        const ok = await confirmDialog({
+            title: "Delete this shift?",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
+        try { await axiosInstance.delete(`/api/shifts/${id}`); fetchShifts(); } catch (err: any) { toast.error(err.response?.data?.message || err.message); }
     };
 
     const handleAssignShift = async (empId: string, shiftId: string) => {
@@ -100,7 +108,7 @@ export default function ShiftManagementPage() {
             setAssignFeedback(empId);
             setTimeout(() => setAssignFeedback(""), 2000);
             fetchShifts();
-        } catch (err: any) { alert("Error assigning shift: " + (err.response?.data?.message || err.message)); } finally { setAssigningLoading(false); }
+        } catch (err: any) { toast.error(err.response?.data?.message || err.message); } finally { setAssigningLoading(false); }
     };
 
     const toggleDay = (day: string) => {

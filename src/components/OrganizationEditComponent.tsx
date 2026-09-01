@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios";
 import { FiArrowLeft, FiSave, FiBriefcase, FiMapPin, FiClock } from "react-icons/fi";
+import { useToast } from "@/components/common/DialogProvider";
 
 export default function OrganizationEditComponent({ id }: { id: string }) {
     const router = useRouter();
+    const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState<any>(null);
@@ -49,7 +51,7 @@ export default function OrganizationEditComponent({ id }: { id: string }) {
                     esiApplicable: org.settings?.payroll?.esiEnabled || false
                 });
             } catch (err: any) {
-                alert("Error loading organization: " + (err.response?.data?.message || err.message));
+                toast.error(err.response?.data?.message || err.message || "Error loading organization");
             } finally {
                 setLoading(false);
             }
@@ -109,10 +111,10 @@ export default function OrganizationEditComponent({ id }: { id: string }) {
             };
 
             await axiosInstance.put(`/api/organizations/${id}`, payload);
-            alert("Configuration updated successfully");
-            router.push(`/superadmin/organizations/${id}`);
+            toast.success("Configuration updated successfully");
+            router.push(`/superadmin/organizations/view?id=${id}`);
         } catch (err: any) {
-            alert("Error updating configuration: " + (err.response?.data?.message || err.message));
+            toast.error(err.response?.data?.message || err.message || "Error updating configuration");
         } finally {
             setSaving(false);
         }

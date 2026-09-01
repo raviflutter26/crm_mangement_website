@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios";
 import { useAuth } from "@/lib/auth";
 import EmptyState from "@/components/common/EmptyState";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 import {
     FiPlus, FiEdit2, FiTrash2, FiEye, FiKey,
     FiSearch, FiChevronLeft, FiChevronRight, FiCheckCircle,
@@ -89,19 +91,54 @@ const SkeletonRow = () => (
     </tr>
 );
 
+const ACTION_MENU_WIDTH = 224; // w-56
+const ACTION_MENU_HEIGHT = 340; // approx rendered height of the 5 menu items + divider + padding
+
 const ActionMenu = ({ org, onView, onEdit, onImpersonate, onToggle, onDelete }: any) => {
     const [open, setOpen] = useState(false);
+    const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+
+    const computeCoords = () => {
+        const rect = buttonRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const openUpward = window.innerHeight - rect.bottom < ACTION_MENU_HEIGHT && rect.top > ACTION_MENU_HEIGHT;
+        setCoords({
+            left: Math.max(8, rect.right - ACTION_MENU_WIDTH),
+            top: openUpward ? rect.top - ACTION_MENU_HEIGHT - 8 : rect.bottom + 8,
+        });
+    };
+
+    const handleToggle = () => {
+        if (!open) computeCoords();
+        setOpen(v => !v);
+    };
+
+    useEffect(() => {
+        if (!open) return;
+        const close = () => setOpen(false);
+        window.addEventListener("scroll", close, true);
+        window.addEventListener("resize", close);
+        return () => {
+            window.removeEventListener("scroll", close, true);
+            window.removeEventListener("resize", close);
+        };
+    }, [open]);
+
     return (
         <div className="relative" tabIndex={0} onBlur={() => setTimeout(() => setOpen(false), 150)}>
             <button
-                onClick={() => setOpen(v => !v)}
+                ref={buttonRef}
+                onClick={handleToggle}
                 className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200 active:scale-90"
             >
                 <FiMoreVertical size={16} />
             </button>
-            {open && (
-                <div className="absolute right-0 top-11 z-30 w-56 bg-white border border-slate-200/80 rounded-2xl shadow-[0_16px_48px_-8px_rgba(0,0,0,0.12),0_4px_8px_-2px_rgba(0,0,0,0.06)] overflow-hidden p-2"
-                    style={{ animation: 'orgFadeScaleIn 0.15s ease-out' }}>
+            {open && coords && typeof document !== "undefined" && createPortal(
+                <div
+                    className="fixed z-50 bg-white border border-slate-200/80 rounded-2xl shadow-[0_16px_48px_-8px_rgba(0,0,0,0.12),0_4px_8px_-2px_rgba(0,0,0,0.06)] overflow-hidden p-2"
+                    style={{ width: ACTION_MENU_WIDTH, top: coords.top, left: coords.left, animation: 'orgFadeScaleIn 0.15s ease-out' }}
+                >
                     {[
                         { label: "View Details", icon: FiEye, onClick: onView, cls: "text-slate-600 hover:bg-slate-50 hover:text-slate-900" },
                         { label: "Edit Details", icon: FiEdit2, onClick: onEdit, cls: "text-blue-600 hover:bg-blue-50 hover:text-blue-700" },
@@ -124,7 +161,8 @@ const ActionMenu = ({ org, onView, onEdit, onImpersonate, onToggle, onDelete }: 
                             </button>
                         </div>
                     ))}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
@@ -135,6 +173,8 @@ const ActionMenu = ({ org, onView, onEdit, onImpersonate, onToggle, onDelete }: 
 export default function OrganizationListPage() {
     const router = useRouter();
     const { user } = useAuth();
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -146,6 +186,8 @@ export default function OrganizationListPage() {
     const [activeCount, setActiveCount] = useState(0);
     const [globalTotal, setGlobalTotal] = useState(0);
     const [globalActive, setGlobalActive] = useState(0);
+    const [pendingCount, setPendingCount] = useState(0);
+    const [suspendedCount, setSuspendedCount] = useState(0);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
     const [planFilter, setPlanFilter] = useState("All");
@@ -169,7 +211,7 @@ export default function OrganizationListPage() {
                     params: { page, limit, search, status: statusFilter, planType: planFilter },
                 });
                 const fetchedData = res.data.data?.data || res.data.data || [];
-                const pagination = res.data.data?.pagination || {};
+                const pagination = res.data.pagination || res.data.data?.pagination || {};
 
                 setOrganizations(fetchedData);
                 setTotal(pagination.total ?? fetchedData.length);
@@ -187,13 +229,37 @@ export default function OrganizationListPage() {
 
     useEffect(() => { fetchOrganizations(); }, [fetchOrganizations]);
 
+    const fetchHeroCounts = useCallback(async () => {
+        const role = user?.role?.toLowerCase();
+        if (role === 'admin') return; // Single-org admins don't see cross-tenant counts
+        const [pendingRes, suspendedRes] = await Promise.allSettled([
+            axiosInstance.get("/api/organizations", { params: { status: "Pending", limit: 1 } }),
+            axiosInstance.get("/api/organizations", { params: { status: "Suspended", limit: 1 } }),
+        ]);
+        if (pendingRes.status === "fulfilled") {
+            setPendingCount(pendingRes.value.data?.pagination?.total ?? 0);
+        }
+        if (suspendedRes.status === "fulfilled") {
+            setSuspendedCount(suspendedRes.value.data?.pagination?.total ?? 0);
+        }
+    }, [user?.role]);
+
+    useEffect(() => { fetchHeroCounts(); }, [fetchHeroCounts]);
+
     const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Permanently delete "${name}"? This action cannot be undone.`)) return;
+        const ok = await confirmDialog({
+            title: `Permanently delete "${name}"?`,
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await axiosInstance.delete(`/api/organizations/${id}`);
+            toast.success(`"${name}" has been deleted.`);
             fetchOrganizations(true);
         } catch (err: any) {
-            alert("Error: " + (err.response?.data?.message || err.message));
+            toast.error(err.response?.data?.message || err.message || "Failed to delete organization.");
         }
     };
 
@@ -201,19 +267,20 @@ export default function OrganizationListPage() {
         const newStatus = currentStatus === "active" ? "suspended" : "active";
         try {
             await axiosInstance.patch(`/api/organizations/${id}/status`, { status: newStatus });
+            toast.success(`Organization ${newStatus === "active" ? "activated" : "suspended"}.`);
             fetchOrganizations(true);
         } catch (err: any) {
-            alert("Status Sync Error: " + (err.response?.data?.message || err.message));
+            toast.error(err.response?.data?.message || err.message || "Failed to update status.");
         }
     };
 
     const handleImpersonate = async (id: string) => {
         try {
             const res = await axiosInstance.post(`/api/organizations/${id}/impersonate`);
-            localStorage.setItem("token", res.data.data.token);
+            localStorage.setItem("ravi_zoho_token", res.data.data.token);
             window.location.href = "/dashboard";
         } catch (err: any) {
-            alert("Root handshake failed: " + (err.response?.data?.message || err.message));
+            toast.error(err.response?.data?.message || err.message || "Impersonation failed.");
         }
     };
 
@@ -239,8 +306,8 @@ export default function OrganizationListPage() {
     const STATS = [
         { label: "Total Organizations", value: globalTotal || organizations.length, icon: FiLayers, color: "text-blue-500", bg: "bg-blue-500/10", trend: "Global", trendColor: "text-slate-400" },
         { label: "Active Units", value: globalActive || activeCount, icon: FiActivity, color: "text-[#FF7A00]", bg: "bg-orange-500/10", trend: "Online", trendColor: "text-emerald-400" },
-        { label: "Cluster Capacity", value: `${Math.round(((globalActive || activeCount) / 500) * 100)}%`, icon: FiShield, color: "text-violet-400", bg: "bg-violet-500/10", trend: "Shard A1", trendColor: "text-violet-400" },
-        { label: "Data Integrity", value: "Verified", icon: FiGlobe, color: "text-emerald-400", bg: "bg-emerald-500/10", trend: "Sync OK", trendColor: "text-emerald-400" },
+        { label: "Pending Approval", value: pendingCount, icon: FiAlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10", trend: pendingCount > 0 ? "Needs Review" : "All Clear", trendColor: pendingCount > 0 ? "text-amber-400" : "text-emerald-400", href: "/superadmin/organizations/pending" },
+        { label: "Suspended", value: suspendedCount, icon: FiXCircle, color: "text-red-400", bg: "bg-red-500/10", trend: suspendedCount > 0 ? "Action Needed" : "None", trendColor: suspendedCount > 0 ? "text-red-400" : "text-emerald-400", href: "/superadmin/organizations/suspended" },
     ];
 
     return (
@@ -353,7 +420,7 @@ export default function OrganizationListPage() {
                         {/* Actions */}
                         <div className="flex items-center gap-3 lg:mb-1">
                             <button
-                                onClick={() => fetchOrganizations(true)}
+                                onClick={() => { fetchOrganizations(true); fetchHeroCounts(); }}
                                 style={{ width: 44, height: 44 }}
                                 className={`flex items-center justify-center border border-slate-700/40 bg-slate-800/30 backdrop-blur-sm rounded-xl text-slate-400 hover:text-white hover:border-slate-500 hover:bg-slate-700/40 transition-all duration-200 active:scale-90 ${refreshing ? "animate-spin" : ""}`}
                                 title="Sync Registry"
@@ -375,7 +442,8 @@ export default function OrganizationListPage() {
                     <div className="grid grid-cols-2 lg:grid-cols-4 mt-8" style={{ gap: 12 }}>
                         {STATS.map((stat, i) => (
                             <div key={i}
-                                className="stat-card-hover bg-slate-800/25 backdrop-blur-md border border-slate-700/30 rounded-xl transition-all duration-300 cursor-default"
+                                onClick={stat.href ? () => router.push(stat.href!) : undefined}
+                                className={`stat-card-hover bg-slate-800/25 backdrop-blur-md border border-slate-700/30 rounded-xl transition-all duration-300 ${stat.href ? "cursor-pointer" : "cursor-default"}`}
                                 style={{ padding: 16, animation: `orgSlideUp 0.4s ease-out ${i * 0.08}s both` }}>
                                 <div className="flex items-center gap-3" style={{ marginBottom: 12 }}>
                                     <div className={`flex items-center justify-center rounded-lg ${stat.bg} ${stat.color}`}
@@ -590,8 +658,8 @@ export default function OrganizationListPage() {
                                                 <div className="flex justify-end">
                                                     <ActionMenu
                                                         org={org}
-                                                        onView={() => router.push(`/superadmin/organizations/${org._id}`)}
-                                                        onEdit={() => router.push(`/superadmin/organizations/${org._id}/edit`)}
+                                                        onView={() => router.push(`/superadmin/organizations/view?id=${org._id}`)}
+                                                        onEdit={() => router.push(`/superadmin/organizations/edit?id=${org._id}`)}
                                                         onImpersonate={() => handleImpersonate(org._id)}
                                                         onToggle={() => handleToggleStatus(org._id, org.status)}
                                                         onDelete={() => handleDelete(org._id, org.name)}

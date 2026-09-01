@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { FiPlus, FiEdit2, FiTrash2, FiBriefcase, FiUsers } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 interface DepartmentsPageProps {
     showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
@@ -13,6 +14,8 @@ interface DepartmentsPageProps {
 
 export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
     const { user } = useAuth();
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [departments, setDepartments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -119,16 +122,22 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
         } catch (err: any) {
             if (err.response?.status === 401) {
                 localStorage.removeItem('ravi_zoho_token');
-                alert("Session expired. Please try again.");
+                toast.error("Session expired. Please try again.");
             } else {
                 console.error("Failed to save department", err);
-                alert("Error saving department: " + (err.response?.data?.message || err.message));
+                toast.error(err.response?.data?.message || err.message || "Error saving department.");
             }
         }
     };
 
     const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+        const ok = await confirmDialog({
+            title: `Delete "${name}"?`,
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try {
             const token = await getToken();
             await axiosInstance.delete(`${API_ENDPOINTS.DEPARTMENTS}/${id}`);
@@ -136,10 +145,10 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
         } catch (err: any) {
             if (err.response?.status === 401) {
                 localStorage.removeItem('ravi_zoho_token');
-                alert("Session expired. Please try again.");
+                toast.error("Session expired. Please try again.");
             } else {
                 console.error("Failed to delete", err);
-                alert("Error deleting department.");
+                toast.error("Error deleting department.");
             }
         }
     };
@@ -155,7 +164,7 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
             setDeptEmployees(res.data.data || []);
         } catch (err) {
             console.error("Failed to fetch department employees", err);
-            alert("Error fetching employees for this department");
+            toast.error("Error fetching employees for this department");
         } finally {
             setLoadingEmployees(false);
         }

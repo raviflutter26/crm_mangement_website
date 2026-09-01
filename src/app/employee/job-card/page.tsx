@@ -1,14 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FiBriefcase, FiPlus, FiClock, FiCheckCircle, FiEdit3, FiTrash2, FiFileText, FiActivity, FiTag } from "react-icons/fi";
+import { FiBriefcase, FiPlus, FiClock, FiCheckCircle, FiFileText, FiActivity, FiTag, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/auth";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import { useToast } from "@/components/common/DialogProvider";
+
+const EMPTY_FORM = { site: "", task: "", description: "" };
 
 export default function JobCardPage() {
+    const { user } = useAuth();
+    const toast = useToast();
     const [jobs, setJobs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState<any>(EMPTY_FORM);
+    const [completingId, setCompletingId] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
@@ -19,6 +29,50 @@ export default function JobCardPage() {
     };
 
     useEffect(() => { fetchData(); }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.site.trim() || !formData.task.trim()) {
+            toast.error("Site and task are required");
+            return;
+        }
+        setSubmitting(true);
+        try {
+            await axiosInstance.post(API_ENDPOINTS.JOB_CARDS, {
+                ...formData,
+                employee: user?._id,
+                status: "Ongoing",
+                startTime: new Date().toISOString(),
+            });
+            toast.success("Job card created");
+            setShowModal(false);
+            setFormData(EMPTY_FORM);
+            fetchData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || "Failed to create job card");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleComplete = async (job: any) => {
+        setCompletingId(job._id);
+        try {
+            const endTime = new Date();
+            const startTime = job.startTime ? new Date(job.startTime) : endTime;
+            const totalMinutes = Math.max(0, Math.round((endTime.getTime() - startTime.getTime()) / 60000));
+            await axiosInstance.put(`${API_ENDPOINTS.JOB_CARDS}/${job._id}`, {
+                status: "Completed",
+                endTime: endTime.toISOString(),
+                totalMinutes,
+            });
+            fetchData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || "Failed to mark complete");
+        } finally {
+            setCompletingId(null);
+        }
+    };
 
     const totalMinutes = jobs.reduce((s, j) => s + (j.totalMinutes || 0), 0);
     const totalHours = (totalMinutes / 60).toFixed(1);
@@ -31,7 +85,11 @@ export default function JobCardPage() {
                     <h1 className="page-title" style={{ fontSize: "28px", fontWeight: 950 }}>Job Card Log</h1>
                     <p className="page-subtitle">Track precise work hours and tasks across different project sites.</p>
                 </div>
-                <button className="btn btn-primary" style={{ padding: "12px 24px", fontWeight: 800, display: "flex", alignItems: "center", gap: "10px", borderRadius: "14px" }}>
+                <button
+                    className="btn btn-primary"
+                    style={{ padding: "12px 24px", fontWeight: 800, display: "flex", alignItems: "center", gap: "10px", borderRadius: "14px" }}
+                    onClick={() => { setFormData(EMPTY_FORM); setShowModal(true); }}
+                >
                     <FiPlus size={18} /> NEW JOB ENTRY
                 </button>
             </motion.div>
@@ -71,10 +129,16 @@ export default function JobCardPage() {
                                         <div style={{ fontSize: "16px", fontWeight: 900, color: "#0f172a" }}>{job.totalMinutes ? `${(job.totalMinutes / 60).toFixed(1)}h` : '-'}</div>
                                         <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>Logged Duration</div>
                                     </div>
-                                    <div style={{ display: "flex", gap: "8px" }}>
-                                        <button className="btn btn-secondary btn-sm" style={{ padding: "10px", borderRadius: "10px" }}><FiEdit3 /></button>
-                                        <button className="btn btn-secondary btn-sm" style={{ padding: "10px", borderRadius: "10px", color: "#ef4444" }}><FiTrash2 /></button>
-                                    </div>
+                                    {job.status === 'Ongoing' && (
+                                        <button
+                                            className="btn btn-secondary btn-sm"
+                                            style={{ padding: "10px 14px", borderRadius: "10px", fontWeight: 800, display: "flex", alignItems: "center", gap: "6px" }}
+                                            onClick={() => handleComplete(job)}
+                                            disabled={completingId === job._id}
+                                        >
+                                            <FiCheckCircle /> {completingId === job._id ? "..." : "Complete"}
+                                        </button>
+                                    )}
                                 </motion.div>
                             ))}
                         </div>
@@ -87,6 +151,35 @@ export default function JobCardPage() {
                     </div>
                 )}
             </div>
+
+            {showModal && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+                    <div className="card" style={{ width: "100%", maxWidth: "480px", padding: "32px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                            <h2 style={{ fontSize: "22px", fontWeight: 800, margin: 0 }}>New Job Entry</h2>
+                            <button className="btn btn-secondary" style={{ padding: "8px" }} onClick={() => setShowModal(false)}><FiX /></button>
+                        </div>
+                        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                            <div>
+                                <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Site *</label>
+                                <input required type="text" className="form-input" value={formData.site} onChange={e => setFormData({ ...formData, site: e.target.value })} />
+                            </div>
+                            <div>
+                                <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Task *</label>
+                                <input required type="text" className="form-input" value={formData.task} onChange={e => setFormData({ ...formData, task: e.target.value })} />
+                            </div>
+                            <div>
+                                <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Description</label>
+                                <textarea className="form-input" rows={3} style={{ resize: "none" }} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                            </div>
+                            <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
+                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)} disabled={submitting}>Cancel</button>
+                                <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={submitting}>{submitting ? "Starting..." : "Start Job"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -9,6 +9,7 @@ import {
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const ROLES = [
     { value: "Admin", label: "Admin", color: "#EA4335", desc: "Full access to all modules" },
@@ -22,16 +23,18 @@ interface RoleManagementPageProps {
 }
 
 export default function RoleManagementPage({ showNotify }: RoleManagementPageProps) {
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
-    const [toast, setToast] = useState("");
+    const [successToast, setSuccessToast] = useState("");
     const [editingUser, setEditingUser] = useState<any>(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [modulePermissions, setModulePermissions] = useState<any[]>([]);
     const [savingPermissions, setSavingPermissions] = useState(false);
 
-    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+    const showToast = (msg: string) => { setSuccessToast(msg); setTimeout(() => setSuccessToast(""), 3000); };
 
     const fetchUsers = useCallback(async () => {
         try {
@@ -62,7 +65,7 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
             showToast("User updated successfully!");
             setShowEditModal(false);
             fetchUsers();
-        } catch (err: any) { alert(err.response?.data?.message || "Update failed"); }
+        } catch (err: any) { toast.error(err.response?.data?.message || "Update failed"); }
     };
 
     const filteredUsers = users.filter(u =>
@@ -94,7 +97,7 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
             showToast("Permissions updated successfully!");
         } catch (err) {
             console.error(err);
-            alert("Failed to save permissions");
+            toast.error("Failed to save permissions");
         } finally {
             setSavingPermissions(false);
         }
@@ -299,9 +302,9 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
                 </div>
             )}
 
-            {toast && (
+            {successToast && (
                 <div style={{ position: "fixed", bottom: "20px", right: "20px", background: "rgba(34, 197, 94, 0.9)", color: "white", padding: "12px 20px", borderRadius: "8px", zIndex: 3000, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)", display: "flex", alignItems: "center", gap: "10px", fontWeight: 600 }}>
-                    <FiCheckCircle size={20} /> {toast}
+                    <FiCheckCircle size={20} /> {successToast}
                 </div>
             )}
         </>

@@ -6,6 +6,7 @@ import { FiMonitor, FiPlus, FiEdit2, FiTrash2, FiCheckCircle, FiPackage, FiTool,
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const STATUS_COLORS: any = {
     available: "active", assigned: "processing", "under-repair": "pending",
@@ -22,6 +23,8 @@ interface AssetPageProps {
 }
 
 export default function AssetPage({ showNotify }: AssetPageProps) {
+    const confirmDialog = useConfirm();
+    const dialogToast = useToast();
     const [assets, setAssets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -76,20 +79,26 @@ export default function AssetPage({ showNotify }: AssetPageProps) {
                 showToast("Asset added!");
             }
             setShowModal(false); fetchData();
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure?")) return;
+        const ok = await confirmDialog({
+            title: "Delete this asset?",
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try { await axiosInstance.delete(`${API_ENDPOINTS.ASSETS}/${id}`); showToast("Deleted!"); fetchData(); }
-        catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const handleReturn = async (id: string) => {
         try {
             await axiosInstance.patch(`${API_ENDPOINTS.ASSETS}/${id}/return`, { condition: "good" });
             showToast("Asset returned!"); fetchData();
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const stats = [

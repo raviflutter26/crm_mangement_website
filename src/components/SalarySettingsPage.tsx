@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_BASE_URL } from "@/config/api";
 import { FiSave, FiPlus, FiTrash2, FiPercent, FiInfo, FiEdit2, FiTrendingUp } from "react-icons/fi";
+import { useConfirm } from "@/components/common/DialogProvider";
 
 export default function SalarySettingsPage({ showNotify }: { showNotify: (type: any, msg: string) => void }) {
+    const confirmDialog = useConfirm();
     const [templates, setTemplates] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [previewCTC, setPreviewCTC] = useState(50000);
@@ -48,7 +50,13 @@ export default function SalarySettingsPage({ showNotify }: { showNotify: (type: 
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this template?")) return;
+        const ok = await confirmDialog({
+            title: "Delete this template?",
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await axiosInstance.delete(`${API_BASE_URL}/api/salary-templates/${id}`);
             showNotify('success', "Template deleted");

@@ -80,35 +80,35 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         },
         ctc: editEmployee?.ctc || 0,
         paymentCycle: editEmployee?.paymentCycle || "Monthly",
-        esiDeductionCycle: editEmployee?.statutory?.esi?.esiDeductionCycle || editEmployee?.esiDeductionCycle || "Monthly",
-        // Statutory Nested Object Mapping for Edit (Standardized)
-        pfEnabled: editEmployee?.statutory?.pf?.epfEnabled ?? editEmployee?.pfEnabled ?? true,
+        esiDeductionCycle: editEmployee?.statutory?.esi?.deductionCycle || editEmployee?.esiDeductionCycle || "Monthly",
+        // Statutory Nested Object Mapping for Edit (matches backend/src/models/User.js schema paths)
+        pfEnabled: editEmployee?.statutory?.pf?.enabled ?? editEmployee?.pfEnabled ?? true,
         uan: editEmployee?.statutory?.pf?.uanNumber || editEmployee?.uan || "",
-        pfNumber: editEmployee?.statutory?.pf?.epfNumber || editEmployee?.pfNumber || "",
+        pfNumber: editEmployee?.statutory?.pf?.pfNumber || editEmployee?.pfNumber || "",
         pfJoiningDate: (editEmployee?.statutory?.pf?.pfJoiningDate || editEmployee?.pfJoiningDate || "").split('T')[0],
         pfEmployeeContributionRate: editEmployee?.statutory?.pf?.employeeContributionRate || editEmployee?.pfEmployeeContributionRate || 12,
         pfEmployerContributionRate: editEmployee?.statutory?.pf?.employerContributionRate || editEmployee?.pfEmployerContributionRate || 12,
         pfContributionPreferences: {
-            employerPF: editEmployee?.statutory?.pf?.contributionPreferences?.employerPFContribution ?? editEmployee?.pfContributionPreferences?.employerPF ?? true,
-            edli: editEmployee?.statutory?.pf?.contributionPreferences?.edliContribution ?? editEmployee?.pfContributionPreferences?.edli ?? true,
-            adminCharges: editEmployee?.statutory?.pf?.contributionPreferences?.adminCharges ?? editEmployee?.pfContributionPreferences?.adminCharges ?? true
+            employerPF: editEmployee?.statutory?.pf?.contributionPreferences?.includeEmployerPF ?? editEmployee?.pfContributionPreferences?.employerPF ?? true,
+            edli: editEmployee?.statutory?.pf?.contributionPreferences?.includeEDLI ?? editEmployee?.pfContributionPreferences?.edli ?? true,
+            adminCharges: editEmployee?.statutory?.pf?.contributionPreferences?.includeAdminCharges ?? editEmployee?.pfContributionPreferences?.adminCharges ?? true
         },
-        pfOverrideEnabled: editEmployee?.statutory?.pf?.allowEmployeeLevelOverride ?? editEmployee?.pfOverrideEnabled ?? false,
+        pfOverrideEnabled: editEmployee?.statutory?.pf?.allowOverride ?? editEmployee?.pfOverrideEnabled ?? false,
         pfProRateRestrictedWage: editEmployee?.statutory?.pf?.proRateRestrictedPFWage ?? editEmployee?.pfProRateRestrictedWage ?? true,
-        pfLOPBased: editEmployee?.statutory?.pf?.considerSalaryComponentsOnLOP ?? editEmployee?.pfLOPBased ?? true,
-        pfABRYEligible: editEmployee?.statutory?.pf?.eligibleForABRYScheme ?? editEmployee?.pfABRYEligible ?? false,
-        esiEnabled: editEmployee?.statutory?.esi?.esiEnabled ?? editEmployee?.esiEnabled ?? true,
+        pfLOPBased: editEmployee?.statutory?.pf?.considerComponentsOnLOP ?? editEmployee?.pfLOPBased ?? true,
+        pfABRYEligible: editEmployee?.statutory?.pf?.eligibleForABRY ?? editEmployee?.pfABRYEligible ?? false,
+        esiEnabled: editEmployee?.statutory?.esi?.enabled ?? editEmployee?.esiEnabled ?? true,
         esiNumber: editEmployee?.statutory?.esi?.esiNumber || editEmployee?.esiNumber || "",
         esiJoiningDate: (editEmployee?.statutory?.esi?.esiJoiningDate || editEmployee?.esiJoiningDate || "").split('T')[0],
         esiDispensary: editEmployee?.statutory?.esi?.dispensary || editEmployee?.esiDispensary || "",
-        esiSalaryLimit: editEmployee?.statutory?.esi?.esiSalaryLimit || editEmployee?.esiSalaryLimit || 21000,
-        ptEnabled: editEmployee?.statutory?.pt?.ptEnabled ?? editEmployee?.ptEnabled ?? false,
+        esiSalaryLimit: editEmployee?.statutory?.esi?.salaryLimit || editEmployee?.esiSalaryLimit || 21000,
+        ptEnabled: editEmployee?.statutory?.pt?.enabled ?? editEmployee?.ptEnabled ?? false,
         ptNumber: editEmployee?.statutory?.pt?.ptRegistrationNumber || editEmployee?.ptNumber || "",
-        ptDeductionCycle: editEmployee?.statutory?.pt?.ptDeductionCycle || editEmployee?.ptDeductionCycle || "Monthly",
-        lwfEnabled: editEmployee?.statutory?.lwf?.lwfEnabled ?? editEmployee?.lwfEnabled ?? false,
+        ptDeductionCycle: editEmployee?.statutory?.pt?.deductionCycle || editEmployee?.ptDeductionCycle || "Monthly",
+        lwfEnabled: editEmployee?.statutory?.lwf?.enabled ?? editEmployee?.lwfEnabled ?? false,
         lwfNumber: editEmployee?.statutory?.lwf?.lwfAccountNumber || editEmployee?.lwfNumber || "",
-        lwfDeductionCycle: editEmployee?.statutory?.lwf?.lwfDeductionCycle || editEmployee?.lwfDeductionCycle || "Monthly",
-        statutoryBonusEnabled: editEmployee?.statutory?.statutoryBonus?.statutoryBonusEnabled ?? editEmployee?.statutoryBonusEnabled ?? false,
+        lwfDeductionCycle: editEmployee?.statutory?.lwf?.deductionCycle || editEmployee?.lwfDeductionCycle || "Monthly",
+        statutoryBonusEnabled: editEmployee?.statutory?.statutoryBonus?.enabled ?? editEmployee?.statutoryBonusEnabled ?? false,
         statutoryBonusAmount: editEmployee?.statutory?.statutoryBonus?.bonusAmount || editEmployee?.statutoryBonusAmount || 0,
         bankDetails: {
             bankName: editEmployee?.bankDetails?.bankName || "",
@@ -133,7 +133,6 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             pincode: editEmployee?.address?.pincode || editEmployee?.address?.zipCode || ""
         },
         role: editEmployee?.role || "Employee",
-        generateCredentials: true,
         sendWelcomeEmail: true
     });
 
@@ -400,7 +399,11 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     };
 
     const generateEmpId = () => {
-        const id = "SRS" + Math.floor(1000 + Math.random() * 9000);
+        const existingIds = new Set(employees.map((e: any) => e.employeeId));
+        let id = "";
+        do {
+            id = "SRS" + Math.floor(100000 + Math.random() * 900000);
+        } while (existingIds.has(id));
         setFormData({ ...formData, employeeId: id });
     };
 
@@ -438,6 +441,9 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                 if (age < 18) {
                     isValid = false; newErrors.dateOfBirth = "Employee must be 18 years or older"; missingFields.push("Underage (18+)");
                 }
+            }
+            if (currentUser?.role === 'superadmin' && !formData.organizationId) {
+                isValid = false; newErrors.organizationId = "Organization is required"; missingFields.push("Organization");
             }
         } else if (currentStepName === "Work Info") {
             if (!formData.department || (Array.isArray(formData.department) && formData.department.length === 0)) { isValid = false; newErrors.department = "At least one department is required"; missingFields.push("Department"); }
@@ -512,44 +518,46 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
     const handleSubmit = async () => {
         setLoading(true);
         try {
+            // Field names here must match backend/src/models/User.js's statutory schema paths exactly —
+            // Mongoose silently drops any sub-field name that doesn't match the schema.
             const statutory = {
                 pf: {
-                    epfEnabled: formData.pfEnabled,
+                    enabled: formData.pfEnabled,
                     uanNumber: formData.uan,
-                    epfNumber: formData.pfNumber,
+                    pfNumber: formData.pfNumber,
                     pfJoiningDate: formData.pfJoiningDate,
                     employeeContributionRate: formData.pfEmployeeContributionRate,
                     employerContributionRate: formData.pfEmployerContributionRate,
                     contributionPreferences: {
-                        employerPFContribution: formData.pfContributionPreferences.employerPF,
-                        edliContribution: formData.pfContributionPreferences.edli,
-                        adminCharges: formData.pfContributionPreferences.adminCharges
+                        includeEmployerPF: formData.pfContributionPreferences.employerPF,
+                        includeEDLI: formData.pfContributionPreferences.edli,
+                        includeAdminCharges: formData.pfContributionPreferences.adminCharges
                     },
-                    allowEmployeeLevelOverride: formData.pfOverrideEnabled,
+                    allowOverride: formData.pfOverrideEnabled,
                     proRateRestrictedPFWage: formData.pfProRateRestrictedWage,
-                    considerSalaryComponentsOnLOP: formData.pfLOPBased,
-                    eligibleForABRYScheme: formData.pfABRYEligible
+                    considerComponentsOnLOP: formData.pfLOPBased,
+                    eligibleForABRY: formData.pfABRYEligible
                 },
                 esi: {
-                    esiEnabled: formData.esiEnabled,
+                    enabled: formData.esiEnabled,
                     esiNumber: formData.esiNumber,
                     esiJoiningDate: formData.esiJoiningDate,
                     dispensary: formData.esiDispensary,
-                    esiSalaryLimit: formData.esiSalaryLimit,
-                    esiDeductionCycle: formData.esiDeductionCycle
+                    salaryLimit: formData.esiSalaryLimit,
+                    deductionCycle: formData.esiDeductionCycle
                 },
                 pt: {
-                    ptEnabled: formData.ptEnabled,
+                    enabled: formData.ptEnabled,
                     ptRegistrationNumber: formData.ptNumber,
-                    ptDeductionCycle: formData.ptDeductionCycle
+                    deductionCycle: formData.ptDeductionCycle
                 },
                 lwf: {
-                    lwfEnabled: formData.lwfEnabled,
+                    enabled: formData.lwfEnabled,
                     lwfAccountNumber: formData.lwfNumber,
-                    lwfDeductionCycle: formData.lwfDeductionCycle
+                    deductionCycle: formData.lwfDeductionCycle
                 },
                 statutoryBonus: {
-                    statutoryBonusEnabled: formData.statutoryBonusEnabled,
+                    enabled: formData.statutoryBonusEnabled,
                     bonusAmount: formData.statutoryBonusAmount
                 }
             };
@@ -1354,13 +1362,6 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 <div>
                                     <div style={{ fontWeight: 600 }}>Send Welcome Email</div>
                                     <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Employee will receive an invitation to set their password.</div>
-                                </div>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "15px", padding: "15px", background: "var(--bg-secondary)", borderRadius: "10px" }}>
-                                <input type="checkbox" name="generateCredentials" checked={formData.generateCredentials} onChange={handleInputChange} style={{ width: "20px", height: "20px" }} />
-                                <div>
-                                    <div style={{ fontWeight: 600 }}>Auto-Generate Credentials</div>
-                                    <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>System will automatically create a user account for this employee.</div>
                                 </div>
                             </div>
                         </div>

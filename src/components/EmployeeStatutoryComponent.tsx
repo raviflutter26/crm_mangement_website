@@ -4,9 +4,11 @@ import { useState, useEffect, use } from "react";
 import axiosInstance from "@/lib/axios";
 import { FiShield, FiSave, FiAlertCircle, FiArrowLeft, FiCheckCircle, FiInfo } from "react-icons/fi";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/common/DialogProvider";
 
 export default function EmployeeStatutoryComponent({ id }: { id: string }) {
     const router = useRouter();
+    const toast = useToast();
     const [statutory, setStatutory] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -55,16 +57,18 @@ export default function EmployeeStatutoryComponent({ id }: { id: string }) {
         setSaving(true);
         try {
             await axiosInstance.put(`/api/statutory/employee/${id}`, statutory);
-            alert("Statutory details for " + employee.firstName + " updated successfully!");
+            toast.success("Statutory details for " + employee.firstName + " updated successfully!");
         } catch (err) {
-            alert("Failed to update statutory details");
+            toast.error("Failed to update statutory details");
         } finally {
             setSaving(false);
         }
     };
 
     const showNotify = (type: string, msg: string) => {
-        alert(msg);
+        if (type === "success") toast.success(msg);
+        else if (type === "failure") toast.error(msg);
+        else toast.info(msg);
     };
 
     if (loading) return <div style={{ padding: "40px", textAlign: "center", color: "#64748B" }}>Loading employee statutory details...</div>;

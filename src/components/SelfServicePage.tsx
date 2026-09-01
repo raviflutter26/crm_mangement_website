@@ -7,6 +7,7 @@ import {
     FiMessageSquare, FiPlus, FiCheckCircle, FiAlertCircle, FiChevronRight
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import { useToast } from "@/components/common/DialogProvider";
 
 const PRIORITY_COLORS: any = { low: "active", medium: "pending", high: "leave", urgent: "inactive" };
 const STATUS_COLORS: any = { open: "pending", "in-progress": "processing", resolved: "active", closed: "inactive" };
@@ -24,6 +25,7 @@ export default function SelfServicePage({ showNotify }: SelfServicePageProps) {
     const [showTicketModal, setShowTicketModal] = useState(false);
     const [ticketForm, setTicketForm] = useState<any>({ category: "general", priority: "medium" });
     const [toast, setToast] = useState("");
+    const dialogToast = useToast();
 
     useEffect(() => {
         try {
@@ -62,7 +64,7 @@ export default function SelfServicePage({ showNotify }: SelfServicePageProps) {
             setShowTicketModal(false);
             setTicketForm({ category: "general", priority: "medium" });
             fetchData();
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
 
     const quickActions = [

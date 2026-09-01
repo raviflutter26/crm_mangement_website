@@ -7,9 +7,12 @@ import {
     FiArrowLeft, FiEdit2, FiTrash2, FiKey, FiPauseCircle, FiPlayCircle, FiBriefcase, FiZap, FiCreditCard, FiClock, FiMapPin
 } from "react-icons/fi";
 import dayjs from "dayjs";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 export default function OrganizationViewComponent({ id }: { id: string }) {
     const router = useRouter();
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [org, setOrg] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("Overview");
@@ -19,7 +22,7 @@ export default function OrganizationViewComponent({ id }: { id: string }) {
             const res = await axiosInstance.get(`/api/organizations/${id}`);
             setOrg(res.data.data);
         } catch (err: any) {
-            alert("Error loading organization: " + (err.response?.data?.message || err.message));
+            toast.error(err.response?.data?.message || err.message || "Error loading organization");
         } finally {
             setLoading(false);
         }
@@ -31,28 +34,44 @@ export default function OrganizationViewComponent({ id }: { id: string }) {
 
     const handleToggleStatus = async () => {
         const newStatus = org.status === 'active' ? 'suspended' : 'active';
-        if (!confirm(`Change status to ${newStatus}?`)) return;
+        const ok = await confirmDialog({
+            title: `Change status to ${newStatus}?`,
+            confirmLabel: "Confirm",
+            danger: newStatus === 'suspended',
+        });
+        if (!ok) return;
         try {
             await axiosInstance.patch(`/api/organizations/${id}/status`, { status: newStatus });
             fetchOrg();
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { toast.error(err.response?.data?.message || err.message); }
     };
 
     const handleDelete = async () => {
-        if (!confirm(`Are you sure you want to delete ${org.name}?`)) return;
+        const ok = await confirmDialog({
+            title: `Permanently delete "${org.name}"?`,
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await axiosInstance.delete(`/api/organizations/${id}`);
             router.push('/superadmin/organizations');
-        } catch (err: any) { alert("Error: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { toast.error(err.response?.data?.message || err.message); }
     };
 
     const handleImpersonate = async () => {
-        if (!confirm("Login as Organization Admin? You will be redirected.")) return;
+        const ok = await confirmDialog({
+            title: "Login as Organization Admin?",
+            description: "You will be redirected.",
+            confirmLabel: "Continue",
+        });
+        if (!ok) return;
         try {
             const res = await axiosInstance.post(`/api/organizations/${id}/impersonate`);
-            localStorage.setItem('token', res.data.data.token);
+            localStorage.setItem('ravi_zoho_token', res.data.data.token);
             window.location.href = '/dashboard';
-        } catch (err: any) { alert("Impersonation failed: " + (err.response?.data?.message || err.message)); }
+        } catch (err: any) { toast.error(err.response?.data?.message || err.message || "Impersonation failed."); }
     };
 
     if (loading) return <div className="p-8 text-center text-[#94A3B8] animate-pulse">Synchronizing vault records...</div>;
@@ -108,7 +127,7 @@ export default function OrganizationViewComponent({ id }: { id: string }) {
                             <button onClick={handleImpersonate} className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#FF7A00] hover:bg-slate-50 rounded-xl shadow-xl transition-all font-black text-[10px] uppercase tracking-widest active:scale-95 group">
                                 <FiKey className="group-hover:rotate-45 transition-transform" /> LOGIN AS ADMIN
                             </button>
-                            <button onClick={() => router.push(`/superadmin/organizations/${org._id}/edit`)} className="flex items-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl border border-white/35 backdrop-blur-md transition-all font-black text-[10px] uppercase tracking-widest active:scale-95">
+                            <button onClick={() => router.push(`/superadmin/organizations/edit?id=${org._id}`)} className="flex items-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl border border-white/35 backdrop-blur-md transition-all font-black text-[10px] uppercase tracking-widest active:scale-95">
                                 <FiEdit2 /> EDIT SETTINGS
                             </button>
                             <button onClick={handleToggleStatus} className="flex items-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl border border-white/35 backdrop-blur-md transition-all font-black text-[10px] uppercase tracking-widest active:scale-95">

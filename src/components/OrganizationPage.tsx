@@ -7,6 +7,7 @@ import {
     FiPlus, FiEdit2, FiTrash2, FiCheckCircle
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const TABS = [
     { id: "designations", label: "Designations", icon: FiAward },
@@ -79,6 +80,8 @@ interface OrganizationPageProps {
 }
 
 export default function OrganizationPage({ showNotify }: OrganizationPageProps) {
+    const confirmDialog = useConfirm();
+    const dialogToast = useToast();
     const [activeTab, setActiveTab] = useState("designations");
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -139,18 +142,24 @@ export default function OrganizationPage({ showNotify }: OrganizationPageProps) 
             setShowModal(false);
             fetchData();
         } catch (err: any) {
-            alert("Error: " + (err.response?.data?.message || err.message));
+            dialogToast.error(err.response?.data?.message || err.message);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this?")) return;
+        const ok = await confirmDialog({
+            title: "Delete this record?",
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await axiosInstance.delete(`${ENDPOINTS[activeTab]}/${id}`);
             showToast("Deleted successfully!");
             fetchData();
         } catch (err: any) {
-            alert("Error deleting: " + (err.response?.data?.message || err.message));
+            dialogToast.error(err.response?.data?.message || err.message);
         }
     };
 

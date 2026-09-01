@@ -8,6 +8,7 @@ import {
     FiPlay, FiThumbsUp, FiCreditCard, FiLock, FiDownload,
     FiChevronRight, FiClock, FiCheckCircle, FiAlertCircle
 } from "react-icons/fi";
+import { useToast } from "@/components/common/DialogProvider";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN")}`;
@@ -22,6 +23,7 @@ const FLOW = [
 ];
 
 export default function PayrollRunsPage() {
+    const toast = useToast();
     const [runs, setRuns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedRun, setSelectedRun] = useState<any>(null);
@@ -32,9 +34,9 @@ export default function PayrollRunsPage() {
     const [processing, setProcessing] = useState<string | null>(null);
     const [payslipData, setPayslipData] = useState<any>(null);
     const [complianceSettings, setComplianceSettings] = useState<any>(null);
-    const [toast, setToast] = useState("");
+    const [runToast, setRunToast] = useState("");
 
-    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
+    const showToast = (msg: string) => { setRunToast(msg); setTimeout(() => setRunToast(""), 3500); };
 
     const fetchRuns = useCallback(async () => {
         setLoading(true);
@@ -58,7 +60,7 @@ export default function PayrollRunsPage() {
             showToast(res.data.message || "Payroll run initiated!");
             setRunModal(false);
             fetchRuns();
-        } catch (e: any) { alert(e.response?.data?.message || "Failed to run payroll"); }
+        } catch (e: any) { toast.error(e.response?.data?.message || "Failed to run payroll"); }
         finally { setRunning(false); }
     };
 
@@ -67,7 +69,7 @@ export default function PayrollRunsPage() {
         try {
             await axiosInstance.patch(`${API_ENDPOINTS.PAYROLL_RUNS}/${id}/approve`);
             showToast("Payroll approved! ✅"); fetchRuns();
-        } catch (e: any) { alert(e.response?.data?.message || "Approval failed"); }
+        } catch (e: any) { toast.error(e.response?.data?.message || "Approval failed"); }
         finally { setProcessing(null); }
     };
 
@@ -76,7 +78,7 @@ export default function PayrollRunsPage() {
         try {
             await axiosInstance.post(API_ENDPOINTS.PAYROLL_LOCK(id));
             showToast("Payroll locked 🔒 — Ready for disbursement"); fetchRuns();
-        } catch (e: any) { alert(e.response?.data?.message || "Lock failed"); }
+        } catch (e: any) { toast.error(e.response?.data?.message || "Lock failed"); }
         finally { setProcessing(null); }
     };
 
@@ -85,7 +87,7 @@ export default function PayrollRunsPage() {
         try {
             const res = await axiosInstance.post(API_ENDPOINTS.PAYOUTS_INITIATE, { runId: id });
             showToast(res.data.message || "Disbursement initiated via RazorpayX! 💸"); fetchRuns();
-        } catch (e: any) { alert(e.response?.data?.message || "Disbursement failed"); }
+        } catch (e: any) { toast.error(e.response?.data?.message || "Disbursement failed"); }
         finally { setProcessing(null); }
     };
 
@@ -317,9 +319,9 @@ export default function PayrollRunsPage() {
             {/* Payslip Modal */}
             {payslipData && <PayslipModal data={payslipData} onClose={() => setPayslipData(null)} />}
 
-            {toast && (
+            {runToast && (
                 <div style={{ position: "fixed", bottom: 24, right: 24, background: "#059669", color: "#fff", padding: "12px 20px", borderRadius: 12, zIndex: 3000, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
-                    <FiCheckCircle size={18} /> {toast}
+                    <FiCheckCircle size={18} /> {runToast}
                 </div>
             )}
         </>

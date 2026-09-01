@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { FiPlus, FiEdit2, FiTrash2, FiMapPin, FiGlobe } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
+import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 interface LocationsPageProps {
     showNotify?: (type: 'success' | 'failure' | 'warning', message: string) => void;
@@ -13,6 +14,8 @@ interface LocationsPageProps {
 
 export default function LocationsPage({ showNotify }: LocationsPageProps) {
     const { user } = useAuth();
+    const confirmDialog = useConfirm();
+    const toast = useToast();
     const [locations, setLocations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -95,18 +98,24 @@ export default function LocationsPage({ showNotify }: LocationsPageProps) {
             fetchData();
         } catch (err: any) {
             console.error("Failed to save location", err);
-            alert("Error saving location");
+            toast.error("Error saving location");
         }
     };
 
     const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+        const ok = await confirmDialog({
+            title: `Delete ${name}?`,
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await axiosInstance.delete(`${API_ENDPOINTS.LOCATIONS}/${id}`);
             fetchData();
         } catch (err: any) {
             console.error("Failed to delete", err);
-            alert("Error deleting location");
+            toast.error("Error deleting location");
         }
     };
 
