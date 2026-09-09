@@ -52,22 +52,15 @@ export default function HealthDashboard() {
             setError(null);
         } catch (err: any) {
             console.error("Health Check Failed:", err);
-            setError("Failed to fetch system health data.");
-            // Mocking for Elite UX preview if backend fails
-            setData({
-                status: "Operational",
-                uptime: "99.98%",
-                activeIncidents: 0,
-                metrics: { cpuLoad: "12%", memUsage: "4.2 GB", errorRate: "0.01%", requestLatency: "48ms", uptimeSeconds: 864000 },
-                services: [
-                    { id: "1", name: "Auth Engine", status: "Healthy", latency: "12ms" },
-                    { id: "2", name: "Query Optimizer", status: "Healthy", latency: "45ms" },
-                    { id: "3", name: "Storage Cluster", status: "Healthy", latency: "5ms" },
-                    { id: "4", name: "CDN Gateway", status: "Healthy", latency: "2ms" }
-                ],
-                securityLogs: [],
-                deployment: { version: "v4.2.1-stable", hash: "8d9f1a2", deployedAt: new Date().toISOString() }
-            });
+            // A health dashboard must never invent a healthy reading. Falling back
+            // to "Operational / 99.98% uptime" reported the system as fine at
+            // exactly the moment it had stopped responding.
+            setError(
+                err.response?.status === 403
+                    ? "You do not have permission to view system health."
+                    : "The health endpoint did not respond. The API may be down."
+            );
+            setData(null);
         } finally {
             setLoading(false);
         }
@@ -80,6 +73,38 @@ export default function HealthDashboard() {
     }, []);
 
     if (loading && !data) return <div className="loading-container"><FiLoader className="rotate" /></div>;
+
+    if (error || !data) {
+        return (
+            <div className="page-content" style={{ background: 'var(--bg-primary)' }}>
+                <div className="page-header" style={{ marginBottom: "32px" }}>
+                    <div>
+                        <h1 className="page-title" style={{ fontSize: "28px", fontWeight: 900 }}>Infrastructure Health</h1>
+                        <p className="page-subtitle">Real-time cluster monitoring and service heartbeat console.</p>
+                    </div>
+                </div>
+                <div
+                    role="alert"
+                    style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+                        padding: '48px 24px', textAlign: 'center',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        background: 'rgba(239, 68, 68, 0.06)',
+                    }}
+                >
+                    <FiAlertCircle size={32} color="#ef4444" />
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#ef4444' }}>Status Unknown</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '460px' }}>
+                        {error || "No health data was returned."}
+                    </div>
+                    <button className="btn btn-secondary" style={{ marginTop: '8px' }} onClick={fetchHealth}>
+                        Retry now
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>

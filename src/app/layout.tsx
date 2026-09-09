@@ -3,9 +3,9 @@ import "./globals.css";
 import "./tailwind.css";
 
 export const metadata: Metadata = {
-  title: "Ravi Zoho - HR & Payroll Management",
-  description: "Comprehensive HR and Payroll management system integrated with Zoho People and Zoho Payroll. Manage employees, attendance, leaves, and payroll seamlessly.",
-  keywords: ["Zoho", "HR", "Payroll", "Employee Management", "Attendance", "Leave Management"],
+  title: "RIVO — HR & Payroll Management",
+  description: "RIVO unifies employee management, attendance, leave tracking, and statutory-compliant payroll (EPF, ESI, PT, LWF) in one platform.",
+  keywords: ["RIVO", "HRMS", "HR", "Payroll", "Employee Management", "Attendance", "Leave Management", "EPF", "ESI"],
 };
 
 import { AuthProvider } from "@/lib/auth";

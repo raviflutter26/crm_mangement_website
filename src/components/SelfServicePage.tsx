@@ -7,6 +7,8 @@ import {
     FiMessageSquare, FiPlus, FiCheckCircle, FiAlertCircle, FiChevronRight
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import ErrorState from "@/components/common/ErrorState";
+import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import { useToast } from "@/components/common/DialogProvider";
 
 const PRIORITY_COLORS: any = { low: "active", medium: "pending", high: "leave", urgent: "inactive" };
@@ -34,19 +36,21 @@ export default function SelfServicePage({ showNotify }: SelfServicePageProps) {
         } catch (e) { }
     }, []);
 
+    const [errors, setErrors] = useState<FetchError[]>([]);
+
     const fetchData = async () => {
         setLoading(true);
-        try {
-            const [tRes, lRes, aRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.SUPPORT_TICKETS).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.LEAVES).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.ATTENDANCE).catch(() => ({ data: { data: [] } })),
-            ]);
-            setTickets(tRes.data.data || []);
-            setLeaves(lRes.data.data || []);
-            setAttendance(aRes.data.data || []);
-        } catch (err) { console.error("Fetch error", err); }
-        finally { setLoading(false); }
+        const { results, errors: errs } = await settleAll([
+            axiosInstance.get(API_ENDPOINTS.SUPPORT_TICKETS),
+            axiosInstance.get(API_ENDPOINTS.LEAVES),
+            axiosInstance.get(API_ENDPOINTS.ATTENDANCE),
+        ]);
+        const [tRes, lRes, aRes] = results;
+        setTickets(unwrap<any[]>(tRes, []));
+        setLeaves(unwrap<any[]>(lRes, []));
+        setAttendance(unwrap<any[]>(aRes, []));
+        setErrors(errs);
+        setLoading(false);
     };
 
     useEffect(() => { fetchData(); }, []);
@@ -83,6 +87,8 @@ export default function SelfServicePage({ showNotify }: SelfServicePageProps) {
                     <p className="page-subtitle">Welcome back, {user?.name || "Employee"} — manage your profile and requests</p>
                 </div>
             </div>
+
+            <ErrorState errors={errors} onRetry={fetchData} title="Some of your records could not be loaded" />
 
             {/* Profile Card */}
             <div className="card" style={{ marginBottom: "20px" }}>

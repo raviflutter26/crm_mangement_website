@@ -153,7 +153,7 @@ export default function DashboardPage({ showNotify }: DashboardPageProps) {
     };
 
     const handleGenerateReport = () => {
-        const reportContent = `Ravi Zoho System Report\nDate: ${new Date().toLocaleDateString()}\nTotal Employees: ${data?.employees?.total || 0}\nPresent Today: ${data?.attendance?.presentToday || 0}\nAttendance Rate: ${data?.attendance?.attendanceRate || 0}%\nPending Leaves: ${data?.leaves?.pending || 0}\n\nDepartment Breakdown:\n${(data?.departmentDistribution || []).map((d: any) => `${d._id || 'Unassigned'}: ${d.count}`).join('\n')}`;
+        const reportContent = `RIVO System Report\nDate: ${new Date().toLocaleDateString()}\nTotal Employees: ${data?.employees?.total || 0}\nPresent Today: ${data?.attendance?.presentToday || 0}\nAttendance Rate: ${data?.attendance?.attendanceRate || 0}%\nPending Leaves: ${data?.leaves?.pending || 0}\n\nDepartment Breakdown:\n${(data?.departmentDistribution || []).map((d: any) => `${d._id || 'Unassigned'}: ${d.count}`).join('\n')}`;
         const encodedUri = encodeURI(`data:text/plain;charset=utf-8,${reportContent}`);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);

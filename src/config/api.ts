@@ -174,6 +174,13 @@ export const API_ENDPOINTS = {
     TAX_DOCUMENTS: `${API_BASE_URL}/api/tax-documents`,
     TAX_DOCUMENTS_MY: `${API_BASE_URL}/api/tax-documents/my`,
 
+    // Revenue & Invoicing
+    REVENUE_SUMMARY: `${API_BASE_URL}/api/revenue/summary`,
+    REVENUE_BY_PROJECT: `${API_BASE_URL}/api/revenue/by-project`,
+    INVOICES: `${API_BASE_URL}/api/revenue/invoices`,
+    INVOICE_BY_ID: (id: string) => `${API_BASE_URL}/api/revenue/invoices/${id}`,
+    INVOICE_PAYMENTS: (id: string) => `${API_BASE_URL}/api/revenue/invoices/${id}/payments`,
+
     // IP Allowlist
     IP_ALLOWLIST: `${API_BASE_URL}/api/ip-allowlist`,
 

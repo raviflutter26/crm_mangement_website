@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "echo '----------------------------------------' && echo '✅ BUILD SUCCESSFUL - READY FOR LIVE' && echo '📂 Files exported to: out/' && echo '----------------------------------------'",
+    "postbuild": "echo '----------------------------------------' && echo '\u2705 BUILD SUCCESSFUL - READY FOR LIVE' && echo '\ud83d\udcc2 Files exported to: out/' && echo '----------------------------------------'",
     "start": "serve out",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "axios": "^1.13.5",
@@ -30,6 +32,7 @@
     "eslint-config-next": "16.1.6",
     "serve": "^14.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

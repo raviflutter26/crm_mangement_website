@@ -8,6 +8,8 @@ import {
     FiUsers, FiXCircle, FiChevronRight, FiShield
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
+import ErrorState from "@/components/common/ErrorState";
+import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 import { useToast } from "@/components/common/DialogProvider";
@@ -42,21 +44,23 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
 
     const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
+    const [errors, setErrors] = useState<FetchError[]>([]);
+
     const fetchAll = useCallback(async () => {
         setLoading(true);
-        try {
-            const [runsRes, recordsRes, summaryRes, compRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.PAYROLL).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.PAYROLL_SUMMARY).catch(() => ({ data: { data: {} } })),
-                axiosInstance.get(API_ENDPOINTS.COMPLIANCE).catch(() => ({ data: { data: null } })),
-            ]);
-            setPayrollRuns(runsRes.data.data || []);
-            setPayrollRecords(recordsRes.data.data || []);
-            setSummary(summaryRes.data.data || {});
-            setComplianceSettings(compRes.data.data);
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
+        const { results, errors: errs } = await settleAll([
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_SUMMARY),
+            axiosInstance.get(API_ENDPOINTS.COMPLIANCE),
+        ]);
+        const [runsRes, recordsRes, summaryRes, compRes] = results;
+        setPayrollRuns(unwrap<any[]>(runsRes, []));
+        setPayrollRecords(unwrap<any[]>(recordsRes, []));
+        setSummary(unwrap(summaryRes, {}));
+        setComplianceSettings(unwrap(compRes, null));
+        setErrors(errs);
+        setLoading(false);
     }, []);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -153,6 +157,8 @@ export default function PayrollPage({ showNotify }: PayrollProps) {
                     <FiPlay /> Run Payroll
                 </button>
             </div>
+
+            <ErrorState errors={errors} onRetry={fetchAll} title="Payroll data could not be loaded" />
 
             {/* Summary Cards */}
             <div className="stats-grid">

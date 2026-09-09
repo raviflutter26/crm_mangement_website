@@ -45,12 +45,21 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
     const attendanceTrends = (data.attendanceTrends || []).map((d: any) => ({
         day: new Date(d._id + "T12:00:00").toLocaleDateString("en-IN", { weekday: "short" }),
         Present: d.present,
-        Absent: Math.max(0, (data.employees?.active || 48) - d.present)
+        Absent: Math.max(0, (data.employees?.active ?? 0) - d.present)
     }));
 
     const deptData = (data.departmentDistribution || []).map((d: any) => ({
         name: d._id || "Unassigned",
         value: d.count,
+    }));
+
+    const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    // Real payroll trend only. There is no placeholder curve: an invented
+    // disbursement figure on a payroll dashboard reads as a real number.
+    const payrollSeries = (data.payrollTrends || []).map((d: any) => ({
+        month: MONTH_LABELS[d._id.month - 1],
+        total: d.total / 10000000,
     }));
 
     const totalPayrollCr = (data.payroll?.totalPayroll || 0) / 10000000;
@@ -359,23 +368,28 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                             <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 0", fontWeight: 500 }}>Net disbursement trend</p>
                         </div>
                     </div>
-                    {/* Mock data to match screenshot curve if no API data */}
+                    {payrollSeries.length === 0 ? (
+                        <div style={{
+                            height: 260, display: "flex", flexDirection: "column",
+                            alignItems: "center", justifyContent: "center", gap: "8px",
+                            color: "var(--text-muted)", fontSize: "13px", fontWeight: 600,
+                        }}>
+                            <span>No payroll runs yet</span>
+                            <span style={{ fontSize: "12px", fontWeight: 500 }}>
+                                The trend appears once a payroll run is completed.
+                            </span>
+                        </div>
+                    ) : (
                     <ResponsiveContainer width="100%" height={260}>
-                        <AreaChart data={(data.payrollTrends || []).length > 0 ? data.payrollTrends.map((d: any) => ({
-                            month: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d._id.month - 1],
-                            total: d.total / 10000000 
-                        })) : [
-                            { month: 'Oct', total: 2.8 }, { month: 'Nov', total: 2.9 }, 
-                            { month: 'Dec', total: 3.1 }, { month: 'Jan', total: 3.0 }, 
-                            { month: 'Feb', total: 3.1 }, { month: 'Mar', total: 3.2 }
-                        ]} margin={{ left: -20, bottom: -5, top: 10 }}>
+                        <AreaChart data={payrollSeries} margin={{ left: -20, bottom: -5, top: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.6} />
                             <XAxis dataKey="month" axisLine={{ stroke: "var(--border)" }} tickLine={false} tick={{ fontSize: 11, fill: "var(--text-muted)", fontWeight: 600 }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => v.toFixed(1)} domain={[2.7, 3.3]} tick={{ fontSize: 11, fill: "var(--text-muted)", fontWeight: 600 }} />
+                            <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => v.toFixed(1)} domain={["auto", "auto"]} tick={{ fontSize: 11, fill: "var(--text-muted)", fontWeight: 600 }} />
                             <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", fontWeight: 600 }} formatter={(v) => ["₹" + Number(v).toFixed(2) + " Cr", "Payroll"]} />
                             <Area type="monotone" dataKey="total" stroke="#f59e0b" strokeWidth={4} fillOpacity={0} activeDot={{ r: 6, fill: "#f59e0b", stroke: "white", strokeWidth: 2 }} />
                         </AreaChart>
                     </ResponsiveContainer>
+                    )}
                 </div>
             </div>
 

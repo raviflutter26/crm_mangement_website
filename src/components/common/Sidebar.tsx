@@ -470,11 +470,11 @@ export default function Sidebar() {
         <aside className="sidebar" style={{ background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-light)' }}>
             <div className="sidebar-header" style={{ borderBottom: 'none', paddingBottom: '10px' }}>
                 <div className="sidebar-logo">
-                    <div className="sidebar-logo-icon" style={{ borderRadius: '8px', background: 'var(--primary)' }}>
-                        <FiZap style={{ color: 'white' }} />
+                    <div className="sidebar-logo-icon" style={{ background: 'transparent' }}>
+                        <img src="/rivo-icon.png" alt="RIVO" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     </div>
                     <div>
-                        <h2 style={{ fontSize: '18px', color: 'var(--text-primary)', background: 'none', WebkitTextFillColor: 'initial', fontWeight: 800 }}>Ravi Zoho</h2>
+                        <h2 style={{ fontSize: '18px', color: 'var(--text-primary)', background: 'none', WebkitTextFillColor: 'initial', fontWeight: 800 }}>RIVO</h2>
                         <p style={{ fontSize: '10px' }}>{role === 'superadmin' ? 'Super Admin Console' : role === 'employee' ? 'Employee Self Service' : 'Business Management'}</p>
                     </div>
                 </div>
@@ -486,10 +486,10 @@ export default function Sidebar() {
 
             <div className="sidebar-footer-profile">
                 <div className="sidebar-profile-avatar">
-                    {user?.firstName?.charAt(0) || 'RZ'}
+                    {user?.firstName?.charAt(0) || 'R'}
                 </div>
                 <div className="sidebar-profile-info">
-                    <div className="sidebar-profile-name">{user ? `${user.firstName} ${user.lastName}` : 'Ravi Zoho'}</div>
+                    <div className="sidebar-profile-name">{user ? `${user.firstName} ${user.lastName}` : 'RIVO'}</div>
                     <div className="sidebar-profile-role">{role === 'superadmin' ? 'Super Administrator' : (role.charAt(0).toUpperCase() + role.slice(1) + ' Administrator')}</div>
                 </div>
                 <div className="sidebar-profile-action" onClick={() => logout()}>

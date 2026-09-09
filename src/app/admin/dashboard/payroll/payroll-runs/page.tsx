@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import ErrorState from "@/components/common/ErrorState";
+import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import PayslipModal from "@/components/payroll/PayslipModal";
 import {
     FiPlay, FiThumbsUp, FiCreditCard, FiLock, FiDownload,
@@ -38,17 +40,21 @@ export default function PayrollRunsPage() {
 
     const showToast = (msg: string) => { setRunToast(msg); setTimeout(() => setRunToast(""), 3500); };
 
+    const [errors, setErrors] = useState<FetchError[]>([]);
+
     const fetchRuns = useCallback(async () => {
         setLoading(true);
-        try {
-            const [runsRes, compRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.COMPLIANCE).catch(() => ({ data: { data: null } })),
-            ]);
-            setRuns(runsRes.data.data || []);
-            setComplianceSettings(compRes.data.data);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
+        // Compliance settings drive statutory deductions. If that call fails we
+        // must say so rather than leave it null and run payroll on defaults.
+        const { results, errors: errs } = await settleAll([
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS),
+            axiosInstance.get(API_ENDPOINTS.COMPLIANCE),
+        ]);
+        const [runsRes, compRes] = results;
+        setRuns(unwrap<any[]>(runsRes, []));
+        setComplianceSettings(unwrap(compRes, null));
+        setErrors(errs);
+        setLoading(false);
     }, []);
 
     useEffect(() => { fetchRuns(); }, [fetchRuns]);
@@ -118,6 +124,8 @@ export default function PayrollRunsPage() {
                     <button className="btn btn-secondary" onClick={() => setSelectedRun(null)}>← Back to Runs</button>
                 )}
             </div>
+
+            <ErrorState errors={errors} onRetry={fetchRuns} title="Payroll runs could not be loaded" />
 
             {/* Status Flow Stepper */}
             {!selectedRun && (

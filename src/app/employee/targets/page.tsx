@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
 
 export default function TargetsPage() {
     const [targets, setTargets] = useState<any[]>([]);
@@ -22,6 +23,12 @@ export default function TargetsPage() {
         };
         fetchData();
     }, [])
+
+    const activeGoals = targets.filter((t: any) => t.status === "in-progress" || t.status === "not-started").length;
+    const completedGoals = targets.filter((t: any) => t.status === "completed").length;
+    const avgProgress = targets.length
+        ? Math.round(targets.reduce((sum: number, t: any) => sum + (t.progress || 0), 0) / targets.length)
+        : 0;
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>
@@ -44,9 +51,9 @@ export default function TargetsPage() {
             </motion.div>
 
             <div className="grid-3" style={{ marginBottom: "32px", gap: "24px" }}>
-                <TargetStat label="KPI ACHIEVEMENT" val="88%" color="var(--primary)" icon={FiTrendingUp} />
-                <TargetStat label="GOALS ACTIVE" val="04" color="#3b82f6" icon={FiTarget} />
-                <TargetStat label="BONUS ELIGIBILITY" val="Tier 1" color="#10b981" icon={FiCheckCircle} />
+                <TargetStat label="KPI ACHIEVEMENT" val={targets.length ? `${avgProgress}%` : "—"} color="var(--primary)" icon={FiTrendingUp} />
+                <TargetStat label="GOALS ACTIVE" val={String(activeGoals).padStart(2, "0")} color="#3b82f6" icon={FiTarget} />
+                <TargetStat label="GOALS COMPLETED" val={String(completedGoals).padStart(2, "0")} color="#10b981" icon={FiCheckCircle} />
             </div>
 
             <div className="card" style={{ border: "1px solid var(--border-light)", padding: "0", background: "white" }}>
@@ -56,7 +63,9 @@ export default function TargetsPage() {
                 </div>
                 <div style={{ padding: "24px" }}>
                     <div className="grid-2" style={{ gap: "24px" }}>
-                        {targets.map((target, idx) => (
+                        {targets.length === 0 ? (
+                            <EmptyState icon={FiTarget} title={"No goals set"} description={"Targets and KPIs assigned to you will appear here once your manager sets them."} />
+                        ) : targets.map((target, idx) => (
                             <motion.div 
                                 key={idx}
                                 initial={{ opacity: 0, y: 20 }}

@@ -6,6 +6,8 @@ import { API_ENDPOINTS } from "@/config/api";
 import PayoutStatusTable from "@/components/payroll/PayoutStatusTable";
 import { FiRefreshCw, FiCreditCard, FiCheckCircle, FiAlertCircle, FiClock, FiActivity } from "react-icons/fi";
 import { useToast } from "@/components/common/DialogProvider";
+import ErrorState from "@/components/common/ErrorState";
+import { describeError, type FetchError } from "@/lib/fetchError";
 
 const fmt = (n: number) => `₹${(n || 0).toLocaleString("en-IN")}`;
 
@@ -18,11 +20,15 @@ export default function PayoutsPage() {
     const [retryingId, setRetryingId] = useState<string | null>(null);
     const [autoRefresh, setAutoRefresh] = useState(true);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [errors, setErrors] = useState<FetchError[]>([]);
 
     const fetchPayouts = useCallback(async (silent = false) => {
         if (!silent) setLoading(true); else setRefreshing(true);
         try {
-            const res = await axiosInstance.get(API_ENDPOINTS.PAYOUTS_HISTORY).catch(() => ({ data: { data: [] } }));
+            // This screen decides whether salaries went out. Defaulting a failed
+            // request to [] would report "0 failed payouts" during an outage,
+            // which is the most dangerous thing this page could say.
+            const res = await axiosInstance.get(API_ENDPOINTS.PAYOUTS_HISTORY);
             const data: any[] = res.data.data || [];
             setPayouts(data);
             const summ = {
@@ -34,8 +40,12 @@ export default function PayoutsPage() {
                 totalAmount: data.filter(p => p.status === "processed").reduce((s, p) => s + (p.amount || 0), 0),
             };
             setSummary(summ);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); setRefreshing(false); }
+            setErrors([]);
+        } catch (e) {
+            setPayouts([]);
+            setSummary({ total: 0, pending: 0, processing: 0, processed: 0, failed: 0, totalAmount: 0 });
+            setErrors([describeError(e)]);
+        } finally { setLoading(false); setRefreshing(false); }
     }, []);
 
     // Auto-refresh every 30s
@@ -89,6 +99,8 @@ export default function PayoutsPage() {
                     </button>
                 </div>
             </div>
+
+            <ErrorState errors={errors} onRetry={() => fetchPayouts(true)} title="Payout status could not be loaded" />
 
             {/* Live indicator */}
             {autoRefresh && (

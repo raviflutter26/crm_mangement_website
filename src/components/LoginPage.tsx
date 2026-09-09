@@ -58,10 +58,10 @@ export default function LoginPage({ onLogin, showNotify }: LoginPageProps) {
                 <div style={{ position: "relative", zIndex: 1 }}>
                     {/* Logo */}
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "48px" }}>
-                        <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", fontWeight: 800, color: "#fff", backdropFilter: "blur(8px)" }}>
-                            R
+                        <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)", overflow: "hidden" }}>
+                            <img src="/rivo-icon.png" alt="RIVO" style={{ width: "32px", height: "32px", objectFit: "contain" }} />
                         </div>
-                        <span style={{ fontSize: "22px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px" }}>Ravi Zoho</span>
+                        <span style={{ fontSize: "22px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px" }}>RIVO</span>
                     </div>
 
                     <h1 style={{ fontSize: "42px", fontWeight: 800, color: "#fff", lineHeight: 1.15, marginBottom: "20px", letterSpacing: "-1px" }}>
@@ -186,7 +186,7 @@ export default function LoginPage({ onLogin, showNotify }: LoginPageProps) {
 
                     {/* Footer */}
                     <p style={{ textAlign: "center", marginTop: "32px", fontSize: "12px", color: "#9ca3af" }}>
-                        © 2026 Ravi Zoho HRMS. Enterprise Edition.
+                        © 2026 RIVO. Enterprise Edition.
                     </p>
                 </div>
             </div>

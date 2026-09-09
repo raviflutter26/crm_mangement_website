@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
 
 export default function AnnouncementsPage() {
     const [alerts, setAlerts] = useState<any[]>([]);
@@ -51,7 +52,9 @@ export default function AnnouncementsPage() {
                 </div>
                 <div style={{ padding: "24px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        {alerts.map((alert, idx) => (
+                        {alerts.length === 0 ? (
+                            <EmptyState icon={FiBell} title={"No announcements yet"} description={"Company-wide announcements from your HR team will appear here."} />
+                        ) : alerts.map((alert, idx) => (
                             <motion.div 
                                 key={alert.id}
                                 initial={{ opacity: 0, x: -20 }}

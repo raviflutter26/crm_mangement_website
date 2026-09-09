@@ -130,38 +130,11 @@ export default function AnalyticsPage() {
         } catch (err: any) {
             console.error("Failed to load analytics", err);
 
-            if (err.response?.status === 403) {
-                setError("ACCESS_DENIED");
-                setLoading(false);
-                return;
-            }
-
-            // Elite Mock Data Fallback
-            setData({
-                kpis: [
-                    { label: "Active Revenue", val: "$1.24M", delta: "+12.5%", dir: "up", sub: "vs last month", spark: [30, 45, 35, 55, 48, 62], cls: "blue" },
-                    { label: "Platform Users", val: "84.2k", delta: "+8.2%", dir: "up", sub: "vs last month", spark: [50, 52, 58, 62, 70, 84], cls: "green" },
-                    { label: "API Latency", val: "42ms", delta: "-4.1%", dir: "down", sub: "vs last month", spark: [60, 55, 48, 52, 45, 42], cls: "red" }
-                ],
-                apiTraffic: {
-                    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
-                    series: [
-                        { name: "Auth", color: "var(--primary)", data: [40, 55, 45, 60, 52, 70, 85] },
-                        { name: "Queries", color: "#3b82f6", data: [30, 42, 38, 48, 44, 55, 62] }
-                    ]
-                },
-                growthGrowth: {
-                    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
-                    series: [
-                        { name: "Growth", color: "var(--primary)", data: [120, 150, 180, 240, 310, 420, 580] }
-                    ]
-                },
-                geoDistribution: [
-                    { flag: "🇺🇸", country: "United States", count: 42000, pct: 85 },
-                    { flag: "🇮🇳", country: "India", count: 18000, pct: 45 },
-                    { flag: "🇬🇧", country: "United Kingdom", count: 12000, pct: 30 }
-                ]
-            });
+            // Never substitute invented figures for real analytics — a fabricated
+            // revenue or user count is worse than an empty state, because it
+            // reads as fact.
+            setError(err.response?.status === 403 ? "ACCESS_DENIED" : "LOAD_FAILED");
+            setData(null);
         } finally {
             setLoading(false);
         }
@@ -173,12 +146,14 @@ export default function AnalyticsPage() {
 
     if (loading && !data) return <div className="loading-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><FiLoader className="rotate" size={40} color="var(--primary)" /></div>;
 
-    if (error === "ACCESS_DENIED") {
+    if (error) {
         return (
             <div className="page-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-                <EmptyState 
-                    title="Analytics Not Available"
-                    description="We could not load the organization analytics at this time. Please ensure you have the correct permissions or try again later."
+                <EmptyState
+                    title={error === "ACCESS_DENIED" ? "Analytics Not Available" : "Could Not Load Analytics"}
+                    description={error === "ACCESS_DENIED"
+                        ? "You do not have permission to view organization analytics. Contact your administrator if you believe this is a mistake."
+                        : "The analytics service did not respond. No figures are shown rather than estimated ones. Please retry in a moment."}
                     icon={FiAlertCircle}
                 />
             </div>

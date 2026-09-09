@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import ErrorState from "@/components/common/ErrorState";
+import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import { 
     FiSearch, FiFilter, FiDownload, FiBarChart2, FiPieChart, 
     FiFileText, FiPrinter, FiChevronRight, FiGrid, FiList, FiChevronLeft, FiChevronDown,
@@ -108,6 +110,7 @@ export default function PayrollReportsPage({ showNotify }: PayrollReportsProps) 
         leaves: false,
         activity: true
     });
+    const [errors, setErrors] = useState<FetchError[]>([]);
 
     // Close download dropdown on outside click
     useEffect(() => {
@@ -124,25 +127,27 @@ export default function PayrollReportsPage({ showNotify }: PayrollReportsProps) 
     }, []);
 
     const checkDataAvailability = async () => {
-        try {
-            const [empRes, payRes, attRes, leaveRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.EMPLOYEES).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.PAYROLL).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.ATTENDANCE).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.LEAVES).catch(() => ({ data: { data: [] } }))
-            ]);
+        // This function answers "does this tenant have any data?". Treating a
+        // failed request as an empty array answers "no" to a question that was
+        // never actually asked — which is what made working modules look
+        // permanently empty. A source that errored is reported, not counted.
+        const { results, errors: errs } = await settleAll([
+            axiosInstance.get(API_ENDPOINTS.EMPLOYEES),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL),
+            axiosInstance.get(API_ENDPOINTS.ATTENDANCE),
+            axiosInstance.get(API_ENDPOINTS.LEAVES),
+        ]);
+        const [empRes, payRes, attRes, leaveRes] = results;
 
-            const status = {
-                employees: (empRes.data?.data?.length || 0) > 0,
-                payroll: (payRes.data?.data?.length || 0) > 0,
-                attendance: (attRes.data?.data?.length || 0) > 0,
-                leaves: (leaveRes.data?.data?.length || 0) > 0,
-                activity: true
-            };
-            setDataStatus(status);
-        } catch (err) {
-            console.error("Failed to check data availability", err);
-        }
+        const has = (res: any) => res !== null && unwrap<any[]>(res, []).length > 0;
+        setDataStatus({
+            employees: has(empRes),
+            payroll: has(payRes),
+            attendance: has(attRes),
+            leaves: has(leaveRes),
+            activity: true
+        });
+        setErrors(errs);
     };
 
     const fetchHistory = async () => {
@@ -249,42 +254,57 @@ export default function PayrollReportsPage({ showNotify }: PayrollReportsProps) 
                     </div>
                 </div>
 
+                <ErrorState errors={errors} onRetry={checkDataAvailability} title="Could not check which reports have data" />
+
                 {view === "explorer" ? (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {COLUMNS.map((column, cIdx) => (
                             <div key={cIdx} className="space-y-8">
                                 {column.sections.map((section, sIdx) => {
                                     const hasData = (dataStatus as any)[section.dataType];
-                                    if (!hasData) return null;
 
                                     const filteredItems = section.items.filter(item => 
                                         item.toLowerCase().includes(searchQuery.toLowerCase())
                                     );
+                                    // Hide only when the search box excluded everything.
+                                    // A section with no records is still shown, greyed out,
+                                    // so the module reads as "ready, no data yet" rather
+                                    // than appearing not to exist at all.
                                     if (filteredItems.length === 0) return null;
 
                                     return (
-                                        <div key={sIdx} className="bg-white rounded-[2rem] border border-[#E2E8F0] shadow-sm overflow-hidden group hover:border-[#FF7A00]/30 transition-all">
+                                        <div key={sIdx} className={`bg-white rounded-[2rem] border shadow-sm overflow-hidden group transition-all ${hasData ? "border-[#E2E8F0] hover:border-[#FF7A00]/30" : "border-dashed border-[#E2E8F0]"}`}>
                                             <div className="p-6 border-b border-[#F1F5F9] bg-slate-50/50 flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#FF7A00] flex items-center justify-center">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasData ? "bg-orange-50 text-[#FF7A00]" : "bg-slate-100 text-[#94A3B8]"}`}>
                                                         <section.icon size={18} />
                                                     </div>
-                                                    <h3 className="font-black text-[#1E293B] tracking-tight">{section.title}</h3>
+                                                    <h3 className={`font-black tracking-tight ${hasData ? "text-[#1E293B]" : "text-[#94A3B8]"}`}>{section.title}</h3>
                                                 </div>
-                                                <span className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">{filteredItems.length} items</span>
+                                                <span className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">
+                                                    {hasData ? `${filteredItems.length} items` : "No data yet"}
+                                                </span>
                                             </div>
-                                            <div className="p-4 space-y-1">
-                                                {filteredItems.map((item, iIdx) => (
-                                                    <button 
-                                                        key={iIdx}
-                                                        onClick={() => handleGenerateReport(item, section.title)}
-                                                        className="w-full flex items-center justify-between p-3.5 rounded-xl hover:bg-orange-50 group/item transition-all text-left"
-                                                    >
-                                                        <span className="text-sm font-bold text-[#475569] group-hover/item:text-[#FF7A00] transition-colors">{item}</span>
-                                                        <FiChevronRight className="text-[#CBD5E1] group-hover/item:text-[#FF7A00] group-hover/item:translate-x-1 transition-all" size={16} />
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            {hasData ? (
+                                                <div className="p-4 space-y-1">
+                                                    {filteredItems.map((item, iIdx) => (
+                                                        <button 
+                                                            key={iIdx}
+                                                            onClick={() => handleGenerateReport(item, section.title)}
+                                                            className="w-full flex items-center justify-between p-3.5 rounded-xl hover:bg-orange-50 group/item transition-all text-left"
+                                                        >
+                                                            <span className="text-sm font-bold text-[#475569] group-hover/item:text-[#FF7A00] transition-colors">{item}</span>
+                                                            <FiChevronRight className="text-[#CBD5E1] group-hover/item:text-[#FF7A00] group-hover/item:translate-x-1 transition-all" size={16} />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="px-6 py-8 text-center">
+                                                    <p className="text-[13px] text-[#94A3B8] font-medium leading-relaxed">
+                                                        These reports are ready to run. They will unlock once there is {section.dataType} data recorded for your organization.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import ErrorState from "@/components/common/ErrorState";
+import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import AttendanceSummaryTable from "@/components/payroll/AttendanceSummaryTable";
 import { FiRefreshCw, FiCalendar, FiInfo } from "react-icons/fi";
 
@@ -35,18 +37,23 @@ export default function AttendancePage() {
     const [attendance, setAttendance] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [errors, setErrors] = useState<FetchError[]>([]);
 
     const fetchData = useCallback(async (silent = false) => {
         if (!silent) setLoading(true); else setRefreshing(true);
-        try {
-            const [empRes, attRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.EMPLOYEES).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(`${API_ENDPOINTS.PAYROLL_ATTENDANCE_SUMMARY}?month=${month}&year=${year}`).catch(() => ({ data: { data: [] } })),
-            ]);
-            setEmployees(empRes.data.data || []);
-            setAttendance(attRes.data.data || []);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); setRefreshing(false); }
+        // Pro-rata pay is computed from both lists. If the attendance summary
+        // fails and we default it to [], every employee silently looks like a
+        // full-attendance month — so the failure has to be shown, not defaulted.
+        const { results, errors: errs } = await settleAll([
+            axiosInstance.get(API_ENDPOINTS.EMPLOYEES),
+            axiosInstance.get(`${API_ENDPOINTS.PAYROLL_ATTENDANCE_SUMMARY}?month=${month}&year=${year}`),
+        ]);
+        const [empRes, attRes] = results;
+        setEmployees(unwrap<any[]>(empRes, []));
+        setAttendance(unwrap<any[]>(attRes, []));
+        setErrors(errs);
+        setLoading(false);
+        setRefreshing(false);
     }, [month, year]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -78,6 +85,8 @@ export default function AttendancePage() {
                     </button>
                 </div>
             </div>
+
+            <ErrorState errors={errors} onRetry={() => fetchData(true)} title="Attendance data could not be loaded" />
 
             {/* Summary Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>

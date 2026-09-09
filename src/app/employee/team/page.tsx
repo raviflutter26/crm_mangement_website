@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
 
 export default function TeamDirectoryPage() {
     const [team, setTeam] = useState<any[]>([]);
@@ -51,7 +52,9 @@ export default function TeamDirectoryPage() {
             </motion.div>
 
             <div className="grid-3" style={{ gap: "24px" }}>
-                {team.map((member, idx) => (
+                {team.length === 0 ? (
+                            <EmptyState icon={FiUsers} title={"No colleagues listed"} description={"Your team directory will fill in as employees are added to your organization."} />
+                        ) : team.map((member, idx) => (
                     <motion.div 
                         key={member.id}
                         initial={{ opacity: 0, y: 20 }}

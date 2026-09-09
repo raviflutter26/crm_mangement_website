@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import ErrorState from "@/components/common/ErrorState";
+import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import PayrollTrendChart from "@/components/payroll/PayrollTrendChart";
 import PayslipModal from "@/components/payroll/PayslipModal";
 import { FiBarChart2, FiDownload, FiSearch, FiFileText } from "react-icons/fi";
@@ -49,17 +51,19 @@ export default function ReportsPage() {
         }
     };
 
+    const [errors, setErrors] = useState<FetchError[]>([]);
+
     const fetchData = useCallback(async () => {
         setLoading(true);
-        try {
-            const [recRes, runsRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.PAYROLL).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS).catch(() => ({ data: { data: [] } })),
-            ]);
-            setRecords(recRes.data.data || []);
-            setRuns(runsRes.data.data || []);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
+        const { results, errors: errs } = await settleAll([
+            axiosInstance.get(API_ENDPOINTS.PAYROLL),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS),
+        ]);
+        const [recRes, runsRes] = results;
+        setRecords(unwrap<any[]>(recRes, []));
+        setRuns(unwrap<any[]>(runsRes, []));
+        setErrors(errs);
+        setLoading(false);
     }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -93,6 +97,8 @@ export default function ReportsPage() {
                 <h1 style={{ fontSize: 24, fontWeight: 900, color: "#1E1B4B", margin: 0 }}>Payroll Reports</h1>
                 <p style={{ color: "#64748B", fontSize: 14, marginTop: 4 }}>Monthly trends, disbursement tracking, and payslip generation</p>
             </div>
+
+            <ErrorState errors={errors} onRetry={fetchData} title="Report data could not be loaded" />
 
             {/* Summary Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>

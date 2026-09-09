@@ -23,9 +23,11 @@ export default function InvitationsPage() {
     const confirmDialog = useConfirm();
     const [invites, setInvites] = useState<Invitation[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const fetchInvites = async () => {
         try {
+            setLoadError(null);
             const res = await axiosInstance.get('/api/superadmin/invitations');
             if (res.data?.data) {
                 setInvites(res.data.data);
@@ -34,12 +36,10 @@ export default function InvitationsPage() {
             }
         } catch (err: any) {
             console.error("Failed to load invitations", err);
-            // Elite Mock Data Fallback
-            setInvites([
-                { id: "1", email: "ceo@tesla.com", role: "admin", sentAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), status: "Pending", initials: "CT" },
-                { id: "2", email: "hr@spacex.com", role: "hr", sentAt: new Date(Date.now() - 172800000).toISOString(), expiresAt: new Date(Date.now() - 86400000).toISOString(), status: "Expired", initials: "HS" },
-                { id: "3", email: "ops@google.com", role: "manager", sentAt: new Date(Date.now() - 3600000).toISOString(), expiresAt: new Date(Date.now() + 82800000).toISOString(), status: "Pending", initials: "OG" }
-            ]);
+            // Show nothing rather than placeholder invitations: a fake pending
+            // invite implies someone was granted access who was not.
+            setInvites([]);
+            setLoadError("We could not load pending invitations. Please retry in a moment.");
         } finally {
             setLoading(false);
         }
@@ -81,10 +81,26 @@ export default function InvitationsPage() {
                 </button>
             </motion.div>
 
+            {loadError && (
+                <div
+                    role="alert"
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '14px 16px', marginBottom: '24px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        color: '#ef4444', fontWeight: 600, fontSize: '13px',
+                    }}
+                >
+                    <FiAlertCircle size={16} /> {loadError}
+                </div>
+            )}
+
             <div style={{ display: 'flex', gap: '20px', marginBottom: '32px' }}>
                 <MetricCard label="PENDING" val={pending.length} color="var(--primary)" />
                 <MetricCard label="EXPIRED" val={expired.length} color="#ef4444" />
-                <MetricCard label="SUCCESS RATE" val="94%" color="#10b981" />
+                <MetricCard label="TOTAL" val={invites.length} color="#10b981" />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>

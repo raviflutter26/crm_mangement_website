@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import ErrorState from "@/components/common/ErrorState";
+import { describeError, type FetchError } from "@/lib/fetchError";
 import AuditLogTable from "@/components/payroll/AuditLogTable";
 import { FiShield, FiRefreshCw, FiFilter } from "react-icons/fi";
 
@@ -14,14 +16,20 @@ export default function AuditPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [filterAction, setFilterAction] = useState("all");
     const [filterStatus, setFilterStatus] = useState("all");
+    const [errors, setErrors] = useState<FetchError[]>([]);
 
     const fetchLogs = useCallback(async (silent = false) => {
         if (!silent) setLoading(true); else setRefreshing(true);
         try {
-            const res = await axiosInstance.get(API_ENDPOINTS.PAYROLL_AUDIT_LOGS).catch(() => ({ data: { data: [] } }));
+            const res = await axiosInstance.get(API_ENDPOINTS.PAYROLL_AUDIT_LOGS);
             setLogs(res.data.data || []);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); setRefreshing(false); }
+            setErrors([]);
+        } catch (e) {
+            // An empty audit log and an unreachable one mean very different
+            // things to an auditor — never render the first when it is the second.
+            setLogs([]);
+            setErrors([describeError(e)]);
+        } finally { setLoading(false); setRefreshing(false); }
     }, []);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
@@ -51,6 +59,8 @@ export default function AuditPage() {
                     {refreshing ? "Refreshing…" : "Refresh"}
                 </button>
             </div>
+
+            <ErrorState errors={errors} onRetry={() => fetchLogs(true)} title="Audit log could not be loaded" />
 
             {/* Stats */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 }}>

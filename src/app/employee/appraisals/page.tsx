@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import EmptyState from "@/components/common/EmptyState";
 
 export default function AppraisalsPage() {
     const [reviews, setReviews] = useState<any[]>([]);
@@ -51,7 +52,9 @@ export default function AppraisalsPage() {
                 </div>
                 <div style={{ padding: "24px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        {reviews.map((rev, idx) => (
+                        {reviews.length === 0 ? (
+                            <EmptyState icon={FiStar} title={"No appraisals yet"} description={"Your performance reviews will appear here once a review cycle is completed for you."} />
+                        ) : reviews.map((rev, idx) => (
                             <motion.div 
                                 key={idx}
                                 initial={{ opacity: 0, x: -20 }}

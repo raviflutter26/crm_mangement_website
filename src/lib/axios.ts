@@ -20,7 +20,13 @@ axiosInstance.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        // Global Multi-Tenant Isolation
+        // Convenience only — NOT a security boundary.
+        //
+        // Anything attached here is editable in DevTools, so the API must never
+        // trust it. The backend re-derives organizationId from the authenticated
+        // user and overwrites whatever arrives in the body or query
+        // (see backend src/utils/tenancy.js). This block only spares callers
+        // from passing the org explicitly on every request.
         if (userRaw) {
             try {
                 const user = JSON.parse(userRaw);

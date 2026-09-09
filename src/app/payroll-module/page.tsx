@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
+import ErrorState from "@/components/common/ErrorState";
+import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import PayrollKPICards from "@/components/payroll/PayrollKPICards";
 import PayrollTrendChart from "@/components/payroll/PayrollTrendChart";
 import { FiPlay, FiCheckCircle, FiCreditCard, FiRefreshCw, FiArrowRight, FiCalendar } from "react-icons/fi";
@@ -34,20 +36,25 @@ export default function PayrollDashboardPage() {
     const [payouts, setPayouts] = useState<any>({});
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [errors, setErrors] = useState<FetchError[]>([]);
 
     const fetchAll = useCallback(async (silent = false) => {
         if (!silent) setLoading(true); else setRefreshing(true);
-        try {
-            const [sumRes, runsRes, payoutsRes] = await Promise.all([
-                axiosInstance.get(API_ENDPOINTS.PAYROLL_SUMMARY).catch(() => ({ data: { data: {} } })),
-                axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS).catch(() => ({ data: { data: [] } })),
-                axiosInstance.get(API_ENDPOINTS.PAYOUTS_STATUS).catch(() => ({ data: { data: {} } })),
-            ]);
-            setSummary(sumRes.data.data || {});
-            setRuns((runsRes.data.data || []).slice(0, 6));
-            setPayouts(payoutsRes.data.data || {});
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); setRefreshing(false); }
+        // Each card loads independently: one failing endpoint should degrade
+        // that card, not blank the whole dashboard — but it must still be
+        // reported rather than silently rendering zeroes.
+        const { results, errors: errs } = await settleAll([
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_SUMMARY),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS),
+            axiosInstance.get(API_ENDPOINTS.PAYOUTS_STATUS),
+        ]);
+        const [sumRes, runsRes, payoutsRes] = results;
+        setSummary(unwrap(sumRes, {}));
+        setRuns(unwrap<any[]>(runsRes, []).slice(0, 6));
+        setPayouts(unwrap(payoutsRes, {}));
+        setErrors(errs);
+        setLoading(false);
+        setRefreshing(false);
     }, []);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -68,6 +75,8 @@ export default function PayrollDashboardPage() {
                     </Link>
                 </div>
             </div>
+
+            <ErrorState errors={errors} onRetry={() => fetchAll(true)} />
 
             <PayrollKPICards summary={{ ...summary, pendingPayouts: payouts.pending || 0, failedPayouts: payouts.failed || 0 }} loading={loading} />
 

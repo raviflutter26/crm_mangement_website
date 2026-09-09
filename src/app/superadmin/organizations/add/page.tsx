@@ -192,7 +192,21 @@ export default function CreateOrganizationPage() {
       }
       setSuccess(true);
     } catch (err: any) {
-      setSubmitError(err.response?.data?.message || "Registration failed. Please review the details and try again.");
+      // A validation rejection carries a message from the API; a timeout or a
+      // dropped request carries no response at all. Telling the user to "review
+      // the details" in the second case sends them hunting for a data problem
+      // that isn't there — and the organization may in fact have been created,
+      // so it must not read as a clean failure either.
+      const apiMessage = err.response?.data?.message;
+      if (apiMessage) {
+        setSubmitError(apiMessage);
+      } else if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
+        setSubmitError(
+          "The server did not respond in time. The organization may still have been created — check the organizations list before trying again."
+        );
+      } else {
+        setSubmitError("Could not reach the server. Check your connection and try again.");
+      }
     } finally {
       setLoading(false);
     }
