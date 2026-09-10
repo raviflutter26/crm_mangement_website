@@ -33,6 +33,7 @@ const getMenuItems = (counts: any, role: string, empCount: string, leaveCount: s
             "COMMAND CENTER": [
                 { id: "dashboard", label: "Dashboard", icon: FiGrid, href: "/superadmin/dashboard", roles: ["superadmin"] },
                 { id: "analytics", label: "Analytics & Reports", icon: FiBarChart2, href: "/superadmin/analytics", roles: ["superadmin"] },
+                { id: "demo-requests", label: "Demo Requests", icon: FiTarget, href: "/superadmin/demo-requests", roles: ["superadmin"], badge: counts?.newDemoRequests ? String(counts.newDemoRequests) : undefined, badgeColor: "orange" },
                 {
                     id: "organizations", label: "Organizations", icon: FiLayers, roles: ["superadmin"],
                     badge: counts?.pendingOrgs ? String(counts.pendingOrgs) : undefined, badgeColor: "orange",
@@ -227,6 +228,7 @@ export default function Sidebar() {
         lockedAccounts: 0,
         pendingInvites: 0,
         openTickets: 0,
+        newDemoRequests: 0,
         systemHealth: 'OK'
     });
     const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -361,7 +363,7 @@ export default function Sidebar() {
 
         const existingRoutes = [
             '/superadmin/dashboard', '/superadmin/organizations', '/superadmin/users', '/superadmin/settings',
-            '/superadmin/analytics', '/superadmin/audit-log', '/superadmin/users/invitations', '/superadmin/users/locked', '/superadmin/health',
+            '/superadmin/analytics', '/superadmin/demo-requests', '/superadmin/audit-log', '/superadmin/users/invitations', '/superadmin/users/locked', '/superadmin/health',
             '/superadmin/organizations/pending', '/superadmin/organizations/suspended', '/superadmin/organizations/add',
             '/superadmin/seats', '/superadmin/auth/sso', '/superadmin/auth/mfa', '/superadmin/auth/sessions', '/superadmin/auth/ip-allowlist',
             '/superadmin/finance/subscriptions', '/superadmin/finance/revenue',
