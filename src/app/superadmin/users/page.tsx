@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import axiosInstance from "@/lib/axios";
 import { FiSearch, FiFilter, FiMoreVertical, FiUser, FiShield, FiMail, FiCheckCircle, FiXCircle, FiLock } from "react-icons/fi";
 
@@ -10,11 +10,34 @@ export default function GlobalUsersPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
 
+    // Every keystroke fires a request and none are cancelled, so the last
+    // response to ARRIVE is not necessarily the last one ISSUED — clearing the
+    // box could be overwritten by a slower reply for a half-typed term.
+    //
+    // The guard compares the TERM, not a request counter. A counter discards
+    // every response but the newest request's, and React's dev-mode double
+    // invoke fires two identical requests of which the browser delivers one —
+    // so the counter threw away the only reply that came back and the list
+    // never updated. Matching on the term lets any reply for the current text
+    // render, and only genuinely superseded ones are dropped.
+    const latestTerm = useRef("");
+
     const fetchUsers = async () => {
+        const term = search;
+        latestTerm.current = term;
         try {
-            const res = await axiosInstance.get(`/api/auth/users?limit=50&search=${search}`);
+            // Encoded: a term containing & or # would otherwise corrupt the query.
+            const res = await axiosInstance.get(
+                `/api/auth/users?limit=50&search=${encodeURIComponent(term)}`
+            );
+            if (latestTerm.current !== term) return;   // something newer was typed
             setUsers(res.data.data);
-        } catch (err) { console.error(err); } finally { setLoading(false); }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            // Always cleared: any reply proves the first load finished.
+            setLoading(false);
+        }
     };
 
     // getAllUsers doesn't populate organizationId, so it arrives as a raw ID —

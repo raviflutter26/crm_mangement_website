@@ -45,7 +45,9 @@ export default function EmployeeProfilePage() {
 
     useEffect(() => {
         const fetchProfile = async () => {
-            if (!user?._id) return;
+            // Never leave the screen spinning: without an id there is
+            // nothing to fetch, but the page must still render.
+            if (!user?._id) { setLoading(false); return; }
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEES);
                 const employees = res.data.data;

@@ -7,17 +7,65 @@ import { motion } from "framer-motion";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
 
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+type ShiftDefinition = {
+    name?: string;
+    startTime?: string;
+    endTime?: string;
+    workingDays?: string[];
+    isActive?: boolean;
+};
+
+type CalendarDay = { d: string; date: number; current: boolean; shift: string };
+
+/**
+ * The week strip is a calendar, so it is built from dates here rather than
+ * from the API.
+ *
+ * /api/organizations/shifts returns SHIFT DEFINITIONS — name, start and end
+ * time, which weekdays they cover — not days of the month. Rendering those
+ * rows as calendar cells read `day.d` off a shift and crashed the page on
+ * `undefined.toUpperCase()`, which unmounted the whole app shell and left the
+ * employee with no sidebar to navigate away with.
+ */
+function buildWeek(shifts: ShiftDefinition[]): CalendarDay[] {
+    const today = new Date();
+    // Start on Monday, the first working day in every shift pattern here.
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+
+    const active = shifts.find((s) => s.isActive) ?? shifts[0];
+    const working = active?.workingDays ?? [];
+
+    return Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        const dayName = DAY_NAMES[date.getDay()];
+        const isWorking = working.length === 0 || working.includes(dayName);
+        return {
+            d: dayName.slice(0, 3),
+            date: date.getDate(),
+            current: date.toDateString() === today.toDateString(),
+            shift: isWorking ? active?.name ?? "Scheduled" : "OFF",
+        };
+    });
+}
+
 export default function ShiftSchedulePage() {
-    const [days, setDays] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [days, setDays] = useState<CalendarDay[]>([]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.SHIFTS);
-                setDays(res.data.data || []);
-            } catch (err) { console.error("Fetch error:", err); }
-            finally { setLoading(false); }
+                setDays(buildWeek(res.data.data || []));
+            } catch (err) {
+                console.error("Fetch error:", err);
+                // The calendar is still the current week even if the shift
+                // pattern could not be loaded — better than a blank strip.
+                setDays(buildWeek([]));
+            }
         };
         fetchData();
     }, [])
@@ -56,7 +104,7 @@ export default function ShiftSchedulePage() {
                             boxShadow: day.current ? "0 10px 20px -5px rgba(255, 122, 0, 0.3)" : "none"
                         }}
                     >
-                        <div style={{ fontSize: "11px", fontWeight: 800, opacity: day.current ? 0.8 : 0.4 }}>{day.d.toUpperCase()}</div>
+                        <div style={{ fontSize: "11px", fontWeight: 800, opacity: day.current ? 0.8 : 0.4 }}>{(day.d || "").toUpperCase()}</div>
                         <div style={{ fontSize: "24px", fontWeight: 900, marginTop: "4px" }}>{day.date}</div>
                         {day.shift !== "OFF" && (
                             <div style={{ 

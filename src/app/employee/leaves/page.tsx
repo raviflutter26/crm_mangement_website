@@ -44,7 +44,9 @@ export default function EmployeeLeavesPage() {
     };
 
     const fetchBalances = async () => {
-        if (!user?._id) return;
+        // Never leave the screen spinning: without an id there is
+            // nothing to fetch, but the page must still render.
+            if (!user?._id) { setLoading(false); return; }
         try {
             const res = await axiosInstance.get(`/api/leaves/balance/${user._id}`);
             setBalances((res.data.data || []).map((b: any) => ({

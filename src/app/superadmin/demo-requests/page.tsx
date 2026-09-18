@@ -11,8 +11,10 @@ import { motion } from "framer-motion";
 interface DemoRequest {
     _id: string;
     name: string;
-    company: string;
+    /** Optional: the marketing lead form no longer asks for it. */
+    company?: string;
     email: string;
+    phone?: string;
     teamSize?: string;
     message?: string;
     status: "new" | "contacted" | "closed";
@@ -174,12 +176,21 @@ function RequestCard({ req, idx, onMarkContacted, updating }: {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>
-                    {req.name} <span style={{ color: "#94a3b8", fontWeight: 600 }}>· {req.company}</span>
+                    {req.name}
+                    {req.company && <span style={{ color: "#94a3b8", fontWeight: 600 }}> · {req.company}</span>}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "6px", flexWrap: "wrap" }}>
                     <span style={{ fontSize: "12px", color: "#64748b", display: "flex", alignItems: "center", gap: "6px", fontWeight: 600 }}>
                         <FiMail size={12} /> {req.email}
                     </span>
+                    {req.phone && (
+                        <a
+                            href={`tel:${req.phone.replace(/[^+\d]/g, "")}`}
+                            style={{ fontSize: "12px", color: "#64748b", display: "flex", alignItems: "center", gap: "6px", fontWeight: 600, textDecoration: "none" }}
+                        >
+                            <FiPhoneCall size={12} /> {req.phone}
+                        </a>
+                    )}
                     {req.teamSize && (
                         <span style={{
                             fontSize: "10px", fontWeight: 800, padding: "3px 10px", borderRadius: "100px",

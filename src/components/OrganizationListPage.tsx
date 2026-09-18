@@ -192,7 +192,14 @@ export default function OrganizationListPage() {
     const [statusFilter, setStatusFilter] = useState("All");
     const [planFilter, setPlanFilter] = useState("All");
 
+    // Same out-of-order hazard as the Global Users list: one uncancelled
+    // request per keystroke, and whichever reply lands last wins. Keyed on the
+    // query itself rather than a request counter — see the note there.
+    const latestQuery = useRef("");
+
     const fetchOrganizations = useCallback(async (silent = false) => {
+        const queryKey = JSON.stringify([page, limit, search, statusFilter, planFilter]);
+        latestQuery.current = queryKey;
         if (!silent) setLoading(true);
         else setRefreshing(true);
         try {
@@ -213,6 +220,7 @@ export default function OrganizationListPage() {
                 const fetchedData = res.data.data?.data || res.data.data || [];
                 const pagination = res.data.pagination || res.data.data?.pagination || {};
 
+                if (latestQuery.current !== queryKey) return;   // superseded
                 setOrganizations(fetchedData);
                 setTotal(pagination.total ?? fetchedData.length);
                 setActiveCount(pagination.active ?? fetchedData.filter((o: any) => o.status === 'active').length);
@@ -222,6 +230,8 @@ export default function OrganizationListPage() {
         } catch (err) {
             console.error("Fetch error", err);
         } finally {
+            // Cleared unconditionally — see the note on the Global Users list:
+            // gating the spinner on freshness can strand it on forever.
             setLoading(false);
             setRefreshing(false);
         }

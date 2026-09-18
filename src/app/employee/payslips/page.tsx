@@ -20,7 +20,9 @@ export default function EmployeePayslipsPage() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!user?._id) return;
+            // Never leave the screen spinning: without an id there is
+            // nothing to fetch, but the page must still render.
+            if (!user?._id) { setLoading(false); return; }
             try {
                 const res = await axiosInstance.get(API_ENDPOINTS.PAYROLL, { params: { employee: user._id, limit: 24 } });
                 setPayslips(res.data.data || []);

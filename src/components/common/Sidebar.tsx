@@ -374,7 +374,7 @@ export default function Sidebar() {
             '/admin/dashboard/payroll', '/admin/dashboard/payroll/employees', '/admin/dashboard/payroll/attendance', '/admin/dashboard/payroll/payroll-runs', '/admin/dashboard/payroll/payouts', '/admin/dashboard/payroll/reports', '/admin/dashboard/payroll/audit',
             '/payroll-module', '/payroll-module/employees', '/payroll-module/attendance', '/payroll-module/payroll-runs', '/payroll-module/payouts', '/payroll-module/reports', '/payroll-module/audit',
             '/employee/attendance', '/employee/dashboard', '/employee/profile', '/employee/payslips', '/employee/leaves',
-            '/employee/site-attendance', '/employee/job-card', '/employee/shift-schedule', '/employee/timesheets',
+            '/employee/check-in', '/employee/site-attendance', '/employee/job-card', '/employee/shift-schedule', '/employee/timesheets',
             '/employee/travel-request', '/employee/reimbursement', '/employee/allowance', '/employee/esi-pf', '/employee/tax',
             '/employee/safety', '/employee/incident', '/employee/ppe', '/employee/training', '/employee/certifications', '/employee/skills',
             '/employee/targets', '/employee/appraisals', '/employee/announcements', '/employee/documents', '/employee/team', '/employee/settings',
