@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     FiGrid, FiUsers, FiClock, FiPlay, FiCreditCard,
-    FiBarChart2, FiShield
+    FiBarChart2, FiShield, FiDollarSign
 } from "react-icons/fi";
 
 const NAV = [
@@ -13,6 +13,7 @@ const NAV = [
     { label: "Attendance",       icon: FiClock,      href: "/admin/dashboard/payroll/attendance" },
     { label: "Payroll Runs",     icon: FiPlay,       href: "/admin/dashboard/payroll/payroll-runs" },
     { label: "Payout Status",    icon: FiCreditCard, href: "/admin/dashboard/payroll/payouts" },
+    { label: "Loans",            icon: FiDollarSign, href: "/admin/dashboard/payroll/loans" },
     { label: "Reports",          icon: FiBarChart2,  href: "/admin/dashboard/payroll/reports" },
     { label: "Audit Logs",       icon: FiShield,     href: "/admin/dashboard/payroll/audit" },
 ];

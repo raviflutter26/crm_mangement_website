@@ -11,21 +11,44 @@ interface User {
     firstName: string;
     lastName: string;
     email: string;
-    role: 'superadmin' | 'admin' | 'hr' | 'manager' | 'employee';
+    role: 'superadmin' | 'owner' | 'admin' | 'hr' | 'manager' | 'employee';
     organizationId: string | null;
     departmentId: string | null;
+    /** Set while the company is read-only (trial ended unpaid or subscription cancelled). */
+    readOnlyUntil?: string | null;
     avatar?: string;
 }
+
+/** What login() resolves to: done, or waiting on an MFA code for this preAuthToken. */
+export type LoginResult = { mfaRequired: false } | { mfaRequired: true; preAuthToken: string };
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
-    login: (credentials: any) => Promise<void>;
+    login: (credentials: any) => Promise<LoginResult>;
+    completeMfaLogin: (preAuthToken: string, code: string) => Promise<void>;
+    completeSsoLogin: (token: string) => Promise<void>;
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/**
+ * The landing page for a role. The one place this mapping lives: login and
+ * RoleGuard both send people here. An owner is the tenant's top administrator
+ * and uses the admin area.
+ */
+export function dashboardPathFor(role?: string | null): string {
+    switch (String(role || '').toLowerCase()) {
+        case 'superadmin': return '/superadmin/dashboard';
+        case 'owner':
+        case 'admin': return '/admin/dashboard';
+        case 'hr': return '/hr/dashboard';
+        case 'manager': return '/manager/dashboard';
+        default: return '/employee/dashboard';
+    }
+}
 
 /**
  * Give the user object one identity field, whichever endpoint supplied it.
@@ -85,9 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const login = async (credentials: any) => {
-        const res = await axiosInstance.post('/api/auth/login', credentials);
-        const { user: rawUser, token: userToken } = res.data.data;
+    /** Store the session from a login or MFA-challenge response and go to the user's dashboard. */
+    const finishLogin = (data: any) => {
+        const { user: rawUser, token: userToken } = data;
         const userData = normalizeUser(rawUser);
 
         // Persist to localStorage
@@ -95,17 +118,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.setItem('ravi_zoho_token', userToken);
             localStorage.setItem('ravi_zoho_user', JSON.stringify(userData));
         }
-        
+
         setUser(userData);
-        
-        // Role-based redirection
-        const role = userData.role;
-        switch (role) {
-            case 'superadmin': router.push('/superadmin/dashboard'); break;
-            case 'admin': router.push('/admin/dashboard'); break;
-            case 'hr': router.push('/hr/dashboard'); break;
-            case 'manager': router.push('/manager/dashboard'); break;
-            default: router.push('/employee/dashboard'); break;
+        router.push(dashboardPathFor(userData.role));
+    };
+
+    const login = async (credentials: any): Promise<LoginResult> => {
+        const res = await axiosInstance.post('/api/auth/login', credentials);
+        const data = res.data.data;
+        // With MFA on, the password step only yields a short-lived preAuthToken;
+        // the session comes from /api/auth/mfa/challenge once a code is entered.
+        if (data?.mfaRequired) {
+            return { mfaRequired: true, preAuthToken: data.preAuthToken };
+        }
+        finishLogin(data);
+        return { mfaRequired: false };
+    };
+
+    const completeMfaLogin = async (preAuthToken: string, code: string) => {
+        const res = await axiosInstance.post('/api/auth/mfa/challenge', { preAuthToken, code: code.trim() });
+        finishLogin(res.data.data);
+    };
+
+    /**
+     * Finish an SSO login: the API's callback redirected to /sso-complete with
+     * the session token in the URL fragment. Store it, load the profile, and go
+     * to the user's dashboard — the same end state as a password login.
+     */
+    const completeSsoLogin = async (ssoToken: string) => {
+        if (typeof window !== 'undefined') localStorage.setItem('ravi_zoho_token', ssoToken);
+        try {
+            const res = await axiosInstance.get('/api/auth/me');
+            finishLogin({ user: res.data.data, token: ssoToken });
+        } catch (err) {
+            if (typeof window !== 'undefined') localStorage.removeItem('ravi_zoho_token');
+            throw err;
         }
     };
 
@@ -125,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, checkAuth }}>
+        <AuthContext.Provider value={{ user, loading, login, completeMfaLogin, completeSsoLogin, logout, checkAuth }}>
             {children}
         </AuthContext.Provider>
     );

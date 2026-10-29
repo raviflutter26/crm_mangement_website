@@ -136,6 +136,22 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
         sendWelcomeEmail: true
     });
 
+    // Branch posting / access scope. Only an owner or admin is offered these;
+    // the backend still enforces who may grant what.
+    const canGrantScope = ["owner", "admin", "superadmin"].includes(String(currentUser?.role || "").toLowerCase());
+    const [branches, setBranches] = useState<any[]>([]);
+    const [scope, setScope] = useState({
+        branchId: String(editEmployee?.branchId?._id || editEmployee?.branchId || ""),
+        branchIds: ((editEmployee?.branchIds || []) as any[]).map((b: any) => String(b?._id || b)),
+        isGroupWide: !!editEmployee?.isGroupWide,
+    });
+    useEffect(() => {
+        if (!canGrantScope) return;
+        axiosInstance.get(API_ENDPOINTS.BRANCHES)
+            .then((res) => setBranches(res.data.data || []))
+            .catch(() => setBranches([]));
+    }, [canGrantScope]);
+
     const [stateSearch, setStateSearch] = useState("");
     const [citySearch, setCitySearch] = useState("");
     const [statesList, setStatesList] = useState<any[]>([]);
@@ -578,6 +594,12 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
             ];
             fieldsToRemove.forEach(f => delete (sanitizedData as any)[f]);
 
+            if (canGrantScope) {
+                (sanitizedData as any).branchId = scope.branchId || null;
+                (sanitizedData as any).branchIds = scope.branchIds;
+                (sanitizedData as any).isGroupWide = scope.isGroupWide;
+            }
+
             if (!sanitizedData.reportingManager) (sanitizedData as any).reportingManager = null;
             if (!sanitizedData.shift) (sanitizedData as any).shift = null;
 
@@ -863,6 +885,48 @@ export default function AddEmployeePage({ onBack, onSuccess, showNotify, current
                                 </select>
                                 {errors.shift && <div style={{ color: "red", fontSize: "11px", marginTop: "4px" }}>{errors.shift}</div>}
                             </div>
+                            {canGrantScope && (
+                                <>
+                                    <div>
+                                        <label className="form-label">Posting Branch</label>
+                                        <select value={scope.branchId} onChange={(e) => setScope(prev => ({ ...prev, branchId: e.target.value }))} className="form-input">
+                                            <option value="">Not set</option>
+                                            {branches.map((b: any) => <option key={b._id} value={b._id}>{b.name}</option>)}
+                                        </select>
+                                        <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>Where they work. Must be one of their access branches when those are set.</div>
+                                    </div>
+                                    <div>
+                                        <label className="form-label">Access</label>
+                                        <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", cursor: "pointer", marginTop: "8px" }}>
+                                            <input type="checkbox" checked={scope.isGroupWide} onChange={(e) => setScope(prev => ({ ...prev, isGroupWide: e.target.checked }))} />
+                                            Group-wide (sees every branch)
+                                        </label>
+                                        <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>Admin and HR with no branches see nothing unless this is ticked.</div>
+                                    </div>
+                                    <div style={{ gridColumn: "1 / -1" }}>
+                                        <label className="form-label">Access Branches</label>
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", padding: "10px", border: "1px solid var(--border)", borderRadius: "8px" }}>
+                                            {branches.length === 0 && <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>No branches defined.</span>}
+                                            {branches.map((b: any) => (
+                                                <label key={b._id} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", cursor: "pointer" }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={scope.branchIds.includes(String(b._id))}
+                                                        onChange={(e) => setScope(prev => ({
+                                                            ...prev,
+                                                            branchIds: e.target.checked
+                                                                ? [...prev.branchIds, String(b._id)]
+                                                                : prev.branchIds.filter((id) => id !== String(b._id)),
+                                                        }))}
+                                                    />
+                                                    {b.name}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>Branches this person may act in. None selected means no branch restriction.</div>
+                                    </div>
+                                </>
+                            )}
                             {formData.role === "Employee" && Array.isArray(formData.department) && formData.department.length > 0 && availableManagers.length === 0 && (
                                 <div style={{ gridColumn: "1 / -1", padding: "16px", background: "rgba(255, 193, 7, 0.1)", border: "1px solid #FFC107", borderRadius: "10px", color: "#856404", fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}>
                                     <FiAlertCircle size={20} />

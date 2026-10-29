@@ -22,7 +22,7 @@ export default function EmployeesPage() {
 
     const fetchEmployees = useCallback(async () => {
         setLoading(true);
-        try { const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEES); setEmployees(res.data.data || []); }
+        try { const res = await axiosInstance.get(API_ENDPOINTS.PAYOUTS_EMPLOYEES); setEmployees(res.data.data || []); }
         catch (e) { console.error(e); } finally { setLoading(false); }
     }, []);
 
@@ -34,7 +34,19 @@ export default function EmployeesPage() {
     const unverified = employees.filter(e => e.bankAccount?.maskedAccount && !e.bankAccount?.verified).length;
 
     const openBankModal = (emp: any) => { setSelectedEmp(emp); setBankForm({ accountNumber: "", ifsc: "", bankName: "", accountType: "savings", uan: emp.uan || "", pan: emp.pan || "" }); setShowBankModal(true); };
-    const openStructureModal = (emp: any) => { setSelectedEmp(emp); const s = emp.salaryStructure || {}; setStructureForm({ basic: s.basic || "", hra: s.hra || "", da: s.da || "", ta: s.ta || "", specialAllowance: s.specialAllowance || "", medicalAllowance: s.medicalAllowance || "", bonus: s.bonus || "" }); setShowStructureModal(true); };
+    const openStructureModal = (emp: any) => { setSelectedEmp(emp); const s = emp.salary || {}; setStructureForm({ basic: s.basic || "", hra: s.hra || "", da: s.da || "", ta: s.ta || "", specialAllowance: s.specialAllowance || "", medicalAllowance: s.medicalAllowance || "", bonus: s.bonus || "" }); setShowStructureModal(true); };
+
+    // Bank counters above read bankAccount.{maskedAccount, verified,
+    // razorpayFundAccountId}, which only /payouts/employees returns — the
+    // generic employee list never did, so every counter showed 0.
+    const linkRazorpay = async (empId: string) => {
+        try { await axiosInstance.post(API_ENDPOINTS.PAYOUTS_PREPARE(empId)); toast.success("Linked to RazorpayX"); fetchEmployees(); }
+        catch (e: any) { toast.error(e.response?.data?.message || "Failed to link bank account"); }
+    };
+    const verifyBank = async (empId: string) => {
+        try { const res = await axiosInstance.post(API_ENDPOINTS.BANK_VERIFY(empId)); toast.success(res.data?.message || "Verification requested"); fetchEmployees(); }
+        catch (e: any) { toast.error(e.response?.data?.message || "Failed to verify bank account"); }
+    };
 
     const saveBankDetails = async () => {
         if (!selectedEmp) return; setSaving(true);
@@ -74,7 +86,7 @@ export default function EmployeesPage() {
                     filtered.length === 0 ? <div style={{ textAlign: "center", padding: "60px 20px", color: "#94A3B8" }}>No employees found</div> :
                     filtered.map((emp) => (
                         <div key={emp._id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ flex: 1 }}><EmployeeBankStatus employee={emp} onSetupBank={() => openBankModal(emp)} /></div>
+                            <div style={{ flex: 1 }}><EmployeeBankStatus employee={emp} onSetupBank={() => openBankModal(emp)} onLink={linkRazorpay} onVerify={verifyBank} /></div>
                             <div style={{ display: "flex", gap: 6, flexShrink: 0, marginBottom: 8 }}>
                                 <button className="btn btn-secondary btn-sm" onClick={() => openBankModal(emp)}>{emp.bankAccount?.maskedAccount ? "Edit Bank" : "Add Bank"}</button>
                                 <button className="btn btn-secondary btn-sm" onClick={() => openStructureModal(emp)}>Salary Structure</button>

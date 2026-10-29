@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
 import PayoutStatusTable from "@/components/payroll/PayoutStatusTable";
+import PayoutReconciliation from "@/components/payroll/PayoutReconciliation";
+import BranchFilter, { useBranches } from "@/components/payroll/BranchFilter";
 import { FiRefreshCw, FiCreditCard, FiCheckCircle, FiAlertCircle, FiClock, FiActivity } from "react-icons/fi";
 import { useToast } from "@/components/common/DialogProvider";
 import ErrorState from "@/components/common/ErrorState";
@@ -21,6 +23,9 @@ export default function PayoutsPage() {
     const [autoRefresh, setAutoRefresh] = useState(true);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const [errors, setErrors] = useState<FetchError[]>([]);
+    // Payouts follow the per-branch payroll runs; "" = every branch the caller reaches.
+    const { branches } = useBranches();
+    const [branchFilter, setBranchFilter] = useState("");
 
     const fetchPayouts = useCallback(async (silent = false) => {
         if (!silent) setLoading(true); else setRefreshing(true);
@@ -28,7 +33,7 @@ export default function PayoutsPage() {
             // This screen decides whether salaries went out. Defaulting a failed
             // request to [] would report "0 failed payouts" during an outage,
             // which is the most dangerous thing this page could say.
-            const res = await axiosInstance.get(API_ENDPOINTS.PAYOUTS_HISTORY);
+            const res = await axiosInstance.get(API_ENDPOINTS.PAYOUTS_HISTORY, { params: branchFilter ? { branchId: branchFilter } : {} });
             const data: any[] = res.data.data || [];
             setPayouts(data);
             const summ = {
@@ -46,7 +51,7 @@ export default function PayoutsPage() {
             setSummary({ total: 0, pending: 0, processing: 0, processed: 0, failed: 0, totalAmount: 0 });
             setErrors([describeError(e)]);
         } finally { setLoading(false); setRefreshing(false); }
-    }, []);
+    }, [branchFilter]);
 
     // Auto-refresh every 30s
     useEffect(() => {
@@ -76,6 +81,7 @@ export default function PayoutsPage() {
                     </p>
                 </div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <BranchFilter branches={branches} value={branchFilter} onChange={setBranchFilter} />
                     {/* Auto-refresh toggle */}
                     <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#475569", cursor: "pointer" }}>
                         <div
@@ -158,6 +164,8 @@ export default function PayoutsPage() {
                 </div>
                 <PayoutStatusTable payouts={payouts} onRetry={handleRetry} retryingId={retryingId} loading={loading} />
             </div>
+
+            <PayoutReconciliation onChanged={() => fetchPayouts(true)} branchId={branchFilter || undefined} />
         </>
     );
 }

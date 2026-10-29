@@ -24,7 +24,8 @@ function SparkLine({ data, color, width = 80, height = 30 }: any) {
 }
 
 function BarChart({ data, labels, colors }: any) {
-  const max = Math.max(...data.flat());
+  // At least 1, so an all-zero week draws empty bars instead of NaN heights.
+  const max = Math.max(1, ...data.flat());
   const h = 160, w = 500, pad = 32, barW = 18, gap = 6;
   const seriesCount = data.length;
   const groupW = seriesCount * (barW + gap) - gap;
@@ -200,8 +201,8 @@ export default function AnalyticsPage() {
                         <div style={{ fontSize: '36px', fontWeight: 950, color: '#0f172a', marginBottom: '8px', letterSpacing: '-1px' }}>{k.val}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
                             <span style={{ 
-                                color: k.dir === 'up' ? '#10b981' : '#ef4444', 
-                                background: k.dir === 'up' ? '#f0fdf4' : '#fef2f2',
+                                color: k.dir === 'up' ? '#10b981' : k.dir === 'down' ? '#ef4444' : '#64748b',
+                                background: k.dir === 'up' ? '#f0fdf4' : k.dir === 'down' ? '#fef2f2' : '#f1f5f9',
                                 padding: '4px 10px',
                                 borderRadius: '100px',
                                 fontWeight: 800,
@@ -209,7 +210,7 @@ export default function AnalyticsPage() {
                                 alignItems: 'center',
                                 gap: '4px'
                             }}>
-                                {k.dir === 'up' ? <FiArrowUp /> : <FiArrowDown />} {k.delta}
+                                {k.dir === 'up' ? <FiArrowUp /> : k.dir === 'down' ? <FiArrowDown /> : null} {k.delta}
                             </span>
                             <span style={{ color: '#94a3b8', fontWeight: 600 }}>{k.sub}</span>
                         </div>

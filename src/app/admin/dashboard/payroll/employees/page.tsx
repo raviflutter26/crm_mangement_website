@@ -24,7 +24,7 @@ export default function PayrollEmployeesPage() {
     const fetchEmployees = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEES);
+            const res = await axiosInstance.get(API_ENDPOINTS.PAYOUTS_EMPLOYEES);
             setEmployees(res.data.data || []);
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
@@ -43,9 +43,21 @@ export default function PayrollEmployeesPage() {
     const openBankModal = (emp: any) => { setSelectedEmp(emp); setBankForm({ accountNumber: "", ifsc: "", bankName: "", accountType: "savings", uan: emp.uan || "", pan: emp.pan || "" }); setShowBankModal(true); };
     const openStructureModal = (emp: any) => {
         setSelectedEmp(emp);
-        const s = emp.salaryStructure || {};
+        const s = emp.salary || {};
         setStructureForm({ basic: s.basic || "", hra: s.hra || "", da: s.da || "", ta: s.ta || "", specialAllowance: s.specialAllowance || "", medicalAllowance: s.medicalAllowance || "", bonus: s.bonus || "" });
         setShowStructureModal(true);
+    };
+
+    // Bank counters above read bankAccount.{maskedAccount, verified,
+    // razorpayFundAccountId}, which only /payouts/employees returns — the
+    // generic employee list never did, so every counter showed 0.
+    const linkRazorpay = async (empId: string) => {
+        try { await axiosInstance.post(API_ENDPOINTS.PAYOUTS_PREPARE(empId)); toast.success("Linked to RazorpayX"); fetchEmployees(); }
+        catch (e: any) { toast.error(e.response?.data?.message || "Failed to link bank account"); }
+    };
+    const verifyBank = async (empId: string) => {
+        try { const res = await axiosInstance.post(API_ENDPOINTS.BANK_VERIFY(empId)); toast.success(res.data?.message || "Verification requested"); fetchEmployees(); }
+        catch (e: any) { toast.error(e.response?.data?.message || "Failed to verify bank account"); }
     };
 
     const saveBankDetails = async () => {
@@ -120,7 +132,7 @@ export default function PayrollEmployeesPage() {
                         <div key={emp._id}>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                 <div style={{ flex: 1 }}>
-                                    <EmployeeBankStatus employee={emp} onSetupBank={() => openBankModal(emp)} />
+                                    <EmployeeBankStatus employee={emp} onSetupBank={() => openBankModal(emp)} onLink={linkRazorpay} onVerify={verifyBank} />
                                 </div>
                                 <div style={{ display: "flex", gap: 6, flexShrink: 0, marginBottom: 8 }}>
                                     <button className="btn btn-secondary btn-sm" onClick={() => openBankModal(emp)} title="Configure Bank">

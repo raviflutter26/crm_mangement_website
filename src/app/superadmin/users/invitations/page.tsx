@@ -14,7 +14,8 @@ interface Invitation {
     email: string;
     role: string;
     sentAt: string;
-    expiresAt: string;
+    expiresAt: string | null;
+    organization?: string;
     status: "Pending" | "Expired" | "Accepted";
     initials: string;
 }
@@ -49,14 +50,22 @@ export default function InvitationsPage() {
         fetchInvites();
     }, []);
 
-    const revokeStatus = async (id: string) => {
+    const [notice, setNotice] = useState<string | null>(null);
+
+    // People are invited by being added to an organization; this re-sends their setup link.
+    const resend = async (inv: Invitation) => {
         const ok = await confirmDialog({
-            title: "Revoke this invitation?",
-            confirmLabel: "Revoke",
-            danger: true,
+            title: `Email a new setup link to ${inv.email}?`,
+            confirmLabel: "Send",
         });
         if (!ok) return;
-        setInvites(prev => prev.filter(inv => inv.id !== id));
+        try {
+            const res = await axiosInstance.post(`/api/invitations/${inv.id}/resend`);
+            setNotice(res.data?.message || "Setup link sent.");
+            fetchInvites();
+        } catch (err: any) {
+            setNotice(err.response?.data?.message || "The setup link could not be sent.");
+        }
     };
 
     if (loading && invites.length === 0) return <div className="loading-container"><FiLoader className="rotate" /></div>;
@@ -74,12 +83,15 @@ export default function InvitationsPage() {
             >
                 <div>
                     <h1 className="page-title" style={{ fontSize: "28px", fontWeight: 900 }}>Global Invitations</h1>
-                    <p className="page-subtitle">Manage cross-organization user onboarding and secure access tokens.</p>
+                    <p className="page-subtitle">Users added to an organization who have not set their password yet. Expired means their last setup link has lapsed.</p>
                 </div>
-                <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 800 }}>
-                    <FiUserPlus size={18} /> CREATE GLOBAL INVITE
-                </button>
             </motion.div>
+
+            {notice && (
+                <div role="status" style={{ padding: "12px 16px", marginBottom: "16px", borderRadius: "10px", background: "var(--bg-secondary)", fontSize: "13px", fontWeight: 600 }}>
+                    {notice}
+                </div>
+            )}
 
             {loadError && (
                 <div
@@ -109,7 +121,7 @@ export default function InvitationsPage() {
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', letterSpacing: '2px', marginBottom: '16px', textTransform: "uppercase" }}>Active Invitations</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {pending.map((inv, idx) => (
-                                <InviteCard key={inv.id} inv={inv} idx={idx} onRevoke={() => revokeStatus(inv.id)} />
+                                <InviteCard key={inv.id} inv={inv} idx={idx} onResend={() => resend(inv)} />
                             ))}
                         </div>
                     </section>
@@ -120,7 +132,7 @@ export default function InvitationsPage() {
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', letterSpacing: '2px', marginBottom: '16px', textTransform: "uppercase" }}>Expired Tokens</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {expired.map((inv, idx) => (
-                                <InviteCard key={inv.id} inv={inv} idx={idx} onRevoke={() => revokeStatus(inv.id)} />
+                                <InviteCard key={inv.id} inv={inv} idx={idx} onResend={() => resend(inv)} />
                             ))}
                         </div>
                     </section>
@@ -144,7 +156,7 @@ function MetricCard({ label, val, color }: any) {
     );
 }
 
-function InviteCard({ inv, idx, onRevoke }: { inv: Invitation, idx: number, onRevoke: () => void }) {
+function InviteCard({ inv, idx, onResend }: { inv: Invitation, idx: number, onResend: () => void }) {
     return (
         <motion.div 
             initial={{ opacity: 0, x: -20 }}
@@ -176,16 +188,13 @@ function InviteCard({ inv, idx, onRevoke }: { inv: Invitation, idx: number, onRe
                         background: '#f1f5f9', color: '#64748b', textTransform: "uppercase"
                     }}>{inv.role}</span>
                     <span style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-                        <FiClock size={12} /> {inv.status === 'Expired' ? `Expired on ${new Date(inv.expiresAt).toLocaleDateString()}` : `Expires in 24h`}
+                        <FiClock size={12} /> {!inv.expiresAt ? 'No setup link sent' : inv.status === 'Expired' ? `Link expired ${new Date(inv.expiresAt).toLocaleDateString()}` : `Link expires ${new Date(inv.expiresAt).toLocaleString()}`}
                     </span>
                 </div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-secondary" style={{ padding: '10px 18px', fontWeight: 800, fontSize: "12px" }}>
-                    <FiRefreshCcw size={14} /> RESEND
-                </button>
-                <button className="btn btn-secondary" style={{ padding: '10px 18px', fontWeight: 800, fontSize: "12px", color: "#ef4444" }} onClick={onRevoke}>
-                    <FiTrash2 size={14} /> REVOKE
+                <button className="btn btn-secondary" style={{ padding: '10px 18px', fontWeight: 800, fontSize: "12px" }} onClick={onResend}>
+                    <FiRefreshCcw size={14} /> RESEND LINK
                 </button>
             </div>
         </motion.div>

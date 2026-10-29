@@ -7,6 +7,8 @@ import ErrorState from "@/components/common/ErrorState";
 import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import PayrollTrendChart from "@/components/payroll/PayrollTrendChart";
 import PayslipModal from "@/components/payroll/PayslipModal";
+import StatutoryFilings from "@/components/payroll/StatutoryFilings";
+import BranchFilter, { useBranches } from "@/components/payroll/BranchFilter";
 import { FiBarChart2, FiDownload, FiSearch, FiFileText } from "react-icons/fi";
 import { useToast } from "@/components/common/DialogProvider";
 
@@ -23,6 +25,18 @@ export default function ReportsPage() {
     const [payslipData, setPayslipData] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<"trend" | "payslips" | "compliance">("trend");
     const [downloadingReport, setDownloadingReport] = useState<string | null>(null);
+    // Payroll runs per branch; "" = every branch the caller reaches.
+    const { branches } = useBranches();
+    const [branchFilter, setBranchFilter] = useState("");
+    // Period for the compliance exports. Defaults to last month — the one
+    // normally being filed — and is user-selectable (it was hardwired to the
+    // current month).
+    const [challanPeriod, setChallanPeriod] = useState(() => {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - 1);
+        return { month: d.getMonth() + 1, year: d.getFullYear() };
+    });
 
     const downloadComplianceReport = async (reportName: string) => {
         setDownloadingReport(reportName);
@@ -30,22 +44,23 @@ export default function ReportsPage() {
             const res = await axiosInstance.post(API_ENDPOINTS.PAYROLL_REPORTS, {
                 reportName,
                 reportCategory: 'Compliance',
-                month: new Date().getMonth() + 1, // Current month for demo
-                year: new Date().getFullYear(),
-                reportType: 'csv'
+                month: challanPeriod.month,
+                year: challanPeriod.year,
+                reportType: 'csv',
+                ...(branchFilter ? { branchId: branchFilter } : {}),
             });
             const fileUrl = res.data.data.fileUrl;
             
             // Create a fake link to download the base64 CSV
             const a = document.createElement("a");
             a.href = fileUrl;
-            a.download = `${reportName.replace(/\s+/g, '_')}.csv`;
+            a.download = `${reportName.replace(/\s+/g, '_')}_${challanPeriod.month}_${challanPeriod.year}.csv`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            toast.error("Failed to download report");
+            toast.error(e?.response?.data?.message || "Failed to download report");
         } finally {
             setDownloadingReport(null);
         }
@@ -56,15 +71,15 @@ export default function ReportsPage() {
     const fetchData = useCallback(async () => {
         setLoading(true);
         const { results, errors: errs } = await settleAll([
-            axiosInstance.get(API_ENDPOINTS.PAYROLL),
-            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL, { params: branchFilter ? { branchId: branchFilter } : {} }),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS, { params: branchFilter ? { branchId: branchFilter } : {} }),
         ]);
         const [recRes, runsRes] = results;
         setRecords(unwrap<any[]>(recRes, []));
         setRuns(unwrap<any[]>(runsRes, []));
         setErrors(errs);
         setLoading(false);
-    }, []);
+    }, [branchFilter]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -72,12 +87,14 @@ export default function ReportsPage() {
     const now = new Date();
     const trendData = Array.from({ length: 6 }).map((_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-        const run = runs.find(r => r.month === d.getMonth() + 1 && r.year === d.getFullYear());
+        // One run per branch per month: sum them.
+        const monthRuns = runs.filter(r => r.month === d.getMonth() + 1 && r.year === d.getFullYear());
+        const total = (k: string) => monthRuns.reduce((s, r) => s + (r[k] || 0), 0);
         return {
             month: MONTHS_SHORT[d.getMonth()],
-            netPay: run?.totalNetPay || 0,
-            grossPay: run?.totalGrossPay || 0,
-            deductions: run?.totalDeductions || 0,
+            netPay: total("totalNetPay"),
+            grossPay: total("totalGrossPay"),
+            deductions: total("totalDeductions"),
         };
     });
 
@@ -93,9 +110,12 @@ export default function ReportsPage() {
 
     return (
         <>
-            <div style={{ marginBottom: 24 }}>
-                <h1 style={{ fontSize: 24, fontWeight: 900, color: "#1E1B4B", margin: 0 }}>Payroll Reports</h1>
-                <p style={{ color: "#64748B", fontSize: 14, marginTop: 4 }}>Monthly trends, disbursement tracking, and payslip generation</p>
+            <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                    <h1 style={{ fontSize: 24, fontWeight: 900, color: "#1E1B4B", margin: 0 }}>Payroll Reports</h1>
+                    <p style={{ color: "#64748B", fontSize: 14, marginTop: 4 }}>Monthly trends, disbursement tracking, and payslip generation</p>
+                </div>
+                <BranchFilter branches={branches} value={branchFilter} onChange={setBranchFilter} />
             </div>
 
             <ErrorState errors={errors} onRetry={fetchData} title="Report data could not be loaded" />
@@ -254,19 +274,33 @@ export default function ReportsPage() {
             {activeTab === "compliance" && (
                 <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #E8EAFF", padding: 30 }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: "#1E1B4B", marginBottom: 8 }}>Statutory & Compliance Filings</div>
-                    <div style={{ fontSize: 14, color: "#64748B", marginBottom: 30 }}>Download auto-generated CSV files formatted for government portal uploads based on the latest approved payroll run.</div>
+                    <div style={{ fontSize: 14, color: "#64748B", marginBottom: 16 }}>Working CSVs of each month&apos;s PF, ESI and TDS figures, built from that month&apos;s payroll records. They are not the portal upload formats (ECR text file, ESIC return, Form 24Q) — use them to prepare those filings.</div>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 24 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Period</label>
+                        <select className="form-input" style={{ width: 160 }} value={challanPeriod.month}
+                            onChange={e => setChallanPeriod(p => ({ ...p, month: Number(e.target.value) }))}>
+                            {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                        </select>
+                        <select className="form-input" style={{ width: 110 }} value={challanPeriod.year}
+                            onChange={e => setChallanPeriod(p => ({ ...p, year: Number(e.target.value) }))}>
+                            {Array.from({ length: 6 }).map((_, i) => {
+                                const y = new Date().getFullYear() - i;
+                                return <option key={y} value={y}>{y}</option>;
+                            })}
+                        </select>
+                    </div>
                     
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
                         <div style={{ border: "1px solid #E2E8F0", padding: 24, borderRadius: 16 }}>
-                            <div style={{ fontWeight: 700, fontSize: 16, color: "#1E293B", marginBottom: 8 }}>PF Challan (ECR)</div>
-                            <div style={{ fontSize: 13, color: "#64748B", marginBottom: 20, minHeight: 40 }}>Electronic Challan cum Return format for EPFO portal upload. Includes UAN, EPF Wages, and Contributions.</div>
+                            <div style={{ fontWeight: 700, fontSize: 16, color: "#1E293B", marginBottom: 8 }}>PF Challan</div>
+                            <div style={{ fontSize: 13, color: "#64748B", marginBottom: 20, minHeight: 40 }}>UAN, EPF/EPS/EDLI wages, contributions and NCP days per member — the data an ECR is prepared from.</div>
                             <button 
                                 className="btn btn-primary" 
                                 style={{ width: "100%", justifyContent: "center" }}
                                 onClick={() => downloadComplianceReport('PF Challan')}
                                 disabled={downloadingReport === 'PF Challan'}
                             >
-                                <FiDownload /> {downloadingReport === 'PF Challan' ? 'Generating...' : 'Download ECR CSV'}
+                                <FiDownload /> {downloadingReport === 'PF Challan' ? 'Generating...' : 'Download PF CSV'}
                             </button>
                         </div>
 
@@ -296,6 +330,16 @@ export default function ReportsPage() {
                             </button>
                         </div>
                     </div>
+
+                    <StatutoryFilings
+                        period={challanPeriod}
+                        branchId={branchFilter || undefined}
+                        employees={Array.from(new Map(records.filter((r: any) => r.employee?._id).map((r: any) => [r.employee._id, {
+                            _id: r.employee._id,
+                            name: `${r.employee.firstName || ""} ${r.employee.lastName || ""}`.trim(),
+                            employeeId: r.employee.employeeId,
+                        }])).values())}
+                    />
                 </div>
             )}
 

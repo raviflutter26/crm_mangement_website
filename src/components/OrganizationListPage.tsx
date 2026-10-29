@@ -29,7 +29,8 @@ type Organization = {
     industry?: string;
     planType?: string;
     maxEmployees?: number;
-    status: "active" | "suspended" | "pending" | "inactive";
+    status: "active" | "suspended" | "pending" | "inactive" | "read_only";
+    readOnlyUntil?: string | null;
     createdAt: string;
     employeeCount?: number;
 };
@@ -47,6 +48,11 @@ const StatusBadge = ({ status }: { status: string }) => {
             label: "Suspended",
             dot: "bg-red-400",
             cls: "bg-red-50 text-red-600 border-red-200/60 shadow-[0_1px_3px_rgba(239,68,68,0.1)]"
+        },
+        read_only: {
+            label: "Read-only",
+            dot: "bg-orange-400",
+            cls: "bg-orange-50 text-orange-700 border-orange-200/60 shadow-[0_1px_3px_rgba(249,115,22,0.1)]"
         },
         pending: {
             label: "Pending",

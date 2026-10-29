@@ -18,6 +18,8 @@ interface AuditLog {
     severity: string;
 }
 
+const PAGE_SIZE = 50;
+
 const SEVERITY_BADGE: Record<string, { bg: string; color: string }> = {
     info: { bg: "#eff6ff", color: "#3b82f6" },
     warning: { bg: "#fffbeb", color: "#f59e0b" },
@@ -29,11 +31,18 @@ export default function AuditLogPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [search, setSearch] = useState("");
+    // Server-side filters: the actor box and paging go to the API, which used to
+    // ignore the actor and only ever return the newest 20 entries.
+    const [actorInput, setActorInput] = useState("");
+    const [actor, setActor] = useState("");
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState<{ total: number; totalPages: number }>({ total: 0, totalPages: 1 });
 
     const fetchLogs = useCallback(async () => {
         try {
-            const res = await axiosInstance.get("/api/superadmin/audit-log");
+            const res = await axiosInstance.get("/api/superadmin/audit-log", { params: { actor: actor || undefined, page, limit: PAGE_SIZE } });
             setLogs(res.data?.data ?? []);
+            setPagination({ total: res.data?.pagination?.total ?? 0, totalPages: res.data?.pagination?.totalPages || 1 });
             setError(false);
         } catch (err) {
             console.error("Failed to load audit logs", err);
@@ -42,7 +51,21 @@ export default function AuditLogPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [actor, page]);
+
+    const exportCsv = () => {
+        const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const header = ["Time", "Actor", "Action", "Target", "IP", "Severity"];
+        const csv = [header.join(","), ...filteredLogs.map(l => [l.ts, l.actor, l.action, l.target, l.ip, l.severity].map(esc).join(","))].join("\n");
+        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `audit-log-page-${page}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     useEffect(() => {
         fetchLogs();
@@ -71,7 +94,7 @@ export default function AuditLogPage() {
                     <p className="page-subtitle">Historical trail of all administrative and security actions across the platform.</p>
                 </div>
                 <div style={{ display: "flex", gap: "12px" }}>
-                    <button className="btn btn-secondary" onClick={() => fetchLogs()} style={{ fontWeight: 800 }}>
+                    <button className="btn btn-secondary" onClick={exportCsv} disabled={filteredLogs.length === 0} style={{ fontWeight: 800 }}>
                         <FiDownload /> EXPORT CSV
                     </button>
                 </div>
@@ -79,10 +102,10 @@ export default function AuditLogPage() {
 
             {/* Metrics Summary */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "24px", marginBottom: "32px" }}>
-                <MetricBox label="TOTAL EVENTS" val={logs.length} color="var(--primary)" />
-                <MetricBox label="INFO" val={countBySeverity("info")} color="#3b82f6" />
-                <MetricBox label="WARNING" val={countBySeverity("warning")} color="#f59e0b" />
-                <MetricBox label="CRITICAL" val={countBySeverity("critical")} color="#ef4444" />
+                <MetricBox label="TOTAL EVENTS" val={pagination.total} color="var(--primary)" />
+                <MetricBox label="INFO (THIS PAGE)" val={countBySeverity("info")} color="#3b82f6" />
+                <MetricBox label="WARNING (THIS PAGE)" val={countBySeverity("warning")} color="#f59e0b" />
+                <MetricBox label="CRITICAL (THIS PAGE)" val={countBySeverity("critical")} color="#ef4444" />
             </div>
 
             <div className="card" style={{ border: "1px solid var(--border-light)", overflow: "hidden" }}>
@@ -98,9 +121,22 @@ export default function AuditLogPage() {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <button className="btn btn-secondary btn-sm" style={{ fontWeight: 700 }}>
-                        <FiFilter /> ADVANCED FILTERS
-                    </button>
+                    <form
+                        onSubmit={(e) => { e.preventDefault(); setPage(1); setActor(actorInput.trim()); }}
+                        style={{ display: "flex", gap: "8px", alignItems: "center" }}
+                    >
+                        <input
+                            type="text"
+                            placeholder="Actor name or email"
+                            className="form-input"
+                            style={{ borderRadius: "12px", background: "#f8fafc", width: "220px" }}
+                            value={actorInput}
+                            onChange={(e) => setActorInput(e.target.value)}
+                        />
+                        <button type="submit" className="btn btn-secondary btn-sm" style={{ fontWeight: 700 }}>
+                            <FiFilter /> FILTER
+                        </button>
+                    </form>
                 </div>
                 <div className="card-body" style={{ padding: 0 }}>
                     {error && logs.length === 0 ? (
@@ -174,6 +210,13 @@ export default function AuditLogPage() {
                                 })}
                             </tbody>
                         </table>
+                    )}
+                    {!error && pagination.totalPages > 1 && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "12px", padding: "16px 24px", fontSize: "13px" }}>
+                            <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
+                            <span>Page {page} of {pagination.totalPages}</span>
+                            <button className="btn btn-secondary btn-sm" disabled={page >= pagination.totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+                        </div>
                     )}
                     {!error && filteredLogs.length === 0 && (
                         <div style={{ padding: "80px", textAlign: "center" }}>

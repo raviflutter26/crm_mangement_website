@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS, API_BASE_URL } from "@/config/api";
 import { useToast } from "@/components/common/DialogProvider";
+import TaxDeclarationCard from "@/components/payroll/TaxDeclarationCard";
 
 const DOC_TYPES = ["Form 16", "Form 12BB", "TDS Certificate", "Investment Declaration", "Other"];
 const currentFY = () => {
@@ -91,6 +92,8 @@ export default function TaxDocumentsPage() {
                     <FiPlus size={18} /> NEW DOCUMENT
                 </button>
             </motion.div>
+
+            <TaxDeclarationCard userId={user?._id} />
 
             <div className="card" style={{ border: "1px solid var(--border-light)", padding: "0", background: "white" }}>
                 <div style={{ padding: "24px", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

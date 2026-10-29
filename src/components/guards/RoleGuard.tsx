@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/lib/auth";
+import { useAuth, dashboardPathFor } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -9,32 +9,34 @@ interface RoleGuardProps {
     allowedRoles: string[];
 }
 
+/**
+ * Whether a role may enter an area guarded for `allowedRoles`. An owner is
+ * admitted wherever an admin is, mirroring ROLE_IMPLIES in the backend's
+ * middleware/auth.js.
+ */
+function isAllowed(role: string, allowedRoles: string[]) {
+    const allowed = allowedRoles.map(r => r.toLowerCase());
+    const effective = role === 'owner' ? ['owner', 'admin'] : [role];
+    return effective.some(r => allowed.includes(r));
+}
+
 export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     const { user, loading } = useAuth();
     const router = useRouter();
 
-    useEffect(() => {
-        const userRole = user?.role?.toLowerCase() || "";
-        const normalizedAllowed = allowedRoles.map(r => r.toLowerCase());
+    const userRole = user?.role?.toLowerCase() || "";
+    const permitted = !!user && isAllowed(userRole, allowedRoles);
 
+    useEffect(() => {
         if (!loading && !user) {
             router.push('/login');
-        } else if (!loading && user && !normalizedAllowed.includes(userRole)) {
+        } else if (!loading && user && !permitted) {
             // Redirect to their own dashboard if they don't have access to this role group
-            switch (userRole) {
-                case 'superadmin': router.push('/superadmin/dashboard'); break;
-                case 'admin': router.push('/admin/dashboard'); break;
-                case 'hr': router.push('/hr/dashboard'); break;
-                case 'manager': router.push('/manager/dashboard'); break;
-                default: router.push('/employee/dashboard'); break;
-            }
+            router.push(dashboardPathFor(userRole));
         }
-    }, [user, loading, allowedRoles, router]);
+    }, [user, loading, permitted, userRole, router]);
 
-    const userRole = user?.role?.toLowerCase() || "";
-    const normalizedAllowed = allowedRoles.map(r => r.toLowerCase());
-
-    if (loading || !user || !normalizedAllowed.includes(userRole)) {
+    if (loading || !permitted) {
         return <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontStyle: "italic", color: "#64748B" }}>Verifying access...</div>;
     }
 

@@ -13,15 +13,20 @@ interface EmployeeBankStatusProps {
             bankName?: string;
             ifsc?: string;
             verified?: boolean;
+            verificationStatus?: "Pending" | "Verified" | "Rejected";
             razorpayContactId?: string;
             razorpayFundAccountId?: string;
         };
         uan?: string;
     };
     onSetupBank?: (empId: string) => void;
+    /** Link the bank account to RazorpayX (POST /payouts/prepare/:id). */
+    onLink?: (empId: string) => void;
+    /** Ask RazorpayX to validate the account (POST /payouts/bank/verify/:id). */
+    onVerify?: (empId: string) => void;
 }
 
-export default function EmployeeBankStatus({ employee, onSetupBank }: EmployeeBankStatusProps) {
+export default function EmployeeBankStatus({ employee, onSetupBank, onLink, onVerify }: EmployeeBankStatusProps) {
     const bank = employee.bankAccount;
     const hasBank = !!bank?.maskedAccount;
     const isVerified = bank?.verified;
@@ -62,7 +67,7 @@ export default function EmployeeBankStatus({ employee, onSetupBank }: EmployeeBa
                 {hasBank && (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: isVerified ? "#D1FAE5" : "#FEF3C7", color: isVerified ? "#059669" : "#D97706" }}>
                         {isVerified ? <FiCheckCircle size={11} /> : <FiAlertCircle size={11} />}
-                        {isVerified ? "Verified" : "Unverified"}
+                        {isVerified ? "Verified" : bank?.verificationStatus === "Rejected" ? "Rejected" : "Unverified"}
                     </span>
                 )}
                 {hasBank && (
@@ -74,6 +79,12 @@ export default function EmployeeBankStatus({ employee, onSetupBank }: EmployeeBa
                     <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#DBEAFE", color: "#2563EB" }}>
                         UAN: {employee.uan}
                     </span>
+                )}
+                {hasBank && !razorpayReady && onLink && (
+                    <button className="btn btn-secondary btn-sm" onClick={() => onLink(employee._id)}>Link RazorpayX</button>
+                )}
+                {hasBank && !isVerified && onVerify && (
+                    <button className="btn btn-secondary btn-sm" onClick={() => onVerify(employee._id)}>Verify</button>
                 )}
                 {!hasBank && onSetupBank && (
                     <button className="btn btn-primary btn-sm" onClick={() => onSetupBank(employee._id)}>Setup Bank</button>

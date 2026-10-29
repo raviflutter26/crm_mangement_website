@@ -20,6 +20,11 @@ interface EmployeeFiltersProps {
     uniqueRoles: string[];
     managersList: any[];
     currentUser: any;
+    /** Shown only to callers who span every branch (owner, group-wide). */
+    showBranchFilter?: boolean;
+    filterBranch?: string;
+    setFilterBranch?: (s: string) => void;
+    branchOptions?: { _id: string; name: string }[];
 }
 
 export default function EmployeeFilters({
@@ -30,7 +35,8 @@ export default function EmployeeFilters({
     filterRole, setFilterRole,
     filterManager, setFilterManager,
     uniqueDepartments, uniqueStatuses, uniqueRoles,
-    managersList, currentUser
+    managersList, currentUser,
+    showBranchFilter = false, filterBranch = "", setFilterBranch, branchOptions = []
 }: EmployeeFiltersProps) {
     return (
         <div style={{ marginBottom: "20px" }}>
@@ -47,6 +53,15 @@ export default function EmployeeFilters({
                 </div>
                 {showFilters && (
                     <div className="card animate-in" style={{ padding: "15px", display: "flex", gap: "15px", alignItems: "center", flexWrap: "wrap" }}>
+                        {showBranchFilter && setFilterBranch && (
+                            <div>
+                                <label style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "5px", display: "block" }}>Branch</label>
+                                <select value={filterBranch} onChange={(e) => setFilterBranch(e.target.value)} className="form-input" style={{ width: "180px", padding: "8px" }}>
+                                    <option value="">All Branches</option>
+                                    {branchOptions.map((b) => <option key={b._id} value={b._id}>{b.name}</option>)}
+                                </select>
+                            </div>
+                        )}
                         <div>
                             <label style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "5px", display: "block" }}>Department</label>
                             <select value={filterDept} onChange={(e) => setFilterDept(e.target.value)} className="form-input" style={{ width: "200px", padding: "8px" }}>
@@ -79,13 +94,14 @@ export default function EmployeeFilters({
                                 </select>
                             </div>
                         )}
-                        {(filterDept || filterStatus || filterRole || filterManager) && (
+                        {(filterDept || filterStatus || filterRole || filterManager || filterBranch) && (
                             <div style={{ marginTop: "22px" }}>
                                 <button className="btn btn-secondary btn-sm" onClick={() => { 
                                     setFilterDept(""); 
                                     setFilterStatus(""); 
                                     setFilterRole("");
                                     setFilterManager("");
+                                    setFilterBranch?.("");
                                 }}>Clear Filters</button>
                             </div>
                         )}

@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import {
     FiMail, FiPhoneCall, FiCheck, FiClock, FiLoader, FiAlertCircle,
-    FiUsers, FiTarget, FiCheckCircle
+    FiUsers, FiTarget, FiCheckCircle, FiXCircle, FiPlusCircle
 } from "react-icons/fi";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 interface DemoRequest {
@@ -45,13 +46,14 @@ export default function DemoRequestsPage() {
         fetchRequests();
     }, []);
 
-    const markContacted = async (id: string) => {
+    const setStatus = async (id: string, status: DemoRequest["status"]) => {
         setUpdatingId(id);
         try {
-            const res = await axiosInstance.patch(`/api/demo-requests/${id}/status`, { status: "contacted" });
+            const res = await axiosInstance.patch(`/api/demo-requests/${id}/status`, { status });
             setRequests(prev => prev.map(r => (r._id === id ? res.data.data : r)));
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to update demo request", err);
+            setLoadError(err.response?.data?.message || "Could not update the demo request.");
         } finally {
             setUpdatingId(null);
         }
@@ -96,6 +98,7 @@ export default function DemoRequestsPage() {
             <div style={{ display: "flex", gap: "20px", marginBottom: "32px", flexWrap: "wrap" }}>
                 <MetricCard label="NEW" val={newRequests.length} color="var(--primary)" icon={FiTarget} />
                 <MetricCard label="CONTACTED" val={contacted.length} color="#3b82f6" icon={FiCheckCircle} />
+                <MetricCard label="CLOSED" val={closed.length} color="#64748b" icon={FiXCircle} />
                 <MetricCard label="TOTAL" val={requests.length} color="#10b981" icon={FiUsers} />
             </div>
 
@@ -106,13 +109,13 @@ export default function DemoRequestsPage() {
             ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "40px" }}>
                     {newRequests.length > 0 && (
-                        <RequestSection title="New" items={newRequests} onMarkContacted={markContacted} updatingId={updatingId} />
+                        <RequestSection title="New" items={newRequests} onSetStatus={setStatus} updatingId={updatingId} />
                     )}
                     {contacted.length > 0 && (
-                        <RequestSection title="Contacted" items={contacted} onMarkContacted={markContacted} updatingId={updatingId} />
+                        <RequestSection title="Contacted" items={contacted} onSetStatus={setStatus} updatingId={updatingId} />
                     )}
                     {closed.length > 0 && (
-                        <RequestSection title="Closed" items={closed} onMarkContacted={markContacted} updatingId={updatingId} />
+                        <RequestSection title="Closed" items={closed} onSetStatus={setStatus} updatingId={updatingId} />
                     )}
                 </div>
             )}
@@ -120,10 +123,10 @@ export default function DemoRequestsPage() {
     );
 }
 
-function RequestSection({ title, items, onMarkContacted, updatingId }: {
+function RequestSection({ title, items, onSetStatus, updatingId }: {
     title: string;
     items: DemoRequest[];
-    onMarkContacted: (id: string) => void;
+    onSetStatus: (id: string, status: DemoRequest["status"]) => void;
     updatingId: string | null;
 }) {
     return (
@@ -133,22 +136,30 @@ function RequestSection({ title, items, onMarkContacted, updatingId }: {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {items.map((req, idx) => (
-                    <RequestCard key={req._id} req={req} idx={idx} onMarkContacted={onMarkContacted} updating={updatingId === req._id} />
+                    <RequestCard key={req._id} req={req} idx={idx} onSetStatus={onSetStatus} updating={updatingId === req._id} />
                 ))}
             </div>
         </section>
     );
 }
 
-function RequestCard({ req, idx, onMarkContacted, updating }: {
+function RequestCard({ req, idx, onSetStatus, updating }: {
     req: DemoRequest;
     idx: number;
-    onMarkContacted: (id: string) => void;
+    onSetStatus: (id: string, status: DemoRequest["status"]) => void;
     updating: boolean;
 }) {
     const initials = req.name.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase() || "?";
     const submittedAt = new Date(req.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     const mailtoHref = `mailto:${req.email}?subject=${encodeURIComponent("RIVO — following up on your demo request")}`;
+    // The add-organization form reads these to pre-fill itself, and closes this request once the org exists.
+    const createOrgHref = `/superadmin/organizations/add?${new URLSearchParams({
+        fromDemo: req._id,
+        name: req.company || "",
+        contactName: req.name,
+        email: req.email,
+        phone: req.phone || "",
+    }).toString()}`;
 
     return (
         <motion.div
@@ -217,15 +228,34 @@ function RequestCard({ req, idx, onMarkContacted, updating }: {
                 >
                     <FiPhoneCall size={14} /> CONTACT
                 </a>
-                {req.status !== "contacted" && req.status !== "closed" && (
+                {req.status === "new" && (
                     <button
                         className="btn btn-primary"
                         style={{ padding: "10px 18px", fontWeight: 800, fontSize: "12px", display: "flex", alignItems: "center", gap: "8px" }}
-                        onClick={() => onMarkContacted(req._id)}
+                        onClick={() => onSetStatus(req._id, "contacted")}
                         disabled={updating}
                     >
                         {updating ? <FiLoader className="rotate" size={14} /> : <FiCheck size={14} />} MARK CONTACTED
                     </button>
+                )}
+                {req.status !== "closed" && (
+                    <>
+                        <Link
+                            href={createOrgHref}
+                            className="btn btn-secondary"
+                            style={{ padding: "10px 18px", fontWeight: 800, fontSize: "12px", display: "flex", alignItems: "center", gap: "8px" }}
+                        >
+                            <FiPlusCircle size={14} /> CREATE ORG
+                        </Link>
+                        <button
+                            className="btn btn-secondary"
+                            style={{ padding: "10px 18px", fontWeight: 800, fontSize: "12px", display: "flex", alignItems: "center", gap: "8px" }}
+                            onClick={() => onSetStatus(req._id, "closed")}
+                            disabled={updating}
+                        >
+                            <FiXCircle size={14} /> CLOSE
+                        </button>
+                    </>
                 )}
             </div>
         </motion.div>

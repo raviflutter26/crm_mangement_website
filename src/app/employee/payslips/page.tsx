@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
 import PayslipModal from "@/components/payroll/PayslipModal";
+import { useToast } from "@/components/common/DialogProvider";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN")}`;
@@ -17,6 +18,31 @@ export default function EmployeePayslipsPage() {
     const [payslips, setPayslips] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState<any>(null);
+    const [downloading, setDownloading] = useState<string | null>(null);
+    const toast = useToast();
+
+    // Server-rendered PDF. When the server cannot render one (503), the
+    // in-app view (and its print) still works.
+    const downloadPdf = async (slip: any) => {
+        setDownloading(slip._id);
+        try {
+            const res = await axiosInstance.get(API_ENDPOINTS.PAYSLIP_PDF(slip._id), { responseType: "blob" });
+            const url = URL.createObjectURL(res.data);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Payslip_${slip.year}_${String(slip.month).padStart(2, "0")}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            toast.error(err?.response?.status === 503
+                ? "PDF download isn't available right now — open the payslip and use View Details instead."
+                : "Could not download the payslip PDF");
+        } finally {
+            setDownloading(null);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -82,6 +108,9 @@ export default function EmployeePayslipsPage() {
                             <button className="btn" style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "white", fontWeight: 700 }} onClick={() => setSelected(latest)}>
                                 <FiEye /> View Details
                             </button>
+                            <button className="btn" style={{ background: "white", border: "none", color: "var(--primary)", fontWeight: 700 }} onClick={() => downloadPdf(latest)} disabled={downloading === latest._id}>
+                                <FiDownload /> {downloading === latest._id ? "Preparing…" : "Download PDF"}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -129,6 +158,7 @@ export default function EmployeePayslipsPage() {
                                         <td style={{ padding: "16px 20px", textAlign: "right" }}>
                                             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                                                 <button className="btn btn-secondary btn-sm" title="View" onClick={() => setSelected(slip)}><FiEye /></button>
+                                                <button className="btn btn-secondary btn-sm" title="Download PDF" onClick={() => downloadPdf(slip)} disabled={downloading === slip._id}><FiDownload /></button>
                                             </div>
                                         </td>
                                     </tr>

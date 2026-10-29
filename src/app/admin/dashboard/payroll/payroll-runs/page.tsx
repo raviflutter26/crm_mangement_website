@@ -6,9 +6,10 @@ import { API_ENDPOINTS } from "@/config/api";
 import ErrorState from "@/components/common/ErrorState";
 import { settleAll, unwrap, type FetchError } from "@/lib/fetchError";
 import PayslipModal from "@/components/payroll/PayslipModal";
+import BranchFilter, { useBranches } from "@/components/payroll/BranchFilter";
 import {
-    FiPlay, FiThumbsUp, FiCreditCard, FiLock, FiDownload,
-    FiChevronRight, FiClock, FiCheckCircle, FiAlertCircle
+    FiPlay, FiThumbsUp, FiCreditCard, FiLock, FiUnlock, FiDownload,
+    FiChevronRight, FiClock, FiCheckCircle, FiAlertCircle, FiAlertTriangle
 } from "react-icons/fi";
 import { useToast } from "@/components/common/DialogProvider";
 
@@ -37,6 +38,14 @@ export default function PayrollRunsPage() {
     const [payslipData, setPayslipData] = useState<any>(null);
     const [complianceSettings, setComplianceSettings] = useState<any>(null);
     const [runToast, setRunToast] = useState("");
+    // Payroll is a separate run per branch.
+    const { branches } = useBranches();
+    const [branchFilter, setBranchFilter] = useState("");
+    const [runBranch, setRunBranch] = useState("");
+    const [overview, setOverview] = useState<any>(null);
+    const [viewMonth, setViewMonth] = useState(new Date().getMonth() + 1);
+    const [viewYear, setViewYear] = useState(new Date().getFullYear());
+    const [unassigned, setUnassigned] = useState<any[]>([]);
 
     const showToast = (msg: string) => { setRunToast(msg); setTimeout(() => setRunToast(""), 3500); };
 
@@ -47,26 +56,42 @@ export default function PayrollRunsPage() {
         // Compliance settings drive statutory deductions. If that call fails we
         // must say so rather than leave it null and run payroll on defaults.
         const { results, errors: errs } = await settleAll([
-            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS, { params: branchFilter ? { branchId: branchFilter } : {} }),
             axiosInstance.get(API_ENDPOINTS.COMPLIANCE),
+            axiosInstance.get(API_ENDPOINTS.PAYROLL_RUNS_OVERVIEW, { params: { month: viewMonth, year: viewYear } }),
         ]);
-        const [runsRes, compRes] = results;
+        const [runsRes, compRes, overviewRes] = results;
         setRuns(unwrap<any[]>(runsRes, []));
         setComplianceSettings(unwrap(compRes, null));
+        setOverview(unwrap(overviewRes, null));
         setErrors(errs);
         setLoading(false);
-    }, []);
+    }, [branchFilter, viewMonth, viewYear]);
 
     useEffect(() => { fetchRuns(); }, [fetchRuns]);
 
+    const openRunModal = (branchId?: string, month?: number, year?: number) => {
+        setRunBranch(branchId || branchFilter || (branches.length === 1 ? branches[0]._id : ""));
+        if (month) setRunMonth(month);
+        if (year) setRunYear(year);
+        setRunModal(true);
+    };
+
     const handleRun = async () => {
+        if (branches.length > 1 && !runBranch) { toast.error("Choose the branch to run payroll for."); return; }
         setRunning(true);
         try {
-            const res = await axiosInstance.post(API_ENDPOINTS.PAYROLL_RUNS_INITIATE, { month: runMonth, year: runYear });
+            const res = await axiosInstance.post(API_ENDPOINTS.PAYROLL_RUNS_INITIATE, {
+                month: runMonth, year: runYear, ...(runBranch ? { branchId: runBranch } : {}),
+            });
+            setUnassigned(res.data.unassigned || []);
             showToast(res.data.message || "Payroll run initiated!");
             setRunModal(false);
             fetchRuns();
-        } catch (e: any) { toast.error(e.response?.data?.message || "Failed to run payroll"); }
+        } catch (e: any) {
+            setUnassigned(e.response?.data?.unassigned || []);
+            toast.error(e.response?.data?.message || "Failed to run payroll");
+        }
         finally { setRunning(false); }
     };
 
@@ -85,6 +110,18 @@ export default function PayrollRunsPage() {
             await axiosInstance.post(API_ENDPOINTS.PAYROLL_LOCK(id));
             showToast("Payroll locked 🔒 — Ready for disbursement"); fetchRuns();
         } catch (e: any) { toast.error(e.response?.data?.message || "Lock failed"); }
+        finally { setProcessing(null); }
+    };
+
+    // Locked -> approved, so a mistake can be fixed before any money moves.
+    // The server refuses once a payout exists for the run.
+    const handleUnlock = async (id: string) => {
+        setProcessing(id);
+        try {
+            await axiosInstance.post(API_ENDPOINTS.PAYROLL_UNLOCK(id));
+            showToast("Payroll unlocked — back to approved"); fetchRuns();
+            if (selectedRun?._id === id) setSelectedRun(null);
+        } catch (e: any) { toast.error(e.response?.data?.message || "Unlock failed"); }
         finally { setProcessing(null); }
     };
 
@@ -116,9 +153,12 @@ export default function PayrollRunsPage() {
                     </p>
                 </div>
                 {!selectedRun && (
-                    <button className="btn btn-primary" onClick={() => setRunModal(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <FiPlay size={14} /> Run Payroll
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <BranchFilter branches={branches} value={branchFilter} onChange={setBranchFilter} />
+                        <button className="btn btn-primary" onClick={() => openRunModal()} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <FiPlay size={14} /> Run Payroll
+                        </button>
+                    </div>
                 )}
                 {selectedRun && (
                     <button className="btn btn-secondary" onClick={() => setSelectedRun(null)}>← Back to Runs</button>
@@ -126,6 +166,69 @@ export default function PayrollRunsPage() {
             </div>
 
             <ErrorState errors={errors} onRetry={fetchRuns} title="Payroll runs could not be loaded" />
+
+            {/* Employees with no branch are never paid by a branch run. */}
+            {!selectedRun && (unassigned.length > 0 || (overview?.unassigned || 0) > 0) && (
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#FFFBEB", border: "1px solid #FDE68A", color: "#92400E", borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontSize: 13 }}>
+                    <FiAlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                        <strong>{Math.max(unassigned.length, overview?.unassigned || 0)} employee(s) have no branch — assign them before running payroll.</strong>
+                        {unassigned.length > 0 && (
+                            <div style={{ marginTop: 4 }}>
+                                {unassigned.slice(0, 10).map((u: any) => u.name || u.employeeId).join(", ")}{unassigned.length > 10 ? ` and ${unassigned.length - 10} more` : ""}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* All branches overview: each branch's run status for the month */}
+            {!selectedRun && !branchFilter && (overview?.branches?.length || 0) > 1 && (
+                <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #E8EAFF", marginBottom: 24, overflow: "hidden" }}>
+                    <div style={{ padding: "14px 20px", borderBottom: "1px solid #F1F5F9", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 800, color: "#1E1B4B" }}>All branches — {MONTHS[viewMonth - 1]} {viewYear}</div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <select className="form-input" value={viewMonth} onChange={e => setViewMonth(+e.target.value)} style={{ padding: "6px 10px", borderRadius: 8 }}>
+                                {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                            </select>
+                            <select className="form-input" value={viewYear} onChange={e => setViewYear(+e.target.value)} style={{ padding: "6px 10px", borderRadius: 8 }}>
+                                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="table-wrapper">
+                        <table>
+                            <thead><tr><th>Branch</th><th>State</th><th>Run</th><th>Employees</th><th>Net Pay</th><th>Status</th><th></th></tr></thead>
+                            <tbody>
+                                {overview.branches.map((row: any) => {
+                                    const flow = row.run ? getFlowItem(row.run.status) : null;
+                                    return (
+                                        <tr key={row.branch._id}>
+                                            <td style={{ fontWeight: 600 }}>{row.branch.name}</td>
+                                            <td>{row.branch.state || "—"}</td>
+                                            <td style={{ fontFamily: "monospace", fontSize: 12 }}>{row.run?.runId || "—"}</td>
+                                            <td>{row.run?.totalEmployees ?? "—"}</td>
+                                            <td style={{ fontFamily: "monospace" }}>{row.run ? fmt(row.run.totalNetPay) : "—"}</td>
+                                            <td>
+                                                {flow ? (
+                                                    <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: flow.bg, color: flow.color }}>{flow.label}</span>
+                                                ) : <span style={{ color: "#94A3B8", fontSize: 12, fontWeight: 600 }}>Not run</span>}
+                                            </td>
+                                            <td>
+                                                {row.run ? (
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => loadRunDetail(row.run)}><FiChevronRight size={14} /></button>
+                                                ) : (
+                                                    <button className="btn btn-primary btn-sm" onClick={() => openRunModal(row.branch._id, viewMonth, viewYear)}><FiPlay size={12} /> Run</button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Status Flow Stepper */}
             {!selectedRun && (
@@ -152,6 +255,7 @@ export default function PayrollRunsPage() {
                             <thead>
                                 <tr>
                                     <th>Run ID</th>
+                                    <th>Branch</th>
                                     <th>Month/Year</th>
                                     <th>Employees</th>
                                     <th>Gross Pay</th>
@@ -164,10 +268,10 @@ export default function PayrollRunsPage() {
                             <tbody>
                                 {loading ? (
                                     Array.from({ length: 5 }).map((_, i) => (
-                                        <tr key={i}>{Array.from({ length: 8 }).map((_, j) => <td key={j}><div className="skeleton-pulse" style={{ height: 16, borderRadius: 6 }} /></td>)}</tr>
+                                        <tr key={i}>{Array.from({ length: 9 }).map((_, j) => <td key={j}><div className="skeleton-pulse" style={{ height: 16, borderRadius: 6 }} /></td>)}</tr>
                                     ))
                                 ) : runs.length === 0 ? (
-                                    <tr><td colSpan={8} style={{ textAlign: "center", padding: "72px 20px" }}>
+                                    <tr><td colSpan={9} style={{ textAlign: "center", padding: "72px 20px" }}>
                                         <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
                                         <div style={{ fontWeight: 700, color: "#1E293B" }}>No payroll runs yet</div>
                                         <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 4 }}>Click "Run Payroll" to generate your first monthly payroll</div>
@@ -179,6 +283,7 @@ export default function PayrollRunsPage() {
                                         return (
                                             <tr key={run._id}>
                                                 <td style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 12 }}>{run.runId}</td>
+                                                <td>{run.branchId?.name || (run.branchId ? "—" : "Company-wide")}</td>
                                                 <td style={{ fontWeight: 600 }}>{MONTHS[(run.month || 1) - 1]} {run.year}</td>
                                                 <td>{run.totalEmployees || 0}</td>
                                                 <td style={{ fontFamily: "monospace" }}>{fmt(run.totalGrossPay)}</td>
@@ -209,6 +314,11 @@ export default function PayrollRunsPage() {
                                                                 <FiCreditCard size={13} /> {isProcessing ? "…" : "Disburse"}
                                                             </button>
                                                         )}
+                                                        {run.status === "locked" && (
+                                                            <button className="btn btn-secondary btn-sm" onClick={() => handleUnlock(run._id)} disabled={isProcessing} title="Unlock (only before any payout)">
+                                                                <FiUnlock size={13} /> Unlock
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -228,12 +338,14 @@ export default function PayrollRunsPage() {
                         <div>
                             <div style={{ fontWeight: 800, fontSize: 16, color: "#1E1B4B" }}>
                                 Run: {selectedRun.runId} — {MONTHS[(selectedRun.month || 1) - 1]} {selectedRun.year}
+                                {selectedRun.branchId?.name ? ` · ${selectedRun.branchId.name}` : ""}
                             </div>
                         </div>
                         <div style={{ display: "flex", gap: 10 }}>
                             {selectedRun.status === "review" && <button className="btn btn-primary btn-sm" onClick={() => handleApprove(selectedRun._id)}><FiThumbsUp size={13} /> Approve</button>}
                             {selectedRun.status === "approved" && <button className="btn btn-primary btn-sm" onClick={() => handleLock(selectedRun._id)} style={{ background: "#8B5CF6" }}><FiLock size={13} /> Lock</button>}
                             {selectedRun.status === "locked" && <button className="btn btn-primary btn-sm" onClick={() => handleDisburse(selectedRun._id)}><FiCreditCard size={13} /> Disburse via RazorpayX</button>}
+                            {selectedRun.status === "locked" && <button className="btn btn-secondary btn-sm" onClick={() => handleUnlock(selectedRun._id)}><FiUnlock size={13} /> Unlock</button>}
                         </div>
                     </div>
                     {/* Compliance Summary */}
@@ -289,6 +401,16 @@ export default function PayrollRunsPage() {
                         <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 24 }}>
                             Calculate salaries with PF, ESI, PT, TDS and attendance-based pro-rata
                         </p>
+                        {branches.length > 1 && (
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 600 }}>Branch</label>
+                                <select className="form-input" value={runBranch} onChange={e => setRunBranch(e.target.value)} style={{ padding: "12px 14px", borderRadius: 8, width: "100%" }}>
+                                    <option value="">Select branch…</option>
+                                    {branches.map(b => <option key={b._id} value={b._id}>{b.name}{b.state ? ` (${b.state})` : ""}</option>)}
+                                </select>
+                                <div style={{ fontSize: 12, color: "#64748B", marginTop: 6 }}>Payroll runs separately for each branch; PT and LWF follow the branch&apos;s state.</div>
+                            </div>
+                        )}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
                             <div>
                                 <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 600 }}>Month</label>

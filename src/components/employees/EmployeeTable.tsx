@@ -29,6 +29,7 @@ export default function EmployeeTable({ employees, loading, onEdit, onDelete, on
                         <tr>
                             <th style={{ padding: '12px 16px' }}>Employee</th>
                             <th style={{ padding: '12px 16px' }}>Employee ID</th>
+                            <th style={{ padding: '12px 16px' }}>Branch</th>
                             <th style={{ padding: '12px 16px' }}>Department</th>
                             <th style={{ padding: '12px 16px' }}>Designation</th>
                             <th style={{ padding: '12px 16px' }}>Reporting Manager</th>
@@ -40,7 +41,7 @@ export default function EmployeeTable({ employees, loading, onEdit, onDelete, on
                     <tbody>
                         {employees.length === 0 ? (
                             <tr>
-                                <td colSpan={8} style={{ textAlign: "center", padding: "40px 20px" }}>
+                                <td colSpan={9} style={{ textAlign: "center", padding: "40px 20px" }}>
                                     <EmptyState 
                                         title="No Employees Found" 
                                         description="Your workforce registry is empty. Add your first employee to start managing your team."
@@ -70,6 +71,7 @@ export default function EmployeeTable({ employees, loading, onEdit, onDelete, on
                                         </div>
                                     </td>
                                     <td style={{ padding: '12px 16px', fontFamily: "monospace", color: "var(--text-secondary)", fontSize: '12px' }}>{emp.employeeId}</td>
+                                    <td style={{ padding: '12px 16px', fontSize: '13px' }}>{(emp.branchId && typeof emp.branchId === 'object' ? emp.branchId.name : null) || "-"}</td>
                                     <td style={{ padding: '12px 16px', fontSize: '13px' }}>{emp.department}</td>
                                     <td style={{ padding: '12px 16px', fontSize: '13px' }}>{emp.designation}</td>
                                     <td style={{ padding: '12px 16px', fontSize: '12px' }}>

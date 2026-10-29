@@ -1,90 +1,68 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import axiosInstance from "@/lib/axios";
-import { FiMail, FiPlus, FiSearch } from "react-icons/fi";
-import { API_ENDPOINTS } from "@/config/api";
-import EmptyState from "@/components/common/EmptyState";
+import { FiMail, FiInfo } from "react-icons/fi";
 
-export default function emailsettingsPage() {
-    const [data, setData] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+/**
+ * What RIVO actually emails, and to whom.
+ *
+ * There is no per-organization notification preference store behind this page,
+ * so it does not pretend to have one: no "Add New", no toggles that save nothing.
+ * Keep this list in step with the backend's sendEmail callers when one is added.
+ */
+const EMAILS: { name: string; when: string; to: string }[] = [
+    { name: "Account setup link", when: "An employee is added, an organization is created, or someone activates their account", to: "The new user" },
+    { name: "Password reset link", when: "Someone uses \"Forgot password\"", to: "The account holder" },
+    { name: "Welcome email", when: "An employee is added (unless the welcome email is switched off on the form)", to: "The new employee" },
+    { name: "Leave request", when: "An employee applies for leave", to: "Their approver" },
+    { name: "Leave approved / rejected", when: "A leave request is decided", to: "The employee" },
+    { name: "Expense claim submitted", when: "An employee submits an expense claim", to: "HR and the reporting manager" },
+    { name: "Salary credited", when: "A salary payout succeeds", to: "The employee" },
+    { name: "Payout failed", when: "A salary payout fails", to: "HR" },
+];
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                
-                
-                setData([]);
-            } catch (err) {
-                console.error("Fetch error:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
-
-    if (loading) return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "40vh", flexDirection: "column", gap: "16px" }}>
-            <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "4px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin 0.8s linear infinite" }} />
-            <div style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>Loading...</div>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-    );
-
+export default function EmailSettingsPage() {
     return (
         <>
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Email & Notifications</h1>
-                    <p className="page-subtitle">Configure email templates, notification triggers, and delivery channels. — {data.length} records found.</p>
-                </div>
-                <div style={{ display: "flex", gap: "10px" }}>
-                    <button className="btn btn-primary"><FiPlus /> Add New</button>
+                    <p className="page-subtitle">The emails RIVO sends on your organization&apos;s behalf.</p>
                 </div>
             </div>
 
-            {data.length === 0 ? (
-                <EmptyState
-                    title="No Records Found"
-                    description="Get started by adding your first record to this module."
-                    icon={FiMail}
-                    actionLabel="Add New"
-                />
-            ) : (
-                <div className="card">
-                    <div className="card-header">
-                        <h3 className="card-title">Email & Notifications</h3>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <FiSearch style={{ color: "var(--text-muted)" }} />
-                            <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{data.length} total</span>
-                        </div>
-                    </div>
-                    <div className="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name / Title</th>
-                                    <th>Status</th>
-                                    <th>Created</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.map((item: any, i: number) => (
-                                    <tr key={item._id || i}>
-                                        <td style={{ fontFamily: "monospace", fontSize: "12px" }}>{i + 1}</td>
-                                        <td style={{ fontWeight: 600 }}>{item.name || item.title || item.type || item.item || '-'}</td>
-                                        <td><span className={`badge ${(item.status || 'active').toLowerCase()}`}>{item.status || 'Active'}</span></td>
-                                        <td style={{ fontSize: "13px", color: "var(--text-secondary)" }}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+            <div className="card" style={{ padding: "16px 20px", marginBottom: "20px", display: "flex", gap: "12px", alignItems: "flex-start", color: "var(--text-secondary)", fontSize: "13px" }}>
+                <FiInfo style={{ flexShrink: 0, marginTop: "2px" }} />
+                <span>
+                    These emails are always on. Per-organization templates and on/off preferences are not available yet.
+                    Delivery depends on the platform&apos;s email service being configured; if emails are not arriving, contact RIVO support.
+                </span>
+            </div>
+
+            <div className="card">
+                <div className="card-header">
+                    <h3 className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}><FiMail /> Emails sent</h3>
                 </div>
-            )}
+                <div className="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Sent when</th>
+                                <th>Recipient</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {EMAILS.map(e => (
+                                <tr key={e.name}>
+                                    <td style={{ fontWeight: 600 }}>{e.name}</td>
+                                    <td style={{ fontSize: "13px", color: "var(--text-secondary)" }}>{e.when}</td>
+                                    <td style={{ fontSize: "13px" }}>{e.to}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </>
     );
 }

@@ -110,7 +110,9 @@ export default function OrganizationViewComponent({ id }: { id: string }) {
                                     <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter leading-tight">{org.name}</h1>
                                     <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase bg-white/20 border border-white/40 text-white shrink-0`}>
                                         <div className={`w-1.5 h-1.5 rounded-full bg-white animate-pulse`} />
-                                        {org.status}
+                                        {org.status === 'read_only'
+                                            ? `read-only until ${org.readOnlyUntil ? new Date(org.readOnlyUntil).toLocaleDateString() : '—'}`
+                                            : org.status}
                                     </div>
                                 </div>
                                 

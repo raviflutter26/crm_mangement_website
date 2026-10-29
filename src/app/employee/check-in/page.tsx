@@ -104,7 +104,7 @@ export default function AttendancePunchPage() {
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "32px" }}>
-                    {/* The Primary Punch Widget (Zoho Style) */}
+                    {/* The primary punch widget */}
                     <div style={{ transform: "scale(1.05)", transformOrigin: "top center" }}>
                         <EmployeePunchWidget
                             sessions={data?.attendanceToday?.sessions || []}

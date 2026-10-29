@@ -11,6 +11,23 @@ import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
+/** Candidate pipeline, mirrored from the backend's canMove (recruitmentController). */
+const STAGES = ["applied", "screening", "interview", "offered", "hired"];
+const nextStages = (from: string): string[] => {
+    if (from === "hired") return [];
+    if (from === "rejected") return ["applied", "screening"];
+    const i = STAGES.indexOf(from);
+    const forward = STAGES.filter((s, j) => j > i && (s !== "hired" || from === "offered"));
+    return [...forward, "rejected"];
+};
+const errMsg = (err: any) => err?.response?.data?.message || err?.message || "Something went wrong";
+const LABEL_STYLE: any = { display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" };
+const MODAL_BG: any = {
+    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "var(--overlay-bg)", zIndex: 1000,
+    display: "flex", alignItems: "center", justifyContent: "center"
+};
+
 const STATUS_COLORS: any = {
     draft: "pending", open: "active", "on-hold": "leave", closed: "inactive",
     applied: "pending", screening: "processing", interview: "leave",
@@ -35,6 +52,22 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     const [successToast, setSuccessToast] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
 
+    // Interviews (per candidate)
+    const [interviewCandidate, setInterviewCandidate] = useState<any>(null);
+    const [interviews, setInterviews] = useState<any[]>([]);
+    const [interviewForm, setInterviewForm] = useState<any>({});
+    const [feedbackFor, setFeedbackFor] = useState<string>("");
+    const [feedbackForm, setFeedbackForm] = useState<any>({});
+    const [people, setPeople] = useState<any[]>([]);
+
+    // Conversion of a hired candidate into an employee
+    const [convertCandidate, setConvertCandidate] = useState<any>(null);
+    const [convertForm, setConvertForm] = useState<any>({});
+    const [convertMissing, setConvertMissing] = useState<string[]>([]);
+    const [convertResult, setConvertResult] = useState<any>(null);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [branches, setBranches] = useState<any[]>([]);
+
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -52,6 +85,132 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     };
 
     useEffect(() => { fetchData(); }, []);
+
+    // Pickers for interviewer / department / branch, loaded on first use.
+    const loadPickers = async () => {
+        if (people.length && departments.length) return;
+        const [e, d, b] = await Promise.allSettled([
+            axiosInstance.get(`${API_ENDPOINTS.EMPLOYEES}?limit=500&status=Active`),
+            axiosInstance.get(API_ENDPOINTS.DEPARTMENTS),
+            axiosInstance.get(API_ENDPOINTS.BRANCHES),
+        ]);
+        if (e.status === "fulfilled") setPeople(e.value.data.data || []);
+        if (d.status === "fulfilled") setDepartments(d.value.data.data || []);
+        if (b.status === "fulfilled") setBranches(b.value.data.data || []);
+    };
+
+    // ========== PIPELINE ==========
+    const moveCandidate = async (c: any, status: string) => {
+        if (!status) return;
+        if (status === "rejected") {
+            const ok = await confirmDialog({ title: `Reject ${c.firstName}?`, confirmLabel: "Reject", danger: true });
+            if (!ok) return;
+        }
+        try {
+            await axiosInstance.patch(API_ENDPOINTS.CANDIDATE_STATUS(c._id), { status });
+            showToast(`Moved to ${status}`);
+            fetchData();
+        } catch (err: any) {
+            toast.error(errMsg(err));
+            fetchData();
+        }
+    };
+
+    // ========== INTERVIEWS ==========
+    const loadInterviews = async (candidateId: string) => {
+        try {
+            const res = await axiosInstance.get(`${API_ENDPOINTS.INTERVIEWS}?candidate=${candidateId}`);
+            setInterviews(res.data.data || []);
+        } catch (err) { toast.error(errMsg(err)); }
+    };
+
+    const openInterviews = async (c: any) => {
+        setInterviewCandidate(c);
+        setInterviews([]);
+        setFeedbackFor("");
+        setInterviewForm({ round: "Round 1", mode: "video", durationMinutes: 60 });
+        loadPickers();
+        loadInterviews(c._id);
+    };
+
+    const scheduleInterview = async (e: any) => {
+        e.preventDefault();
+        try {
+            await axiosInstance.post(API_ENDPOINTS.INTERVIEWS, {
+                ...interviewForm,
+                candidate: interviewCandidate._id,
+                scheduledAt: interviewForm.scheduledAt ? new Date(interviewForm.scheduledAt).toISOString() : undefined,
+            });
+            showToast("Interview scheduled");
+            setInterviewForm({ round: `Round ${interviews.length + 2}`, mode: "video", durationMinutes: 60 });
+            loadInterviews(interviewCandidate._id);
+            fetchData();
+        } catch (err: any) { toast.error(errMsg(err)); }
+    };
+
+    const openFeedback = (iv: any) => {
+        setFeedbackFor(iv._id);
+        setFeedbackForm({ feedback: iv.feedback || "", rating: iv.rating || "", result: iv.result || "pending" });
+    };
+
+    const submitFeedback = async (e: any) => {
+        e.preventDefault();
+        try {
+            await axiosInstance.patch(API_ENDPOINTS.INTERVIEW_FEEDBACK(feedbackFor), {
+                ...feedbackForm,
+                rating: feedbackForm.rating ? Number(feedbackForm.rating) : undefined,
+            });
+            showToast("Feedback saved");
+            setFeedbackFor("");
+            loadInterviews(interviewCandidate._id);
+        } catch (err: any) { toast.error(errMsg(err)); }
+    };
+
+    const cancelInterview = async (iv: any) => {
+        const ok = await confirmDialog({ title: "Delete this interview?", confirmLabel: "Delete", danger: true });
+        if (!ok) return;
+        try {
+            await axiosInstance.delete(`${API_ENDPOINTS.INTERVIEWS}/${iv._id}`);
+            loadInterviews(interviewCandidate._id);
+        } catch (err: any) { toast.error(errMsg(err)); }
+    };
+
+    // ========== CONVERSION ==========
+    const openConvert = (c: any) => {
+        setConvertCandidate(c);
+        setConvertMissing([]);
+        setConvertResult(null);
+        setConvertForm({
+            lastName: c.lastName || "",
+            phone: (c.phone || "").replace(/\D/g, "").slice(-10),
+            designation: c.jobPosting?.designation || "",
+            ctc: c.expectedCTC || "",
+            dateOfJoining: new Date().toISOString().split("T")[0],
+            panNumber: "",
+        });
+        loadPickers();
+    };
+
+    const submitConvert = async (e: any) => {
+        e.preventDefault();
+        const missing = ["panNumber", "lastName"].filter(f => !String(convertForm[f] || "").trim());
+        if (missing.length) { setConvertMissing(missing); return; }
+        try {
+            const payload: any = {};
+            for (const [k, v] of Object.entries(convertForm)) if (v !== "" && v != null) payload[k] = v;
+            if (payload.panNumber) payload.panNumber = String(payload.panNumber).toUpperCase();
+            if (payload.ctc) payload.ctc = Number(payload.ctc);
+            const res = await axiosInstance.post(API_ENDPOINTS.CANDIDATE_CONVERT(convertCandidate._id), payload);
+            setConvertResult(res.data.data);
+            fetchData();
+        } catch (err: any) {
+            const missingFields = err?.response?.data?.missing;
+            if (Array.isArray(missingFields)) setConvertMissing(missingFields);
+            toast.error(errMsg(err));
+        }
+    };
+
+    const missingStyle = (field: string) => convertMissing.includes(field) ? { borderColor: "var(--error)", boxShadow: "0 0 0 1px var(--error)" } : {};
 
     const showToast = (msg: string) => {
         setSuccessToast(msg);
@@ -85,7 +244,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     const openAddCandidate = () => {
         setActiveView("candidates");
         setIsEditing(false);
-        setFormData({ status: "applied", source: "portal" });
+        setFormData({ source: "portal" });
         setShowModal(true);
     };
 
@@ -99,7 +258,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
             jobPosting: item.jobPosting?._id || item.jobPosting || "",
             experience: item.experience || 0, currentCompany: item.currentCompany || "",
             currentCTC: item.currentCTC || 0, expectedCTC: item.expectedCTC || 0,
-            noticePeriod: item.noticePeriod || 0, status: item.status || "applied",
+            noticePeriod: item.noticePeriod || 0,
             source: item.source || "portal", notes: item.notes || "",
         });
         setShowModal(true);
@@ -143,7 +302,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     const stats = [
         { label: "Open Positions", value: postings.filter(p => p.status === "open").length, icon: FiBriefcase, color: "blue" },
         { label: "Total Candidates", value: candidates.length, icon: FiUsers, color: "green" },
-        { label: "Interviews Scheduled", value: candidates.filter(c => c.status === "interview").length, icon: FiCalendar, color: "orange" },
+        { label: "In Interview Stage", value: candidates.filter(c => c.status === "interview").length, icon: FiCalendar, color: "orange" },
         { label: "Hired", value: candidates.filter(c => c.status === "hired").length, icon: FiUserPlus, color: "purple" },
     ];
 
@@ -248,9 +407,25 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                                         <td>{c.jobPosting?.title || "-"}</td>
                                         <td>{c.experience} yrs</td>
                                         <td>{c.source}</td>
-                                        <td><span className={`badge ${STATUS_COLORS[c.status] || "pending"}`}>{c.status}</span></td>
+                                        <td>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                                <span className={`badge ${STATUS_COLORS[c.status] || "pending"}`}>{c.status}</span>
+                                                {nextStages(c.status).length > 0 && (
+                                                    <select className="form-input" style={{ width: "auto", padding: "4px 8px", fontSize: "12px" }}
+                                                        value="" onChange={e => moveCandidate(c, e.target.value)} aria-label="Move candidate to stage">
+                                                        <option value="">Move to…</option>
+                                                        {nextStages(c.status).map(s => <option key={s} value={s}>{s}</option>)}
+                                                    </select>
+                                                )}
+                                                {c.employeeId && <span className="badge active" title="Converted to employee">employee</span>}
+                                            </div>
+                                        </td>
                                         <td>
                                             <div style={{ display: "flex", gap: "6px" }}>
+                                                <button className="btn btn-secondary btn-sm" title="Interviews" onClick={() => openInterviews(c)}><FiCalendar /></button>
+                                                {c.status === "hired" && !c.employeeId && (
+                                                    <button className="btn btn-primary btn-sm" title="Convert to employee" onClick={() => openConvert(c)}><FiUserPlus /> Convert</button>
+                                                )}
                                                 <button className="btn btn-secondary btn-sm" onClick={() => openEditCandidate(c)}><FiEdit2 /></button>
                                                 <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(c._id, "candidates")} style={{ color: "var(--error)" }}><FiTrash2 /></button>
                                             </div>
@@ -380,17 +555,6 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                                     </div>
                                     <div className="grid-2">
                                         <div>
-                                            <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Status</label>
-                                            <select className="form-input" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
-                                                <option value="applied">Applied</option>
-                                                <option value="screening">Screening</option>
-                                                <option value="interview">Interview</option>
-                                                <option value="offered">Offered</option>
-                                                <option value="hired">Hired</option>
-                                                <option value="rejected">Rejected</option>
-                                            </select>
-                                        </div>
-                                        <div>
                                             <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Source</label>
                                             <select className="form-input" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })}>
                                                 <option value="portal">Portal</option>
@@ -411,6 +575,210 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                                 <button type="submit" className="btn btn-primary">{isEditing ? "Save Changes" : "Create"}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Interviews */}
+            {interviewCandidate && (
+                <div style={MODAL_BG}>
+                    <div className="card animate-in" style={{ width: "720px", maxHeight: "88vh", overflow: "auto", padding: "24px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                            <h2 style={{ margin: 0 }}>Interviews — {interviewCandidate.firstName} {interviewCandidate.lastName}</h2>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setInterviewCandidate(null)}><FiXCircle /> Close</button>
+                        </div>
+                        {interviews.length === 0 ? (
+                            <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>No interviews scheduled yet.</p>
+                        ) : (
+                            <div className="table-wrapper" style={{ marginBottom: "16px" }}>
+                                <table>
+                                    <thead><tr><th>Round</th><th>When</th><th>Interviewer</th><th>Mode</th><th>Rating</th><th>Result</th><th></th></tr></thead>
+                                    <tbody>
+                                        {interviews.map(iv => (
+                                            <tr key={iv._id}>
+                                                <td style={{ fontWeight: 600 }}>{iv.round}</td>
+                                                <td>{new Date(iv.scheduledAt).toLocaleString()}</td>
+                                                <td>{iv.interviewer ? `${iv.interviewer.firstName} ${iv.interviewer.lastName}` : "-"}</td>
+                                                <td>{iv.mode}{iv.location ? ` · ${iv.location}` : ""}</td>
+                                                <td>{iv.rating ? `${iv.rating}/5` : "-"}</td>
+                                                <td><span className={`badge ${iv.result === "passed" ? "active" : iv.result === "failed" || iv.result === "no-show" ? "inactive" : "pending"}`}>{iv.result}</span></td>
+                                                <td>
+                                                    <div style={{ display: "flex", gap: "6px" }}>
+                                                        <button className="btn btn-secondary btn-sm" onClick={() => openFeedback(iv)}><FiEdit2 /> Feedback</button>
+                                                        <button className="btn btn-secondary btn-sm" onClick={() => cancelInterview(iv)} style={{ color: "var(--error)" }}><FiTrash2 /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {feedbackFor && (
+                            <form onSubmit={submitFeedback} style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "16px", border: "1px solid var(--border)", borderRadius: "10px", marginBottom: "16px" }}>
+                                <h3 style={{ margin: 0, fontSize: "15px" }}>Record feedback</h3>
+                                <div className="grid-2">
+                                    <div>
+                                        <label style={LABEL_STYLE}>Rating (1–5)</label>
+                                        <select className="form-input" value={feedbackForm.rating} onChange={e => setFeedbackForm({ ...feedbackForm, rating: e.target.value })}>
+                                            <option value="">—</option>
+                                            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={LABEL_STYLE}>Result</label>
+                                        <select className="form-input" value={feedbackForm.result} onChange={e => setFeedbackForm({ ...feedbackForm, result: e.target.value })}>
+                                            {["pending", "passed", "failed", "on-hold", "no-show"].map(r => <option key={r} value={r}>{r}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={LABEL_STYLE}>Feedback</label>
+                                    <textarea className="form-input" rows={3} style={{ resize: "none" }} value={feedbackForm.feedback} onChange={e => setFeedbackForm({ ...feedbackForm, feedback: e.target.value })} />
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                                    <button type="button" className="btn btn-secondary" onClick={() => setFeedbackFor("")}>Cancel</button>
+                                    <button type="submit" className="btn btn-primary">Save Feedback</button>
+                                </div>
+                            </form>
+                        )}
+
+                        {!["hired", "rejected"].includes(interviewCandidate.status) && (
+                            <form onSubmit={scheduleInterview} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                                <h3 style={{ margin: 0, fontSize: "15px" }}>Schedule an interview</h3>
+                                <div className="grid-2">
+                                    <div>
+                                        <label style={LABEL_STYLE}>Round</label>
+                                        <input className="form-input" value={interviewForm.round || ""} onChange={e => setInterviewForm({ ...interviewForm, round: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label style={LABEL_STYLE}>Interviewer *</label>
+                                        <select required className="form-input" value={interviewForm.interviewer || ""} onChange={e => setInterviewForm({ ...interviewForm, interviewer: e.target.value })}>
+                                            <option value="">Select interviewer…</option>
+                                            {people.map(p => <option key={p._id} value={p._id}>{p.firstName} {p.lastName}{p.designation ? ` — ${p.designation}` : ""}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid-2">
+                                    <div>
+                                        <label style={LABEL_STYLE}>Date &amp; time *</label>
+                                        <input required type="datetime-local" className="form-input" value={interviewForm.scheduledAt || ""} onChange={e => setInterviewForm({ ...interviewForm, scheduledAt: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label style={LABEL_STYLE}>Duration (minutes)</label>
+                                        <input type="number" min={5} className="form-input" value={interviewForm.durationMinutes || 60} onChange={e => setInterviewForm({ ...interviewForm, durationMinutes: parseInt(e.target.value) || 60 })} />
+                                    </div>
+                                </div>
+                                <div className="grid-2">
+                                    <div>
+                                        <label style={LABEL_STYLE}>Mode</label>
+                                        <select className="form-input" value={interviewForm.mode} onChange={e => setInterviewForm({ ...interviewForm, mode: e.target.value })}>
+                                            <option value="video">Video</option>
+                                            <option value="phone">Phone</option>
+                                            <option value="in-person">In person</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={LABEL_STYLE}>{interviewForm.mode === "in-person" ? "Location" : "Meeting link / number"}</label>
+                                        <input className="form-input" value={interviewForm.location || ""} onChange={e => setInterviewForm({ ...interviewForm, location: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                    <button type="submit" className="btn btn-primary"><FiCalendar /> Schedule</button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Convert to employee */}
+            {convertCandidate && (
+                <div style={MODAL_BG}>
+                    <div className="card animate-in" style={{ width: "600px", maxHeight: "88vh", overflow: "auto", padding: "24px" }}>
+                        <h2 style={{ marginBottom: "6px" }}>Convert to employee</h2>
+                        <p style={{ color: "var(--text-muted)", fontSize: "13px", marginBottom: "18px" }}>
+                            {convertCandidate.firstName} {convertCandidate.lastName} · {convertCandidate.email}. The employee gets a welcome email and a link to set their password.
+                        </p>
+                        {convertResult ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 600 }}>
+                                    <FiCheckCircle color="var(--secondary)" size={20} />
+                                    Employee created{convertResult.employee?.employeeId ? ` (${convertResult.employee.employeeId})` : ""}.
+                                </div>
+                                <div style={{ fontSize: "14px", color: convertResult.setupLinkSent ? "var(--text-secondary)" : "var(--warning, #b45309)" }}>
+                                    {convertResult.setupLinkSent
+                                        ? "The password set-up link was emailed."
+                                        : "The password set-up link could not be emailed. Ask them to use “Forgot password” on the login page, or resend it later."}
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                    <button className="btn btn-primary" onClick={() => setConvertCandidate(null)}>Done</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <form onSubmit={submitConvert} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                                <div className="grid-2">
+                                    <div>
+                                        <label style={LABEL_STYLE}>PAN *</label>
+                                        <input className="form-input" style={missingStyle("panNumber")} placeholder="ABCDE1234F" maxLength={10}
+                                            value={convertForm.panNumber || ""} onChange={e => setConvertForm({ ...convertForm, panNumber: e.target.value.toUpperCase() })} />
+                                    </div>
+                                    <div>
+                                        <label style={LABEL_STYLE}>Last name *</label>
+                                        <input className="form-input" style={missingStyle("lastName")} value={convertForm.lastName || ""} onChange={e => setConvertForm({ ...convertForm, lastName: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="grid-2">
+                                    <div>
+                                        <label style={LABEL_STYLE}>Phone</label>
+                                        <input className="form-input" style={missingStyle("phone")} value={convertForm.phone || ""} onChange={e => setConvertForm({ ...convertForm, phone: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label style={LABEL_STYLE}>Designation</label>
+                                        <input className="form-input" value={convertForm.designation || ""} onChange={e => setConvertForm({ ...convertForm, designation: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="grid-2">
+                                    <div>
+                                        <label style={LABEL_STYLE}>Branch</label>
+                                        <select className="form-input" style={missingStyle("branchId")} value={convertForm.branchId || ""} onChange={e => setConvertForm({ ...convertForm, branchId: e.target.value, departmentId: "" })}>
+                                            <option value="">Select branch…</option>
+                                            {branches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={LABEL_STYLE}>Department</label>
+                                        <select className="form-input" style={missingStyle("departmentId")} value={convertForm.departmentId || ""} onChange={e => {
+                                            const d = departments.find(x => x._id === e.target.value);
+                                            setConvertForm({ ...convertForm, departmentId: e.target.value, department: d?.name || "" });
+                                        }}>
+                                            <option value="">Select department…</option>
+                                            {departments
+                                                .filter(d => !convertForm.branchId || !d.branchId || String(d.branchId?._id || d.branchId) === convertForm.branchId)
+                                                .map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid-2">
+                                    <div>
+                                        <label style={LABEL_STYLE}>Date of joining</label>
+                                        <input type="date" className="form-input" value={convertForm.dateOfJoining || ""} onChange={e => setConvertForm({ ...convertForm, dateOfJoining: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label style={LABEL_STYLE}>Annual CTC (₹)</label>
+                                        <input type="number" min={0} className="form-input" value={convertForm.ctc || ""} onChange={e => setConvertForm({ ...convertForm, ctc: e.target.value })} />
+                                    </div>
+                                </div>
+                                {convertMissing.length > 0 && (
+                                    <div style={{ color: "var(--error)", fontSize: "13px" }}>Please fill in the highlighted fields.</div>
+                                )}
+                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                                    <button type="button" className="btn btn-secondary" onClick={() => setConvertCandidate(null)}>Cancel</button>
+                                    <button type="submit" className="btn btn-primary"><FiUserPlus /> Create Employee</button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}

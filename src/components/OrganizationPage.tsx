@@ -8,6 +8,17 @@ import {
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 import { useConfirm, useToast } from "@/components/common/DialogProvider";
+import { useBranches } from "@/components/payroll/BranchFilter";
+
+// Professional Tax and LWF follow the branch's state, so it is picked from a
+// list rather than typed (the backend also accepts two-letter codes).
+const INDIAN_STATES = [
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+    "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+    "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
+    "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh",
+    "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+];
 
 const TABS = [
     { id: "designations", label: "Designations", icon: FiAward },
@@ -37,7 +48,7 @@ const FORM_FIELDS: any = {
         { name: "code", label: "Branch Code", type: "text", placeholder: "MUM-HQ" },
         { name: "address", label: "Address", type: "textarea", placeholder: "Full address" },
         { name: "city", label: "City", type: "text", placeholder: "Mumbai" },
-        { name: "state", label: "State", type: "text", placeholder: "Maharashtra" },
+        { name: "state", label: "State (sets Professional Tax / LWF)", type: "select", options: INDIAN_STATES, emptyLabel: "Select state…" },
         { name: "country", label: "Country", type: "text", placeholder: "India" },
         { name: "pincode", label: "Pincode", type: "text", placeholder: "400001" },
         { name: "phone", label: "Phone", type: "text", placeholder: "+91-22-12345678" },
@@ -63,6 +74,7 @@ const FORM_FIELDS: any = {
         { name: "date", label: "Date", type: "date", required: true },
         { name: "type", label: "Type", type: "select", options: ["national", "regional", "company", "restricted"] },
         { name: "year", label: "Year", type: "number", required: true, placeholder: "2026" },
+        { name: "branchIds", label: "Applies to", type: "branches" },
         { name: "description", label: "Description", type: "textarea", placeholder: "Holiday details" },
     ],
 };
@@ -72,7 +84,7 @@ const TABLE_COLS: any = {
     branches: ["name", "code", "city", "state", "isActive"],
     locations: ["name", "branch", "floor", "capacity", "isActive"],
     shifts: ["name", "startTime", "endTime", "breakMinutes", "graceMinutes"],
-    holidays: ["name", "date", "type", "year", "isOptional"],
+    holidays: ["name", "date", "type", "branches", "year", "isOptional"],
 };
 
 interface OrganizationPageProps {
@@ -90,6 +102,8 @@ export default function OrganizationPage({ showNotify }: OrganizationPageProps) 
     const [editId, setEditId] = useState("");
     const [formData, setFormData] = useState<any>({});
     const [toast, setToast] = useState("");
+    // Branches the caller holds: a holiday can be limited to some of them.
+    const { branches } = useBranches();
 
     const fetchData = async () => {
         setLoading(true);
@@ -121,6 +135,8 @@ export default function OrganizationPage({ showNotify }: OrganizationPageProps) 
         FORM_FIELDS[activeTab].forEach((f: any) => {
             if (f.type === "date" && item[f.name]) {
                 fd[f.name] = new Date(item[f.name]).toISOString().split("T")[0];
+            } else if (f.type === "branches") {
+                fd[f.name] = (item[f.name] || []).map((b: any) => String(b?._id || b));
             } else {
                 fd[f.name] = item[f.name] ?? "";
             }
@@ -172,6 +188,7 @@ export default function OrganizationPage({ showNotify }: OrganizationPageProps) 
         if (key === "date" && value) return new Date(value).toLocaleDateString();
         if (key === "isActive") return value !== false ? "Active" : "Inactive";
         if (key === "isOptional") return value ? "Yes" : "No";
+        if (key === "branches") return Array.isArray(value) && value.length ? value.map((b: any) => b.name).join(", ") : "All branches";
         return value ?? "-";
     };
 
@@ -280,13 +297,45 @@ export default function OrganizationPage({ showNotify }: OrganizationPageProps) 
                                             rows={3}
                                             style={{ resize: "none" }}
                                         />
+                                    ) : field.type === "branches" ? (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--border-color, #E2E8F0)", borderRadius: 8, padding: 10 }}>
+                                            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!(formData.branchIds || []).length}
+                                                    onChange={() => setFormData({ ...formData, branchIds: [] })}
+                                                />
+                                                All branches
+                                            </label>
+                                            {branches.map((b) => {
+                                                const selected: string[] = formData.branchIds || [];
+                                                const on = selected.includes(b._id);
+                                                return (
+                                                    <label key={b._id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={on}
+                                                            onChange={() => setFormData({
+                                                                ...formData,
+                                                                branchIds: on ? selected.filter((id) => id !== b._id) : [...selected, b._id],
+                                                            })}
+                                                        />
+                                                        {b.name}{b.state ? ` (${b.state})` : ""}
+                                                    </label>
+                                                );
+                                            })}
+                                            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                                                A company-wide holiday needs a company-wide admin; branch HR picks their branch.
+                                            </span>
+                                        </div>
                                     ) : field.type === "select" ? (
                                         <select
                                             name={field.name}
-                                            value={formData[field.name] || field.options[0]}
+                                            value={formData[field.name] || (field.emptyLabel ? "" : field.options[0])}
                                             onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                                             className="form-input"
                                         >
+                                            {field.emptyLabel && <option value="">{field.emptyLabel}</option>}
                                             {field.options.map((opt: string) => (
                                                 <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
                                             ))}

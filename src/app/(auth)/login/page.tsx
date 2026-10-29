@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import axiosInstance from "@/lib/axios";
-import { FiMail, FiLock, FiUser, FiArrowRight, FiEye, FiEyeOff, FiLoader } from "react-icons/fi";
-import { API_ENDPOINTS } from "@/config/api";
+import { FiMail, FiLock, FiUser, FiArrowRight, FiEye, FiEyeOff, FiLoader, FiShield } from "react-icons/fi";
+import { API_ENDPOINTS, API_BASE_URL } from "@/config/api";
 
 export default function LoginPage() {
-    const { login } = useAuth();
+    const { login, completeMfaLogin } = useAuth();
     const [isRegister, setIsRegister] = useState(false);
     const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [formData, setFormData] = useState({ email: "", password: "", name: "" });
@@ -15,6 +15,34 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [message, setMessage] = useState("");
+    // Set once the password step succeeds for an account with MFA on; the
+    // form then asks for the authenticator (or backup) code instead.
+    const [mfaToken, setMfaToken] = useState<string | null>(null);
+    const [mfaCode, setMfaCode] = useState("");
+    // "Sign in with SSO": the user names their organization by work email,
+    // email domain or company ID, and is sent to their identity provider.
+    const [ssoMode, setSsoMode] = useState(false);
+    const [ssoRef, setSsoRef] = useState("");
+
+    // The SSO callback lands back here with ?sso_error=... when it refuses.
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        const ssoError = params.get("sso_error");
+        if (ssoError) {
+            setError(ssoError);
+            setSsoMode(true);
+            window.history.replaceState(null, "", window.location.pathname);
+        }
+    }, []);
+
+    const startSso = async () => {
+        const ref = ssoRef.trim().toLowerCase();
+        if (!ref) throw new Error("Enter your work email or company ID.");
+        // Ask for the provider URL first so an unknown organization is reported here.
+        const res = await axiosInstance.get(`${API_BASE_URL}/api/auth/sso/${encodeURIComponent(ref)}/start`, { params: { format: "json" } });
+        window.location.href = res.data.data.url;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -23,21 +51,34 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            if (isForgotPassword) {
-                await axiosInstance.post(API_ENDPOINTS.AUTH_FORGOT_PASSWORD, { email: formData.email });
-                setMessage("Reset link sent to your email.");
+            if (ssoMode) {
+                await startSso();
+            } else if (mfaToken) {
+                await completeMfaLogin(mfaToken, mfaCode);
+            } else if (isForgotPassword) {
+                const res = await axiosInstance.post(API_ENDPOINTS.AUTH_FORGOT_PASSWORD, { email: formData.email });
+                setMessage(res.data?.message || "If an account exists for that email, a reset link has been sent.");
                 setIsForgotPassword(false);
             } else if (isRegister) {
-                // For register, we might need a separate API or use the existing one
-                // The old component used API_ENDPOINTS.AUTH_REGISTER
+                // Activating an account emails a setup link; the password is chosen there.
                 const res = await axiosInstance.post(API_ENDPOINTS.AUTH_REGISTER, formData);
-                // On success, we could auto-login or redirect
-                setError("Account created. Please sign in.");
+                setMessage(res.data?.message || "Check your email for a link to set your password.");
                 setIsRegister(false);
             } else {
-                await login({ email: formData.email, password: formData.password });
+                const result = await login({ email: formData.email, password: formData.password });
+                if (result.mfaRequired) {
+                    setMfaToken(result.preAuthToken);
+                    setMfaCode("");
+                }
             }
         } catch (err: any) {
+            // The preAuthToken lasts 10 minutes; once it is rejected the password step must be redone.
+            if (mfaToken && err.response?.status === 401) setMfaToken(null);
+            // The organization enforces SSO: switch straight to it.
+            if (err.response?.data?.code === "SSO_REQUIRED") {
+                setSsoMode(true);
+                setSsoRef(formData.email);
+            }
             setError(err.response?.data?.message || err.message || "An error occurred");
         } finally {
             setLoading(false);
@@ -97,10 +138,10 @@ export default function LoginPage() {
                 <div style={{ width: "100%", maxWidth: "420px" }}>
                     <div style={{ marginBottom: "36px" }}>
                         <h2 style={{ fontSize: "28px", fontWeight: 800, color: "#1f2937", marginBottom: "8px", letterSpacing: "-0.5px" }}>
-                            {isForgotPassword ? "Forgot Password" : isRegister ? "Set Account Password" : "Welcome Back"}
+                            {ssoMode ? "Sign in with SSO" : mfaToken ? "Two-Factor Verification" : isForgotPassword ? "Forgot Password" : isRegister ? "Set Account Password" : "Welcome Back"}
                         </h2>
                         <p style={{ fontSize: "15px", color: "#6b7280", lineHeight: 1.5 }}>
-                            {isForgotPassword ? "Enter your email to receive a reset link" : isRegister ? "New employee? Set your account password" : "Sign in to access your HRMS dashboard"}
+                            {ssoMode ? "Enter your work email or company ID to continue with your organization's identity provider" : mfaToken ? "Enter the 6-digit code from your authenticator app, or one of your backup codes" : isForgotPassword ? "Enter your email to receive a reset link" : isRegister ? "New employee? Set your account password" : "Sign in to access your HRMS dashboard"}
                         </p>
                     </div>
 
@@ -125,7 +166,34 @@ export default function LoginPage() {
                     )}
 
                     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        {isRegister && (
+                        {ssoMode && (
+                            <div>
+                                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Work email or company ID</label>
+                                <div style={{ position: "relative" }}>
+                                    <FiShield style={{ position: "absolute", left: "16px", top: "14px", color: "#9ca3af" }} />
+                                    <input type="text" required autoFocus placeholder="you@company.com or company-id" value={ssoRef}
+                                        onChange={e => setSsoRef(e.target.value)}
+                                        style={{ width: "100%", padding: "12px 16px 12px 46px", border: "1px solid #e5e7eb", borderRadius: "10px", fontSize: "14px", color: "#1f2937", outline: "none", transition: "border 0.2s" }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {!ssoMode && mfaToken && (
+                            <div>
+                                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Verification code</label>
+                                <div style={{ position: "relative" }}>
+                                    <FiShield style={{ position: "absolute", left: "16px", top: "14px", color: "#9ca3af" }} />
+                                    <input type="text" required autoFocus autoComplete="one-time-code" inputMode="text"
+                                        placeholder="123456 or backup code" value={mfaCode}
+                                        onChange={e => setMfaCode(e.target.value)}
+                                        style={{ width: "100%", padding: "12px 16px 12px 46px", border: "1px solid #e5e7eb", borderRadius: "10px", fontSize: "14px", color: "#1f2937", outline: "none", transition: "border 0.2s", letterSpacing: "2px" }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {!ssoMode && !mfaToken && isRegister && (
                             <div>
                                 <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Display Name</label>
                                 <div style={{ position: "relative" }}>
@@ -138,7 +206,7 @@ export default function LoginPage() {
                             </div>
                         )}
 
-                        <div>
+                        {!ssoMode && !mfaToken && <div>
                             <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Email address</label>
                             <div style={{ position: "relative" }}>
                                 <FiMail style={{ position: "absolute", left: "16px", top: "14px", color: "#9ca3af" }} />
@@ -147,9 +215,9 @@ export default function LoginPage() {
                                     style={{ width: "100%", padding: "12px 16px 12px 46px", border: "1px solid #e5e7eb", borderRadius: "10px", fontSize: "14px", color: "#1f2937", outline: "none", transition: "border 0.2s" }}
                                 />
                             </div>
-                        </div>
+                        </div>}
 
-                        {!isForgotPassword && (
+                        {!ssoMode && !mfaToken && !isForgotPassword && (
                             <div>
                                 <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Password</label>
                                 <div style={{ position: "relative" }}>
@@ -180,17 +248,24 @@ export default function LoginPage() {
                             {loading ? (
                                 <FiLoader className="animate-spin" />
                             ) : (
-                                <>{isForgotPassword ? "Send Reset Link" : isRegister ? "Activate Account" : "Sign In"} <FiArrowRight size={16} /></>
+                                <>{ssoMode ? "Continue with SSO" : mfaToken ? "Verify" : isForgotPassword ? "Send Reset Link" : isRegister ? "Activate Account" : "Sign In"} <FiArrowRight size={16} /></>
                             )}
                         </button>
 
                         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "10px" }}>
-                            {!isForgotPassword && !isRegister && (
+                            {ssoMode && (
+                                <button type="button" onClick={() => { setSsoMode(false); setError(""); }} style={{ background: "none", border: "none", color: "#f97316", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Back to Login</button>
+                            )}
+                            {!ssoMode && mfaToken && (
+                                <button type="button" onClick={() => { setMfaToken(null); setMfaCode(""); setError(""); }} style={{ background: "none", border: "none", color: "#f97316", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Back to Login</button>
+                            )}
+                            {!ssoMode && !mfaToken && !isForgotPassword && !isRegister && (
                                 <>
                                     <button type="button" onClick={() => setIsForgotPassword(true)} style={{ background: "none", border: "none", color: "#f97316", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Forgot Password?</button>
+                                    <button type="button" onClick={() => { setSsoMode(true); setSsoRef(formData.email); setError(""); }} style={{ background: "none", border: "none", color: "#f97316", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Sign in with SSO</button>
                                 </>
                             )}
-                            {(isForgotPassword || isRegister) && (
+                            {!ssoMode && !mfaToken && (isForgotPassword || isRegister) && (
                                 <button type="button" onClick={() => { setIsForgotPassword(false); setIsRegister(false); }} style={{ background: "none", border: "none", color: "#f97316", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Back to Login</button>
                             )}
                         </div>

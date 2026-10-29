@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { FiLock, FiCheckCircle, FiLoader, FiShield } from "react-icons/fi";
 import { useRouter, useSearchParams } from "next/navigation";
 import axiosInstance from "@/lib/axios";
+import { API_ENDPOINTS } from "@/config/api";
 
 function SetupPasswordForm() {
     const searchParams = useSearchParams();
@@ -31,7 +32,7 @@ function SetupPasswordForm() {
         setLoading(true);
         setError("");
         try {
-            await axiosInstance.post('/api/auth/setup-password', { token, password });
+            await axiosInstance.put(`${API_ENDPOINTS.AUTH_RESET_PASSWORD}/${token}`, { password });
             router.push('/login'); // Or auto-login
         } catch (err: any) {
             setError(err.response?.data?.message || "Failed to setup password");

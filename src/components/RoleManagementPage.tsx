@@ -12,10 +12,22 @@ import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 import { useConfirm, useToast } from "@/components/common/DialogProvider";
 
 const ROLES = [
-    { value: "Admin", label: "Admin", color: "#EA4335", desc: "Full access to all modules" },
-    { value: "HR", label: "HR", color: "#1A73E8", desc: "Manage employees, payroll, compliance" },
-    { value: "Manager", label: "Manager", color: "#FF6D00", desc: "View team, approve leaves & attendance" },
-    { value: "Employee", label: "Employee", color: "#34A853", desc: "Self-service portal access" },
+    { value: "admin", label: "Admin", color: "#EA4335", desc: "Full access to all modules" },
+    { value: "hr", label: "HR", color: "#1A73E8", desc: "Manage employees, payroll, compliance" },
+    { value: "manager", label: "Manager", color: "#FF6D00", desc: "View team, approve leaves & attendance" },
+    { value: "employee", label: "Employee", color: "#34A853", desc: "Self-service portal access" },
+];
+
+/**
+ * Every module key the API guards with requireModule — mirror of MODULE_KEYS in
+ * backend src/middleware/moduleAccess.js.
+ */
+const KNOWN_MODULES = [
+    "dashboard", "employees", "attendance", "leaves", "permissions", "payroll",
+    "organization", "departments", "recruitment", "performance", "expenses",
+    "compliance", "assets", "reports", "roles", "settings", "help",
+    "announcements", "documents", "locations", "notifications", "projects",
+    "revenue", "safety", "skills", "taxDocuments", "timesheets", "training", "vendors",
 ];
 
 interface RoleManagementPageProps {
@@ -47,7 +59,13 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
     const fetchPermissions = useCallback(async () => {
         try {
             const res = await axiosInstance.get(API_ENDPOINTS.ROLE_PERMISSIONS);
-            setModulePermissions(res.data.data || []);
+            // Modules with no saved row are open to every role (the API's default),
+            // so show them that way and let them be restricted from here.
+            // Roles are stored lowercase; older rows may carry capitalised names.
+            const rows: any[] = (res.data.data || []).map((r: any) => ({ ...r, roles: (r.roles || []).map((x: string) => String(x).toLowerCase()) }));
+            const known = new Set(rows.map((r: any) => r.module));
+            const unconfigured = KNOWN_MODULES.filter(m => !known.has(m)).map(m => ({ module: m, roles: ROLES.map(r => r.value) }));
+            setModulePermissions([...rows, ...unconfigured]);
         } catch (err) { console.error(err); }
     }, []);
 
@@ -95,9 +113,10 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
         try {
             await axiosInstance.put(API_ENDPOINTS.ROLE_PERMISSIONS, { permissions: modulePermissions });
             showToast("Permissions updated successfully!");
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            toast.error("Failed to save permissions");
+            // The API refuses HR, and any revocation from a role at or above the caller's own; say which.
+            toast.error(err.response?.data?.message || "Failed to save permissions");
         } finally {
             setSavingPermissions(false);
         }
@@ -222,9 +241,9 @@ export default function RoleManagementPage({ showNotify }: RoleManagementPagePro
                             {modulePermissions.map((row, i) => (
                                 <tr key={i}>
                                     <td style={{ fontWeight: 600, textTransform: 'capitalize' }}>{row.module.replace(/([A-Z])/g, ' $1').trim()}</td>
-                                    {["Admin", "HR", "Manager", "Employee"].map(role => {
+                                    {ROLES.map(r => r.value).map(role => {
                                         const hasAccess = row.roles.includes(role);
-                                        const isRestricted = role === "Admin" && row.module === "roles"; // Admin must have access to role management
+                                        const isRestricted = role === "admin" && row.module === "roles"; // Admin must have access to role management
                                         return (
                                             <td key={role} style={{ textAlign: "center" }}>
                                                 <button 

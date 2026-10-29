@@ -63,11 +63,16 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
+        // A read-only company tried to change something: tell the topbar to show its banner.
+        if (error.response?.status === 403 && error.response?.data?.code === 'ORG_READ_ONLY' && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('rivo:read-only', { detail: error.response.data.readOnlyUntil }));
+        }
         if (error.response?.status === 401) {
             const url = error.config?.url || '';
             // Only redirect to login if the request was NOT for an auth endpoint
             if (!url.includes('/api/auth/login') && 
                 !url.includes('/api/auth/register') && 
+                !url.includes('/api/auth/mfa/challenge') &&
                 !url.includes('/api/auth/me')) {
                 if (typeof window !== 'undefined') {
                     localStorage.removeItem('ravi_zoho_token');

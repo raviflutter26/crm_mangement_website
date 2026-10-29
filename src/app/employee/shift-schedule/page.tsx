@@ -23,7 +23,7 @@ type CalendarDay = { d: string; date: number; current: boolean; shift: string };
  * The week strip is a calendar, so it is built from dates here rather than
  * from the API.
  *
- * /api/organizations/shifts returns SHIFT DEFINITIONS — name, start and end
+ * /api/shifts returns SHIFT DEFINITIONS — name, start and end
  * time, which weekdays they cover — not days of the month. Rendering those
  * rows as calendar cells read `day.d` off a shift and crashed the page on
  * `undefined.toUpperCase()`, which unmounted the whole app shell and left the

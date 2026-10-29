@@ -87,7 +87,7 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                     </p>
                     <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                         <span style={{ fontSize: "12px", fontWeight: 800, background: "#f59e0b", color: "#fff", padding: "6px 12px", borderRadius: "100px", display: "flex", alignItems: "center", gap: "6px" }}>
-                            {data.employees?.newThisMonth || 3} new employees this month
+                            {data.employees?.newThisMonth ?? 0} new employees this month
                         </span>
                         <span style={{ fontSize: "12px", fontWeight: 800, background: "#ef4444", color: "#fff", padding: "6px 12px", borderRadius: "100px", display: "flex", alignItems: "center", gap: "6px" }}>
                             1 incident open
@@ -96,7 +96,7 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                             6 sites active
                         </span>
                         <span style={{ fontSize: "12px", fontWeight: 800, background: "#3b82f6", color: "#fff", padding: "6px 12px", borderRadius: "100px", display: "flex", alignItems: "center", gap: "6px" }}>
-                            {data.leaves?.pending || 5} pending approvals
+                            {data.leaves?.pending ?? 0} pending approvals
                         </span>
                     </div>
                 </div>
@@ -141,10 +141,11 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                     { val: data.employees?.active || 0, label: "Total Employees", sub: `↑ ${data.employees?.newThisMonth || 0} this month`, subColor: "#10b981" },
                     { val: `${data.attendance?.attendanceRate || 0}%`, label: "Attendance Today", sub: `${data.attendance?.presentToday || 0} / ${data.employees?.active || 0} present`, subColor: "#10b981" },
                     { val: data.projects?.length || 0, label: "Active Sites", sub: "Currently in progress", subColor: "var(--text-muted)" },
-                    { val: payrollFormatted, label: "Monthly Payroll", sub: "Disbursed amount", subColor: "var(--text-muted)" },
+                    // Managers are not sent payroll (payrollVisible: false), so no ₹0 tile for them.
+                    data.payrollVisible === false ? null : { val: payrollFormatted, label: "Monthly Payroll", sub: "Disbursed amount", subColor: "var(--text-muted)" },
                     { val: data.leaves?.pending || 0, label: "Pending Approvals", sub: `Need review`, subColor: "#ef4444" },
                     { val: data.incidentStats?.open || 0, label: "Open Incidents", sub: "Needs attention", subColor: "#ef4444" }
-                ].map((stat, i) => (
+                ].filter((stat): stat is NonNullable<typeof stat> => stat !== null).map((stat, i) => (
                     <div key={i} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "16px", padding: "20px" }}>
                         <div style={{ fontSize: "28px", fontWeight: 900, color: "var(--text-primary)", letterSpacing: "-0.5px", lineHeight: 1 }}>{stat.val}</div>
                         <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--text-primary)", marginTop: "12px" }}>{stat.label}</div>
@@ -187,7 +188,7 @@ export default function AdminOverview({ data, userName, filter, setFilter, onRef
                 <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "16px", padding: "24px" }}>
                     <div style={{ marginBottom: "20px" }}>
                         <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>Headcount by dept</h3>
-                        <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 0", fontWeight: 500 }}>Total: {data.employees?.active || 48} employees</p>
+                        <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 0", fontWeight: 500 }}>Total: {data.employees?.active ?? 0} employees</p>
                     </div>
                     {deptData.length > 0 ? (
                         <div style={{ display: "flex", alignItems: "center", height: "260px" }}>

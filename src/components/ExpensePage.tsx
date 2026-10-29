@@ -31,6 +31,7 @@ export default function ExpensePage({ showNotify }: ExpensePageProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState("");
     const [formData, setFormData] = useState<any>({});
+    const [employees, setEmployees] = useState<any[]>([]);
     const [toast, setToast] = useState("");
     const [filterStatus, setFilterStatus] = useState("");
 
@@ -45,6 +46,14 @@ export default function ExpensePage({ showNotify }: ExpensePageProps) {
     };
 
     useEffect(() => { fetchData(); }, [filterStatus]);
+
+    // Only approvers can list employees; for anyone else this fails quietly and
+    // the claim is filed for the signed-in user.
+    useEffect(() => {
+        axiosInstance.get(API_ENDPOINTS.EMPLOYEES)
+            .then(res => setEmployees(res.data.data || []))
+            .catch(() => setEmployees([]));
+    }, []);
 
     const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
@@ -197,8 +206,19 @@ export default function ExpensePage({ showNotify }: ExpensePageProps) {
                     <div className="card animate-in" style={{ width: "520px", maxHeight: "80vh", overflow: "auto", padding: "24px" }}>
                         <h2 style={{ marginBottom: "20px" }}>{isEditing ? "Edit" : "Submit"} Expense</h2>
                         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                            <div><label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Employee Name</label>
-                                <input type="text" className="form-input" value={formData.employeeName || ""} onChange={e => setFormData({ ...formData, employeeName: e.target.value })} placeholder="Employee name" /></div>
+                            {/* Filing for someone else is an approver's action; the list only loads for them. Blank = yourself. */}
+                            {!isEditing && employees.length > 0 && (
+                            <div><label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Employee</label>
+                                <select className="form-input" value={formData.employee || ""} onChange={e => {
+                                    const emp = employees.find((x: any) => x._id === e.target.value);
+                                    setFormData({ ...formData, employee: e.target.value, employeeName: emp ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim() : "" });
+                                }}>
+                                    <option value="">Myself</option>
+                                    {employees.map((emp: any) => (
+                                        <option key={emp._id} value={emp._id}>{`${emp.firstName || ""} ${emp.lastName || ""}`.trim()}</option>
+                                    ))}
+                                </select></div>
+                            )}
                             <div><label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Expense Title *</label>
                                 <input required type="text" className="form-input" value={formData.title || ""} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g., Client meeting travel" /></div>
                             <div className="grid-2">
@@ -215,7 +235,7 @@ export default function ExpensePage({ showNotify }: ExpensePageProps) {
                                     <input type="date" className="form-input" value={formData.date || ""} onChange={e => setFormData({ ...formData, date: e.target.value })} /></div>
                                 <div><label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Status</label>
                                     <select className="form-input" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
-                                        <option value="draft">Draft</option><option value="submitted">Submitted</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="reimbursed">Reimbursed</option>
+                                        <option value="draft">Draft</option><option value="submitted">Submitted</option>
                                     </select></div>
                             </div>
                             <div><label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Description</label>

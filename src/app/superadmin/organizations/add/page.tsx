@@ -52,8 +52,10 @@ export default function CreateOrganizationPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [credentials, setCredentials] = useState<{ email: string; tempPassword: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  // The admin gets an emailed setup link; no password is ever shown or sent.
+  const [setupInfo, setSetupInfo] = useState<{ email: string; emailSent: boolean } | null>(null);
+  // Set when this form was opened from a demo request, which is closed once the org exists.
+  const [fromDemo, setFromDemo] = useState<string | null>(null);
   const [industries, setIndustries] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -111,6 +113,25 @@ export default function CreateOrganizationPage() {
     } finally {
       setLoadingCities(false);
     }
+  }, []);
+
+  // Pre-fill from a demo request ("Create org" on /superadmin/demo-requests). Read
+  // from window.location rather than useSearchParams, which a static export would
+  // need a Suspense boundary for.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    if (!q.get("fromDemo")) return;
+    const [first, ...rest] = (q.get("contactName") || "").trim().split(/\s+/);
+    setFromDemo(q.get("fromDemo"));
+    setFormData(prev => ({
+      ...prev,
+      name: q.get("name") || prev.name,
+      adminFirstName: first || prev.adminFirstName,
+      adminLastName: rest.join(" ") || prev.adminLastName,
+      email: q.get("email") || prev.email,
+      phone: q.get("phone") || prev.phone,
+    }));
   }, []);
 
   useEffect(() => {
@@ -182,13 +203,15 @@ export default function CreateOrganizationPage() {
           firstName: formData.adminFirstName,
           lastName: formData.adminLastName,
           email: formData.email,
-          // No password: the backend generates a random temp password and emails it to the admin.
+          // No password: the backend emails the admin a link to set one.
         },
       };
       const res = await axiosInstance.post("/api/organizations", payload);
       const admin = res.data?.data?.admin;
-      if (admin?.tempPassword) {
-        setCredentials({ email: admin.email ?? formData.email, tempPassword: admin.tempPassword });
+      setSetupInfo({ email: admin?.email ?? formData.email, emailSent: admin?.setupEmailSent !== false });
+      if (fromDemo) {
+        // Best effort: the organization exists either way.
+        axiosInstance.patch(`/api/demo-requests/${fromDemo}/status`, { status: "closed" }).catch(() => {});
       }
       setSuccess(true);
     } catch (err: any) {
@@ -212,17 +235,6 @@ export default function CreateOrganizationPage() {
     }
   };
 
-  const handleCopyCredentials = async () => {
-    if (!credentials) return;
-    try {
-      await navigator.clipboard.writeText(`Email: ${credentials.email}\nTemporary Password: ${credentials.tempPassword}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy credentials", err);
-    }
-  };
-
   const steps = [
     { id: 1, label: "Identity", icon: Icons.Briefcase },
     { id: 2, label: "Admin & Contact", icon: Icons.UserContact },
@@ -243,25 +255,17 @@ export default function CreateOrganizationPage() {
             <span className="font-semibold text-[#1E2A3A]">{formData.name}</span> is live on the platform.
           </p>
 
-          {credentials && (
+          {setupInfo && (
             <div className="text-left bg-gray-50 border border-slate-200 rounded-xl p-5 mb-8">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-3">Administrator Login</div>
-              <div className="flex justify-between items-center mb-2">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-3">Administrator Access</div>
+              <div className="flex justify-between items-center mb-3">
                 <span className="text-xs text-slate-400">Email</span>
-                <span className="text-xs font-bold">{credentials.email}</span>
+                <span className="text-xs font-bold">{setupInfo.email}</span>
               </div>
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-xs text-slate-400">Temporary Password</span>
-                <span className="text-xs font-bold font-mono">{credentials.tempPassword}</span>
-              </div>
-              <button
-                onClick={handleCopyCredentials}
-                className="w-full h-10 rounded-lg border border-slate-200 text-xs font-bold uppercase tracking-widest text-slate-600 hover:border-[#F97316] hover:text-[#F97316] transition-colors"
-              >
-                {copied ? "Copied!" : "Copy Credentials"}
-              </button>
-              <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
-                This has also been emailed to the administrator. It won&apos;t be shown again — save it now if email delivery isn&apos;t configured.
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                {setupInfo.emailSent
+                  ? "A link to set their password has been emailed to the administrator. It expires in 24 hours."
+                  : "The setup email could not be sent. The administrator can use \"Forgot password\" on the login page to receive a setup link once email delivery is working."}
               </p>
             </div>
           )}

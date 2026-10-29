@@ -6,7 +6,7 @@ import { FiLoader, FiAlertCircle, FiLock, FiUnlock, FiRefreshCw, FiExternalLink,
 import { useConfirm } from "@/components/common/DialogProvider";
 
 interface LockedAccount {
-    id: number;
+    id: string;
     name: string;
     email: string;
     initials: string;
@@ -16,7 +16,7 @@ interface LockedAccount {
     failedAttempts: number | null;
     ip: string;
     location: string;
-    plan: string;
+    organization: string;
 }
 
 export default function LockedAccountsPage() {
@@ -41,16 +41,32 @@ export default function LockedAccountsPage() {
         fetchLocked();
     }, []);
 
-    const unlockStatus = async (id: number) => {
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    /**
+     * A security lockout is cleared by the platform. A manually deactivated
+     * account is reactivated instead — that was a deliberate decision, so it
+     * gets its own wording and confirmation.
+     */
+    const restoreAccess = async (acc: LockedAccount) => {
+        const manual = acc.reasonType === "manual";
         const ok = await confirmDialog({
-            title: "Unlock this account?",
-            confirmLabel: "Unlock",
+            title: manual ? "Reactivate this account?" : "Unlock this account?",
+            description: manual ? "This account was deactivated, possibly by its organization. Reactivating lets the user sign in again." : undefined,
+            confirmLabel: manual ? "Reactivate" : "Unlock",
         });
         if (!ok) return;
         try {
-            setAccounts(prev => prev.filter(a => a.id !== id));
-        } catch (err) {
+            setActionError(null);
+            if (manual) {
+                await axiosInstance.put(`/api/auth/users/${acc.id}`, { isActive: true });
+            } else {
+                await axiosInstance.post(`/api/superadmin/locked-accounts/${acc.id}/unlock`);
+            }
+            setAccounts(prev => prev.filter(a => a.id !== acc.id));
+        } catch (err: any) {
             console.error("Failed to unlock", err);
+            setActionError(err.response?.data?.message || "Could not restore access for this account.");
         }
     };
 
@@ -60,7 +76,6 @@ export default function LockedAccountsPage() {
     const stats = [
         { label: "LOCKED ACCOUNTS", val: accounts.length.toString(), color: "var(--error)" },
         { label: "SECURITY LOCKOUTS", val: accounts.filter(a => a.reasonType === 'security').length.toString() },
-        { label: "BILLING FAILURES", val: accounts.filter(a => a.reasonType === 'billing').length.toString() },
         { label: "MANUAL SUSPENSIONS", val: accounts.filter(a => a.reasonType === 'manual').length.toString() }
     ];
 
@@ -72,6 +87,12 @@ export default function LockedAccountsPage() {
                     <p className="page-subtitle">Administrative control over restricted user access.</p>
                 </div>
             </div>
+
+            {actionError && (
+                <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--error)', marginBottom: '16px', fontSize: '13px' }}>
+                    <FiAlertCircle /> {actionError}
+                </div>
+            )}
 
             <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
                 {stats.map(s => (
@@ -117,16 +138,13 @@ export default function LockedAccountsPage() {
                                         borderRadius: '4px',
                                         background: 'rgba(255,255,255,0.05)',
                                         color: 'var(--text-muted)'
-                                    }}>{acc.plan.toUpperCase()}</span>
+                                    }}>{String(acc.organization || "").toUpperCase()}</span>
                                 </div>
                                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'monospace' }}>{acc.email}</div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px' }}>
-                                <button className="btn btn-success" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => unlockStatus(acc.id)}>
-                                    <FiUnlock /> Unlock Account
-                                </button>
-                                <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
-                                    <FiRefreshCw /> Reset & Unlock
+                                <button className="btn btn-success" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => restoreAccess(acc)}>
+                                    {acc.reasonType === "manual" ? <><FiRefreshCw /> Reactivate</> : <><FiUnlock /> Unlock Account</>}
                                 </button>
                             </div>
                         </div>

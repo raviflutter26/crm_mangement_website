@@ -17,7 +17,6 @@ export default function HelpPage({ showNotify }: HelpPageProps) {
         { q: "How do I run payroll for a new employee?", a: "To run payroll, navigate to the Payroll tab from the sidebar. Click the 'Run Payroll' button in the top right. Select your employee, enter their gross and tax variables, and the system automatically calculates net pay and inserts the record." },
         { q: "Can I export payroll records to my bank?", a: "Yes. From the Payroll page, apply any necessary Date filters if you'd like to restrict the batch, then click 'Export Bank Format' to download a clean CSV ledger." },
         { q: "How do employees apply for leaves?", a: "You or your employees can track leaves via the Leave Management module. Click 'Apply Leave', fill in the duration, and its status will queue as 'Pending' until you Approve or Reject it." },
-        { q: "What does Zoho Sync do?", a: "The Zoho Sync engine securely transmits your processed payroll, employee states, and leave approvals bidirectionally with your master Zoho People credentials." }
     ];
 
     const handleSendMessage = (e: any) => {
@@ -112,7 +111,6 @@ export default function HelpPage({ showNotify }: HelpPageProps) {
                             <select className="form-input">
                                 <option>General Inquiry</option>
                                 <option>Bug Report</option>
-                                <option>Zoho Sync Issue</option>
                                 <option>Feature Request</option>
                             </select>
                         </div>

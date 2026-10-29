@@ -67,7 +67,7 @@ export default function travelPage() {
     const handleApprove = async (id: string) => {
         setActingId(id);
         try {
-            await axiosInstance.patch(`${API_ENDPOINTS.TRAVEL_REQUESTS}/${id}/approve`, {});
+            await axiosInstance.patch(`${API_ENDPOINTS.TRAVEL_REQUESTS}/${id}/approve`, { status: 'Approved' });
             fetchData();
         } catch (err: any) {
             toast.error(err.response?.data?.message || "Failed to approve request");
@@ -79,7 +79,8 @@ export default function travelPage() {
     const handleReject = async (id: string) => {
         setActingId(id);
         try {
-            await axiosInstance.put(`${API_ENDPOINTS.TRAVEL_REQUESTS}/${id}`, { status: 'Rejected' });
+            // Rejection is an approval decision, so it goes through /approve like approval does.
+            await axiosInstance.patch(`${API_ENDPOINTS.TRAVEL_REQUESTS}/${id}/approve`, { status: 'Rejected' });
             fetchData();
         } catch (err: any) {
             toast.error(err.response?.data?.message || "Failed to reject request");

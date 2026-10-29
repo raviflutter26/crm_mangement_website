@@ -10,11 +10,18 @@ export const API_ENDPOINTS = {
     AUTH_FORGOT_PASSWORD: `${API_BASE_URL}/api/auth/forgot-password`,
     AUTH_RESET_PASSWORD: `${API_BASE_URL}/api/auth/reset-password`,
 
+    // In-app notifications (topbar bell)
+    NOTIFICATIONS: `${API_BASE_URL}/api/notifications`,
+    NOTIFICATIONS_READ: (id: string) => `${API_BASE_URL}/api/notifications/${id}/read`,
+    NOTIFICATIONS_READ_ALL: `${API_BASE_URL}/api/notifications/read-all`,
+
     // Dashboard
     DASHBOARD: `${API_BASE_URL}/api/dashboard`,
 
     // Employees
     EMPLOYEES: `${API_BASE_URL}/api/employees`,
+    // Colleagues of the caller (any role); public work fields only.
+    EMPLOYEES_TEAM: `${API_BASE_URL}/api/employees/team`,
 
     // Departments
     DEPARTMENTS: `${API_BASE_URL}/api/departments`,
@@ -26,6 +33,9 @@ export const API_ENDPOINTS = {
     ATTENDANCE_CHECK_OUT: `${API_BASE_URL}/api/attendance/check-out`,
     ATTENDANCE_REGULARIZE: `${API_BASE_URL}/api/attendance/regularize`,
     ATTENDANCE_MONTHLY_REPORT: `${API_BASE_URL}/api/attendance/monthly-report`,
+    // Field operations: today's site/GPS check-ins, and each employee's last known position.
+    ATTENDANCE_FIELD_TODAY: `${API_BASE_URL}/api/attendance/field-today`,
+    ATTENDANCE_LAST_LOCATIONS: `${API_BASE_URL}/api/attendance/last-locations`,
     ATTENDANCE_SETTINGS: `${API_BASE_URL}/api/attendance-config`,
 
     // Leave
@@ -38,6 +48,8 @@ export const API_ENDPOINTS = {
     // Payroll Runs
     PAYROLL_RUNS: `${API_BASE_URL}/api/payroll-runs`,
     PAYROLL_RUNS_INITIATE: `${API_BASE_URL}/api/payroll-runs/initiate`,
+    // Each branch the caller reaches with its run for ?month=&year= (per-branch payroll).
+    PAYROLL_RUNS_OVERVIEW: `${API_BASE_URL}/api/payroll-runs/overview`,
 
     // Compliance
     COMPLIANCE: `${API_BASE_URL}/api/compliance`,
@@ -53,22 +65,41 @@ export const API_ENDPOINTS = {
     LOCATIONS: `${API_BASE_URL}/api/locations`,
     DESIGNATIONS: `${API_BASE_URL}/api/organizations/designations`,
     BRANCHES: `${API_BASE_URL}/api/organizations/branches`,
-    SHIFTS: `${API_BASE_URL}/api/organizations/shifts`,
+    // Scope-aware branch list: only the branches the caller holds.
+    BRANCH_LIST: `${API_BASE_URL}/api/branches`,
+    // Shift definitions live at /api/shifts; /api/organizations/shifts matched GET /organizations/:id.
+    SHIFTS: `${API_BASE_URL}/api/shifts`,
     HOLIDAYS: `${API_BASE_URL}/api/organizations/holidays`,
 
     // Recruitment
     JOB_POSTINGS: `${API_BASE_URL}/api/recruitment/job-postings`,
     CANDIDATES: `${API_BASE_URL}/api/recruitment/candidates`,
+    CANDIDATE_STATUS: (id: string) => `${API_BASE_URL}/api/recruitment/candidates/${id}/status`,
+    CANDIDATE_CONVERT: (id: string) => `${API_BASE_URL}/api/recruitment/candidates/${id}/convert`,
+    INTERVIEWS: `${API_BASE_URL}/api/recruitment/interviews`,
+    INTERVIEW_FEEDBACK: (id: string) => `${API_BASE_URL}/api/recruitment/interviews/${id}/feedback`,
 
     // Performance
     GOALS: `${API_BASE_URL}/api/performance/goals`,
     APPRAISALS: `${API_BASE_URL}/api/performance/appraisals`,
+    APPRAISAL_SELF_REVIEW: (id: string) => `${API_BASE_URL}/api/performance/appraisals/${id}/self-review`,
+    APPRAISAL_MANAGER_REVIEW: (id: string) => `${API_BASE_URL}/api/performance/appraisals/${id}/manager-review`,
+    APPRAISAL_FINALIZE: (id: string) => `${API_BASE_URL}/api/performance/appraisals/${id}/finalize`,
+    APPRAISAL_CYCLES: `${API_BASE_URL}/api/performance/cycles`,
+
+    // Exits (resignation, termination, F&F) and transfers
+    SEPARATIONS: `${API_BASE_URL}/api/separations`,
+    SEPARATIONS_MY: `${API_BASE_URL}/api/separations/my`,
+    SEPARATION_TERMINATE: `${API_BASE_URL}/api/separations/terminate`,
+    TRANSFERS: `${API_BASE_URL}/api/transfers`,
+    EMPLOYEE_TRANSFERS: (empId: string) => `${API_BASE_URL}/api/employees/${empId}/transfers`,
 
     // Expenses
     EXPENSES: `${API_BASE_URL}/api/expenses`,
 
     // Assets
     ASSETS: `${API_BASE_URL}/api/assets`,
+    ASSETS_MY: `${API_BASE_URL}/api/assets/my`,
 
     // Support Tickets
     SUPPORT_TICKETS: `${API_BASE_URL}/api/support-tickets`,
@@ -96,12 +127,24 @@ export const API_ENDPOINTS = {
     PAYOUTS_BY_RUN: (runId: string) => `${API_BASE_URL}/api/payouts/run/${runId}`,
     PAYOUTS_RETRY: (payoutId: string) => `${API_BASE_URL}/api/payouts/${payoutId}/retry`,
     PAYOUTS_HISTORY: `${API_BASE_URL}/api/payouts/history`,
+    PAYOUTS_EMPLOYEES: `${API_BASE_URL}/api/payouts/employees`,
+    PAYOUTS_RECONCILIATION: `${API_BASE_URL}/api/payouts/reconciliation`,
+    PAYOUTS_REFRESH_STATUS: (payoutId: string) => `${API_BASE_URL}/api/payouts/${payoutId}/refresh-status`,
+
+    // Payslip PDF, loans, tax declarations, statutory filing files
+    PAYSLIP_PDF: (payrollId: string) => `${API_BASE_URL}/api/payroll/${payrollId}/payslip.pdf`,
+    LOANS: `${API_BASE_URL}/api/loans`,
+    TAX_DECLARATIONS: `${API_BASE_URL}/api/tax-declarations`,
+    TAX_DECLARATIONS_MY: `${API_BASE_URL}/api/tax-declarations/my`,
+    TAX_DECLARATION_VERIFY: (id: string) => `${API_BASE_URL}/api/tax-declarations/${id}/verify`,
+    STATUTORY_FILING: (kind: "ecr" | "esic" | "pt" | "form24q") => `${API_BASE_URL}/api/statutory/filings/${kind}`,
+    FORM16: (employeeId: string) => `${API_BASE_URL}/api/statutory/filings/form16/${employeeId}`,
 
     // Bank
     BANK_IFSC: (code: string) => `${API_BASE_URL}/api/bank/ifsc/${code}`,
     BANK_UPDATE: `${API_BASE_URL}/api/bank/update`,
     BANK_EMPLOYEE: (empId: string) => `${API_BASE_URL}/api/employees/${empId}/bank`,
-    BANK_VERIFY: (empId: string) => `${API_BASE_URL}/api/employees/${empId}/bank/verify`,
+    BANK_VERIFY: (empId: string) => `${API_BASE_URL}/api/payouts/bank/verify/${empId}`,
 
     // Payroll Lock
     PAYROLL_LOCK: (runId: string) => `${API_BASE_URL}/api/payroll-runs/${runId}/lock`,

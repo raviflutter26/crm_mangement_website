@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/api";
-import { FiArrowLeft, FiUser, FiBriefcase, FiDollarSign, FiCreditCard, FiFileText, FiMapPin, FiClock, FiSettings, FiCheckCircle, FiEdit2, FiDownload } from "react-icons/fi";
+import { FiArrowLeft, FiUser, FiBriefcase, FiDollarSign, FiCreditCard, FiFileText, FiMapPin, FiClock, FiSettings, FiCheckCircle, FiEdit2, FiDownload, FiShuffle } from "react-icons/fi";
 
 interface EmployeeDetailsPageProps {
     employee: any;
@@ -38,6 +38,10 @@ const DetailField = ({ label, value }: { label: string, value: any }) => (
     </div>
 );
 
+/** The branch an employee is posted to; the API populates branchId with { name, code }. */
+const branchNameOf = (emp: any): string | undefined =>
+    emp?.branchId && typeof emp.branchId === "object" ? emp.branchId.name : undefined;
+
 export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentUser }: EmployeeDetailsPageProps) {
     const [payrollHistory, setPayrollHistory] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(true);
@@ -54,6 +58,18 @@ export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentU
             }
         };
         if (employee?._id) fetchHistory();
+    }, [employee?._id]);
+
+    const [transfers, setTransfers] = useState<any[]>([]);
+    const [loadingTransfers, setLoadingTransfers] = useState(true);
+
+    useEffect(() => {
+        if (!employee?._id) return;
+        setLoadingTransfers(true);
+        axiosInstance.get(API_ENDPOINTS.EMPLOYEE_TRANSFERS(employee._id))
+            .then((res) => setTransfers(res.data.data || []))
+            .catch(() => setTransfers([]))
+            .finally(() => setLoadingTransfers(false));
     }, [employee?._id]);
 
     if (!employee) return null;
@@ -112,6 +128,7 @@ export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentU
                     </DetailSection>
 
                     <DetailSection title="Work Information" icon={<FiBriefcase />}>
+                        <DetailField label="Branch" value={branchNameOf(employee)} />
                         <DetailField label="Department" value={employee.department} />
                         <DetailField label="Designation" value={employee.designation} />
                         <DetailField label="Employee ID" value={employee.employeeId} />
@@ -212,6 +229,49 @@ export default function EmployeeDetailsPage({ employee, onBack, onEdit, currentU
                             </div>
                         </div>
                     )}
+                    <div className="card" style={{ marginBottom: "24px", overflow: "hidden" }}>
+                        <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "12px", background: "var(--bg-secondary)" }}>
+                            <div style={{ color: "var(--primary)", fontSize: "20px", display: "flex" }}><FiShuffle /></div>
+                            <h3 style={{ fontSize: "16px", fontWeight: 700 }}>Transfer History</h3>
+                        </div>
+                        <div className="table-wrapper" style={{ boxShadow: "none", border: "none", borderRadius: "0" }}>
+                            <table style={{ margin: 0 }}>
+                                <thead>
+                                    <tr>
+                                        <th>Effective</th>
+                                        <th>Change</th>
+                                        <th>Reason</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {transfers.map((t) => {
+                                        const changes: string[] = [];
+                                        const nm = (v: any) => (v && typeof v === "object" ? (v.name || `${v.firstName || ""} ${v.lastName || ""}`.trim()) : v) || "—";
+                                        if (t.to?.branchId) changes.push(`Branch: ${nm(t.from?.branchId)} → ${nm(t.to.branchId)}`);
+                                        if (t.to?.departmentId) changes.push(`Department: ${nm(t.from?.departmentId) !== "—" ? nm(t.from?.departmentId) : (t.from?.department || "—")} → ${nm(t.to.departmentId)}`);
+                                        if (t.to?.reportingManager) changes.push(`Manager: ${nm(t.from?.reportingManager)} → ${nm(t.to.reportingManager)}`);
+                                        if (t.to?.designation) changes.push(`Designation: ${t.from?.designation || "—"} → ${t.to.designation}`);
+                                        if (t.to?.location) changes.push(`Location: ${t.from?.location || "—"} → ${t.to.location}`);
+                                        return (
+                                            <tr key={t._id}>
+                                                <td>{t.effectiveDate?.split("T")[0]}</td>
+                                                <td style={{ fontSize: "13px" }}>{changes.map((c) => <div key={c}>{c}</div>)}</td>
+                                                <td style={{ fontSize: "13px" }}>{t.reason || "-"}</td>
+                                                <td><span className={`badge ${t.status === "applied" ? "active" : t.status === "rejected" || t.status === "cancelled" ? "inactive" : "pending"}`}>{t.status}</span></td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {transfers.length === 0 && !loadingTransfers && (
+                                        <tr><td colSpan={4} style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>No transfers on record.</td></tr>
+                                    )}
+                                    {loadingTransfers && (
+                                        <tr><td colSpan={4} style={{ textAlign: "center", padding: "15px" }}>Loading transfers...</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Sidebar Details */}

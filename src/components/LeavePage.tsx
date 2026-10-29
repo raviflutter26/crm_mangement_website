@@ -27,7 +27,8 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
         leaveType: "",
         startDate: "",
         endDate: "",
-        reason: ""
+        reason: "",
+        halfDay: false
     });
 
     const [dialogState, setDialogState] = useState({
@@ -50,28 +51,35 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
             setUserRole(role);
             setCurrentUserId(userId);
 
-            // Parallel fetches
-            const [leavesRes, empRes, balanceRes, policyRes] = await Promise.all([
+            // Parallel fetches. allSettled so one failing source (e.g. the
+            // employee list for a role that cannot read it) no longer blanks
+            // the whole page — Promise.all rejected on the first 403.
+            const [leavesR, empR, balanceR, policyR] = await Promise.allSettled([
                 axiosInstance.get(API_ENDPOINTS.LEAVES),
                 role !== 'employee' ? axiosInstance.get(API_ENDPOINTS.EMPLOYEES) : Promise.resolve({ data: { data: [] } }),
                 userId ? axiosInstance.get(`/api/leaves/balance/${userId}`) : Promise.resolve({ data: { data: [] } }),
                 axiosInstance.get('/api/admin/config/leave-policy')
             ]);
+            const dataOf = (r: PromiseSettledResult<any>) => (r.status === 'fulfilled' ? r.value.data?.data || [] : []);
+            const leaveRows = dataOf(leavesR);
 
-            setLeaves(leavesRes.data?.data || []);
-            setEmployees(empRes.data?.data || []);
-            setBalances((balanceRes.data?.data || []).map((b: any) => ({
+            setLeaves(leaveRows);
+            setEmployees(dataOf(empR));
+            setBalances(dataOf(balanceR).map((b: any) => ({
                 leaveType: b.leaveType,
                 total: b.totalEntitled,
                 used: b.used,
                 pending: b.pendingApproval,
                 available: b.totalEntitled - b.used - b.pendingApproval,
             })));
-            setPolicies(policyRes.data?.data || []);
-            
+            const policyRows = dataOf(policyR);
+            setPolicies(policyRows);
+            // Pre-select the first type so the required select is never stuck on nothing.
+            setFormData(f => (f.leaveType || !policyRows.length ? f : { ...f, leaveType: policyRows[0].leaveType }));
+
             setStats({
-                pending: leavesRes.data?.data.filter((l: any) => l.status === 'Pending').length,
-                approved: leavesRes.data?.data.filter((l: any) => l.status === 'Approved').length,
+                pending: leaveRows.filter((l: any) => l.status === 'Pending').length,
+                approved: leaveRows.filter((l: any) => l.status === 'Approved').length,
             });
         } catch (err) {
             console.error("Failed to fetch leave data", err);
@@ -85,7 +93,9 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
     const handleApplyLeaveSubmit = async (e: any) => {
         e.preventDefault();
         try {
-            await axiosInstance.post(API_ENDPOINTS.LEAVES, formData);
+            // No employeeId: the backend files it for the signed-in user, whatever their role.
+            const payload = { ...formData, endDate: formData.halfDay ? formData.startDate : formData.endDate };
+            await axiosInstance.post(API_ENDPOINTS.LEAVES, payload);
             setShowModal(false);
             setDialogState({ show: true, type: "success", title: "Leave Applied", message: "Leave request submitted successfully." });
             fetchData();
@@ -104,7 +114,18 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
         }
     };
 
+    const handleCancelOwn = async (id: string) => {
+        try {
+            await axiosInstance.patch(`${API_ENDPOINTS.LEAVES}/${id}/cancel`);
+            setDialogState({ show: true, type: "success", title: "Leave Withdrawn", message: "Your leave request has been cancelled." });
+            fetchData();
+        } catch (err: any) {
+            setDialogState({ show: true, type: "error", title: "Cancel Failed", message: err.response?.data?.message || err.message });
+        }
+    };
+
     const isEmployeeRole = userRole.toLowerCase() === 'employee';
+    const isOwnLeave = (leave: any) => String(leave.employee?._id || leave.employee) === String(currentUserId);
 
     return (
         <>
@@ -163,7 +184,7 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
                                 <th>Days</th>
                                 <th>Reason</th>
                                 <th>Status</th>
-                                {!isEmployeeRole && <th>Actions</th>}
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -176,16 +197,21 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
                                         <td style={{ fontWeight: 700 }}>{leave.totalDays} Days</td>
                                         <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={leave.reason}>{leave.reason}</td>
                                         <td><span className={`badge ${leave.status.toLowerCase()}`}>{leave.status}</span></td>
-                                        {!isEmployeeRole && (
-                                            <td>
-                                                {leave.status === "Pending" ? (
-                                                    <div style={{ display: "flex", gap: "8px" }}>
-                                                        <button className="btn btn-success btn-sm" onClick={() => handleStatusUpdate(leave._id, "Approved")}>Approve</button>
-                                                        <button className="btn btn-secondary btn-sm" onClick={() => handleStatusUpdate(leave._id, "Rejected")}>Reject</button>
-                                                    </div>
-                                                ) : <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Processed</span>}
-                                            </td>
-                                        )}
+                                        <td>
+                                            {isOwnLeave(leave) ? (
+                                                // Nobody approves their own request; they can only withdraw it.
+                                                leave.status === "Pending" || (leave.status === "Approved" && new Date(leave.startDate) > new Date()) ? (
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => handleCancelOwn(leave._id)}>Withdraw</button>
+                                                ) : <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{leave.status === "Pending" ? "Awaiting approval" : "Processed"}</span>
+                                            ) : !isEmployeeRole && leave.status === "Pending" ? (
+                                                <div style={{ display: "flex", gap: "8px" }}>
+                                                    <button className="btn btn-success btn-sm" onClick={() => handleStatusUpdate(leave._id, "Approved")}>Approve</button>
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => handleStatusUpdate(leave._id, "Rejected")}>Reject</button>
+                                                </div>
+                                            ) : !isEmployeeRole && leave.status === "Approved" ? (
+                                                <button className="btn btn-secondary btn-sm" onClick={() => handleStatusUpdate(leave._id, "Cancelled")}>Revoke</button>
+                                            ) : <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Processed</span>}
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
@@ -206,6 +232,7 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
                                 <div style={{ gridColumn: "1/-1" }}>
                                     <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Leave Category</label>
                                     <select required value={formData.leaveType} onChange={e => setFormData({...formData, leaveType: e.target.value})} className="form-input" style={{ width: "100%" }}>
+                                        <option value="" disabled>{policies.length ? "Select leave type" : "No leave policies configured"}</option>
                                         {policies.map(p => (
                                             <option key={p._id} value={p.leaveType}>{p.leaveTypeLabel} ({p.leaveType})</option>
                                         ))}
@@ -217,8 +244,12 @@ export default function LeavePage({ showNotify }: LeavePageProps) {
                                 </div>
                                 <div>
                                     <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>End Date</label>
-                                    <input type="date" required value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="form-input" style={{ width: "100%" }} />
+                                    <input type="date" required={!formData.halfDay} disabled={formData.halfDay} value={formData.halfDay ? formData.startDate : formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="form-input" style={{ width: "100%" }} />
                                 </div>
+                                <label style={{ gridColumn: "1/-1", display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 600 }}>
+                                    <input type="checkbox" checked={formData.halfDay} onChange={e => setFormData({...formData, halfDay: e.target.checked})} />
+                                    Half day (single day, counts as 0.5)
+                                </label>
                             </div>
                             <div style={{ marginBottom: "24px" }}>
                                 <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Reason for Leave</label>

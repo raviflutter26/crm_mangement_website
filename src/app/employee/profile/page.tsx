@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import axiosInstance from "@/lib/axios";
-import { API_ENDPOINTS } from "@/config/api";
 import { FiUser, FiMail, FiPhone, FiMapPin, FiBriefcase, FiCalendar, FiEdit2, FiShield, FiLock, FiCreditCard, FiFileText, FiClock } from "react-icons/fi";
 
 const DetailSection = ({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) => (
@@ -49,16 +48,17 @@ export default function EmployeeProfilePage() {
             // nothing to fetch, but the page must still render.
             if (!user?._id) { setLoading(false); return; }
             try {
-                const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEES);
-                const employees = res.data.data;
-                
-                const employeeData = Array.isArray(employees) 
-                    ? (employees.find(e => e._id === user._id || e.email === user.email) || employees[0])
-                    : employees;
-
-                if (employeeData) {
-                    setProfileData(employeeData);
-                }
+                // The caller's own record. /api/employees is the staff roster (admin/HR/
+                // manager only), and falling back to its first row showed someone else.
+                const res = await axiosInstance.get('/api/auth/me');
+                const me = res.data.data;
+                setProfileData(me ? {
+                    ...me,
+                    // /me keeps these as ids and sends the display details alongside.
+                    employeeId: me.employeeCode,
+                    reportingManager: me.reportingManagerDetails || null,
+                    shift: me.shiftDetails || null,
+                } : null);
                 setError(null);
             } catch (err: any) {
                 console.error("Profile Fetch Error:", err);

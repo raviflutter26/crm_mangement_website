@@ -1,8 +1,11 @@
 "use client";
 
 import { FiDownload, FiPrinter } from "react-icons/fi";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/components/common/DialogProvider";
+import axiosInstance from "@/lib/axios";
+import { API_BASE_URL } from "@/config/api";
+import { useAuth } from "@/lib/auth";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const fmt = (n: any) => `₹${(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -13,9 +16,24 @@ interface PayslipModalProps {
     companyName?: string;
 }
 
-export default function PayslipModal({ data, onClose, companyName = "Solar Operations Pvt. Ltd." }: PayslipModalProps) {
+const escapeHtml = (v: string) => v.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+
+export default function PayslipModal({ data, onClose, companyName: companyNameProp }: PayslipModalProps) {
     const toast = useToast();
+    const { user } = useAuth();
     const [isDownloading, setIsDownloading] = useState(false);
+    // The payslip header used to be a hardcoded "Solar Operations Pvt. Ltd." for
+    // every tenant. Use the caller's organization name unless one is passed in.
+    const [orgName, setOrgName] = useState<string>("");
+    useEffect(() => {
+        if (companyNameProp || !user?.organizationId) return;
+        let cancelled = false;
+        axiosInstance.get(`${API_BASE_URL}/api/organizations/${user.organizationId}`)
+            .then(res => { if (!cancelled) setOrgName(res.data?.data?.name || ""); })
+            .catch(() => { /* header falls back to blank rather than another company's name */ });
+        return () => { cancelled = true; };
+    }, [companyNameProp, user?.organizationId]);
+    const companyName = companyNameProp || orgName;
     if (!data) return null;
     const emp = data.employee || {};
     const month = MONTHS[(data.month || 1) - 1];
@@ -29,7 +47,9 @@ export default function PayslipModal({ data, onClose, companyName = "Solar Opera
         { label: "Special Allowance",   value: data.earnings?.specialAllowance },
         { label: "Medical Allowance",   value: data.earnings?.medical },
         { label: "Performance Bonus",   value: data.earnings?.bonus },
-        { label: "Overtime Pay",        value: data.earnings?.overtime },
+        { label: data.overtimeHours ? `Overtime Pay (${data.overtimeHours} h)` : "Overtime Pay", value: data.earnings?.overtime },
+        { label: "Arrears / Other",     value: data.earnings?.otherEarnings },
+        { label: "Reimbursements (non-taxable)", value: data.earnings?.reimbursement },
     ].filter(r => r.value);
 
     const deductions = [
@@ -38,7 +58,8 @@ export default function PayslipModal({ data, onClose, companyName = "Solar Opera
         { label: "Professional Tax",         value: data.deductions?.professionalTax },
         { label: "TDS",                      value: data.deductions?.tax },
         { label: "Loan Deduction",           value: data.deductions?.loanDeduction },
-        { label: "Other Deductions",         value: data.deductions?.others },
+        { label: "Labour Welfare Fund",      value: data.deductions?.lwf },
+        { label: "Other Deductions",         value: data.deductions?.otherDeductions ?? data.deductions?.others },
     ].filter(r => r.value);
 
     const handlePrint = () => {
@@ -126,7 +147,7 @@ export default function PayslipModal({ data, onClose, companyName = "Solar Opera
 
     const printHTML = `
     <div class="slip-header">
-        <h2>${companyName}</h2>
+        <h2>${escapeHtml(companyName)}</h2>
         <p>Salary Slip for the month of ${month} ${year}</p>
     </div>
     <div class="slip-body">

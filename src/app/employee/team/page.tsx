@@ -12,17 +12,37 @@ import EmptyState from "@/components/common/EmptyState";
 export default function TeamDirectoryPage() {
     const [team, setTeam] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [search, setSearch] = useState("");
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEES);
-                setTeam(res.data.data || []);
-            } catch (err) { console.error("Fetch error:", err); }
+                // Colleagues in the same department, the caller's reports and manager —
+                // not the full staff roster, which employees may not read.
+                const res = await axiosInstance.get(API_ENDPOINTS.EMPLOYEES_TEAM);
+                setTeam((res.data.data || []).map((u: any) => ({
+                    id: u._id,
+                    name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
+                    role: u.designation || u.role || "",
+                    dept: u.department || "-",
+                    site: u.location || "-",
+                    status: u.status || "Active",
+                    email: u.email,
+                })));
+            } catch (err: any) {
+                console.error("Fetch error:", err);
+                setError(err.response?.data?.message || "Could not load your team.");
+            }
             finally { setLoading(false); }
         };
         fetchData();
     }, [])
+
+    const term = search.trim().toLowerCase();
+    const visible = term
+        ? team.filter(m => [m.name, m.role, m.dept, m.email].some((v: string) => v?.toLowerCase().includes(term)))
+        : team;
 
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>
@@ -44,6 +64,8 @@ export default function TeamDirectoryPage() {
                         <FiSearch style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
                         <input 
                             type="text" 
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
                             placeholder="Find colleague..." 
                             style={{ width: "240px", padding: "10px 10px 10px 40px", borderRadius: "10px", border: "1px solid #e2e8f0", outline: "none", fontSize: "14px" }} 
                         />
@@ -51,10 +73,12 @@ export default function TeamDirectoryPage() {
                 </div>
             </motion.div>
 
+            {error && <div role="alert" style={{ color: "#ef4444", fontWeight: 600, fontSize: "13px", marginBottom: "16px" }}>{error}</div>}
+
             <div className="grid-3" style={{ gap: "24px" }}>
-                {team.length === 0 ? (
-                            <EmptyState icon={FiUsers} title={"No colleagues listed"} description={"Your team directory will fill in as employees are added to your organization."} />
-                        ) : team.map((member, idx) => (
+                {loading ? null : visible.length === 0 ? (
+                            <EmptyState icon={FiUsers} title={"No colleagues listed"} description={"Your team directory shows people in your department, your manager and your reports."} />
+                        ) : visible.map((member, idx) => (
                     <motion.div 
                         key={member.id}
                         initial={{ opacity: 0, y: 20 }}
@@ -82,7 +106,7 @@ export default function TeamDirectoryPage() {
                             color: member.status === 'On Site' ? 'var(--primary)' : member.status === 'Active' ? '#10b981' : '#64748b',
                             border: "1px solid currentColor", opacity: 0.8
                         }}>
-                           {member.status.toUpperCase()}
+                           {String(member.status).toUpperCase()}
                         </div>
                         <h3 style={{ fontSize: "18px", fontWeight: 900, color: "#1e293b", margin: 0 }}>{member.name}</h3>
                         <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--primary)", marginTop: "4px" }}>{member.role}</p>
@@ -95,9 +119,7 @@ export default function TeamDirectoryPage() {
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}><FiMapPin /> {member.site}</div>
                         </div>
                         <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
-                            <button title="Email" className="btn btn-secondary" style={{ flex: 1, borderRadius: "12px" }}><FiMail /></button>
-                            <button title="Call" className="btn btn-secondary" style={{ flex: 1, borderRadius: "12px" }}><FiPhone /></button>
-                            <button title="Message" className="btn btn-secondary" style={{ flex: 1, borderRadius: "12px" }}><FiMessageSquare /></button>
+                            <a title="Email" href={`mailto:${member.email}`} className="btn btn-secondary" style={{ flex: 1, borderRadius: "12px" }}><FiMail /></a>
                         </div>
                     </motion.div>
                 ))}

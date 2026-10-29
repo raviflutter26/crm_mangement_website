@@ -27,6 +27,7 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
     const [filterStatus, setFilterStatus] = useState("");
     const [filterRole, setFilterRole] = useState("");
     const [filterManager, setFilterManager] = useState("");
+    const [filterBranch, setFilterBranch] = useState("");
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [employeeToDelete, setEmployeeToDelete] = useState<any>(null);
@@ -51,8 +52,9 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
     const confirmDelete = async () => {
         if (!employeeToDelete) return;
         try {
-            await axiosInstance.delete(`${API_ENDPOINTS.EMPLOYEES}/${employeeToDelete._id}`);
-            showNotify('success', "Employee deleted successfully!");
+            const res = await axiosInstance.delete(`${API_ENDPOINTS.EMPLOYEES}/${employeeToDelete._id}`);
+            // Anyone with attendance, leave or payroll history is deactivated rather than deleted.
+            showNotify('success', res.data?.message || "Employee removed.");
             onRefresh();
         } catch (err: any) {
             showNotify('failure', err.response?.data?.message || "Error deleting employee.");
@@ -62,9 +64,10 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
     };
 
     const handleExport = () => {
-        const headers = ["First Name", "Last Name", "Email", "Employee ID", "Department", "Designation", "Reporting Manager", "Phone", "Status"];
+        const headers = ["First Name", "Last Name", "Email", "Employee ID", "Branch", "Department", "Designation", "Reporting Manager", "Phone", "Status"];
         const rows = filtered.map(e => [
             `"${e.firstName || ""}"`, `"${e.lastName || ""}"`, `"${e.email || ""}"`, `"${e.employeeId || ""}"`,
+            `"${(e.branchId && typeof e.branchId === 'object' ? e.branchId.name : "") || ""}"`,
             `"${e.department || ""}"`, `"${e.designation || ""}"`,
             `"${(e.reportingManager && typeof e.reportingManager === 'object') ? `${e.reportingManager.firstName} ${e.reportingManager.lastName}` : (e.reportingManager || "")}"`,
             `"${e.phone || ""}"`, `"${e.status || ""}"`
@@ -81,6 +84,19 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
         URL.revokeObjectURL(url);
     };
 
+    // The API returns only the employees the caller may see (their branches for a
+    // branch HR/admin), so a branch filter is only useful to someone who sees them all.
+    const role = String(currentUser?.role || "").toLowerCase();
+    const showBranchFilter = role === "owner" || role === "superadmin" || !!currentUser?.isGroupWide;
+    const branchIdOf = (e: any): string => String(e.branchId?._id || e.branchId || "");
+    const branchOptions = Array.from(
+        new Map(
+            employees
+                .filter((e) => e.branchId && typeof e.branchId === "object")
+                .map((e) => [String(e.branchId._id), { _id: String(e.branchId._id), name: e.branchId.name || "Unnamed branch" }])
+        ).values()
+    ).sort((a, b) => a.name.localeCompare(b.name));
+
     const uniqueDepartments = Array.from(new Set(employees.flatMap(e => e.department ? e.department.split(',').map((s: string) => s.trim()) : []).filter(Boolean)));
     const uniqueStatuses = Array.from(new Set(employees.map(e => e.status).filter(Boolean)));
     const uniqueRoles = Array.from(new Set(employees.map(e => e.role).filter(Boolean)));
@@ -94,7 +110,8 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
         const matchRole = filterRole ? e.role === filterRole : true;
         const managerId = (e.reportingManager && typeof e.reportingManager === 'object') ? e.reportingManager._id : e.reportingManager;
         const matchManager = filterManager ? managerId === filterManager : true;
-        return matchSearch && matchDept && matchStatus && matchRole && matchManager;
+        const matchBranch = filterBranch ? branchIdOf(e) === filterBranch : true;
+        return matchSearch && matchDept && matchStatus && matchRole && matchManager && matchBranch;
     });
 
     return (
@@ -120,6 +137,8 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
                 filterManager={filterManager} setFilterManager={setFilterManager}
                 uniqueDepartments={uniqueDepartments} uniqueStatuses={uniqueStatuses} uniqueRoles={uniqueRoles}
                 managersList={managersList} currentUser={currentUser}
+                showBranchFilter={showBranchFilter} filterBranch={filterBranch} setFilterBranch={setFilterBranch}
+                branchOptions={branchOptions}
             />
 
             <EmployeeTable employees={filtered} loading={loading} onEdit={onEditClick} onDelete={handleDelete} onView={onViewClick} onAdd={onAddClick} />
@@ -135,8 +154,8 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
                         <div style={{ width: "60px", height: "60px", borderRadius: "30px", background: "var(--error-bg-light)", color: "var(--error)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", margin: "0 auto 20px" }}>
                             <FiTrash2 />
                         </div>
-                        <h2 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "10px" }}>Confirm Delete</h2>
-                        <p style={{ color: "var(--text-secondary)", marginBottom: "30px" }}>Are you sure you want to delete <strong>{employeeToDelete?.firstName} {employeeToDelete?.lastName}</strong>? This action cannot be undone.</p>
+                        <h2 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "10px" }}>Remove Employee</h2>
+                        <p style={{ color: "var(--text-secondary)", marginBottom: "30px" }}>Remove <strong>{employeeToDelete?.firstName} {employeeToDelete?.lastName}</strong>? If they have attendance, leave or payroll history they are deactivated and signed out, and their records are kept. Otherwise the record is deleted.</p>
                         <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
                             <button className="btn btn-secondary" onClick={() => { setShowDeleteConfirm(false); setEmployeeToDelete(null); }} style={{ flex: 1 }}>Cancel</button>
                             <button className="btn btn-primary" onClick={confirmDelete} style={{ flex: 1 }}>OK</button>

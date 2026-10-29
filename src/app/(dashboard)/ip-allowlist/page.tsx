@@ -8,7 +8,12 @@ import EmptyState from "@/components/common/EmptyState";
 import { useToast } from "@/components/common/DialogProvider";
 import { useConfirm } from "@/components/common/DialogProvider";
 
-const EMPTY_FORM = { label: "", ipOrCidr: "", notes: "" };
+const EMPTY_FORM = { label: "", ipOrCidr: "", notes: "", scope: "attendance" };
+
+const SCOPE_LABELS: Record<string, string> = {
+    attendance: "Attendance only",
+    all: "Sign-in + all access",
+};
 
 export default function ipAllowlistPage() {
     const toast = useToast();
@@ -18,6 +23,7 @@ export default function ipAllowlistPage() {
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [formData, setFormData] = useState<any>(EMPTY_FORM);
+    const [myIp, setMyIp] = useState("");
 
     const fetchData = async () => {
         try {
@@ -30,7 +36,11 @@ export default function ipAllowlistPage() {
         }
     };
 
-    useEffect(() => { fetchData(); }, []);
+    useEffect(() => {
+        fetchData();
+        // The address the API sees for this browser — what an entry must cover.
+        axiosInstance.get(`${API_ENDPOINTS.IP_ALLOWLIST}/my-ip`).then(r => setMyIp(r.data?.data?.ip || "")).catch(() => {});
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -94,8 +104,11 @@ export default function ipAllowlistPage() {
 
             <div style={{ display: "flex", gap: "12px", padding: "14px 18px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "12px", marginBottom: "20px" }}>
                 <FiAlertTriangle style={{ color: "#d97706", flexShrink: 0 }} size={20} />
-                <div style={{ fontSize: "13px", color: "#92400e", fontWeight: 600 }}>
-                    This list is stored for reference only — requests are <strong>not currently restricted</strong> based on it. Enforcement is not yet built.
+                <div style={{ fontSize: "13px", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
+                    Enforced once an active entry exists. <strong>Attendance only</strong> entries restrict check-in and check-out to these networks.
+                    {" "}<strong>Sign-in + all access</strong> entries restrict login and every screen for everyone except the owner.
+                    Single addresses and CIDR ranges (IPv4 or IPv6) are supported.
+                    {myIp && <> Your current address: <code style={{ fontFamily: "monospace" }}>{myIp}</code>.</>}
                 </div>
             </div>
 
@@ -118,6 +131,7 @@ export default function ipAllowlistPage() {
                                 <tr>
                                     <th>Label</th>
                                     <th>IP / CIDR</th>
+                                    <th>Applies to</th>
                                     <th>Notes</th>
                                     <th>Active</th>
                                     <th>Added</th>
@@ -129,6 +143,7 @@ export default function ipAllowlistPage() {
                                     <tr key={item._id}>
                                         <td style={{ fontWeight: 600 }}>{item.label}</td>
                                         <td style={{ fontFamily: "monospace", fontSize: "13px" }}>{item.ipOrCidr}</td>
+                                        <td style={{ fontSize: "13px" }}>{SCOPE_LABELS[item.scope || "attendance"] || item.scope}</td>
                                         <td style={{ fontSize: "13px", color: "var(--text-secondary)" }}>{item.notes || '-'}</td>
                                         <td>
                                             <label style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
@@ -161,7 +176,17 @@ export default function ipAllowlistPage() {
                             </div>
                             <div>
                                 <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>IP Address or CIDR *</label>
-                                <input required type="text" className="form-input" value={formData.ipOrCidr} onChange={e => setFormData({ ...formData, ipOrCidr: e.target.value })} placeholder="e.g. 203.0.113.4 or 203.0.113.0/24" />
+                                <input required type="text" className="form-input" value={formData.ipOrCidr} onChange={e => setFormData({ ...formData, ipOrCidr: e.target.value })} placeholder="e.g. 203.0.113.4, 203.0.113.0/24 or 2001:db8::/48" />
+                                {myIp && (
+                                    <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: "6px" }} onClick={() => setFormData({ ...formData, ipOrCidr: myIp })}>Use my current address ({myIp})</button>
+                                )}
+                            </div>
+                            <div>
+                                <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Applies to</label>
+                                <select className="form-input" value={formData.scope} onChange={e => setFormData({ ...formData, scope: e.target.value })}>
+                                    <option value="attendance">Attendance only (check-in / check-out)</option>
+                                    <option value="all">Sign-in + all access (owner exempt)</option>
+                                </select>
                             </div>
                             <div>
                                 <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Notes</label>

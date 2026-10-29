@@ -33,6 +33,10 @@ export default function AssetPage({ showNotify }: AssetPageProps) {
     const [formData, setFormData] = useState<any>({});
     const [toast, setToast] = useState("");
     const [filterStatus, setFilterStatus] = useState("");
+    const [employees, setEmployees] = useState<any[]>([]);
+    // Who the asset was assigned to when the form opened, so a save only calls
+    // /assign or /return when the assignment actually changed.
+    const [originalAssignee, setOriginalAssignee] = useState("");
 
     const fetchData = async () => {
         setLoading(true);
@@ -46,11 +50,18 @@ export default function AssetPage({ showNotify }: AssetPageProps) {
 
     useEffect(() => { fetchData(); }, [filterStatus]);
 
+    useEffect(() => {
+        axiosInstance.get(API_ENDPOINTS.EMPLOYEES)
+            .then(res => setEmployees(res.data.data || []))
+            .catch(err => console.error("Employee list error", err));
+    }, []);
+
     const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
     const openAdd = () => {
         setIsEditing(false);
         setFormData({ status: "available", type: "laptop", condition: "new" });
+        setOriginalAssignee("");
         setShowModal(true);
     };
 
@@ -62,22 +73,32 @@ export default function AssetPage({ showNotify }: AssetPageProps) {
             purchaseDate: item.purchaseDate ? new Date(item.purchaseDate).toISOString().split("T")[0] : "",
             purchaseValue: item.purchaseValue || 0, currentValue: item.currentValue || 0,
             warrantyExpiry: item.warrantyExpiry ? new Date(item.warrantyExpiry).toISOString().split("T")[0] : "",
-            assignedToName: item.assignedToName || "", status: item.status || "available",
+            assignedTo: item.assignedTo?._id || item.assignedTo || "", status: item.status || "available",
             condition: item.condition || "good", notes: item.notes || "",
         });
+        setOriginalAssignee(item.assignedTo?._id || item.assignedTo || "");
         setShowModal(true);
     };
 
     const handleSubmit = async (e: any) => {
         e.preventDefault();
         try {
+            // Assignment is not part of the asset record's body: it goes through
+            // /assign (which takes an employee id) and /return.
+            const { assignedTo, ...details } = formData;
+            let id = editId;
             if (isEditing) {
-                await axiosInstance.put(`${API_ENDPOINTS.ASSETS}/${editId}`, formData);
-                showToast("Updated!");
+                await axiosInstance.put(`${API_ENDPOINTS.ASSETS}/${editId}`, details);
             } else {
-                await axiosInstance.post(API_ENDPOINTS.ASSETS, formData);
-                showToast("Asset added!");
+                const res = await axiosInstance.post(API_ENDPOINTS.ASSETS, details);
+                id = res.data.data._id;
             }
+            if (assignedTo && assignedTo !== originalAssignee) {
+                await axiosInstance.patch(`${API_ENDPOINTS.ASSETS}/${id}/assign`, { assignedTo });
+            } else if (!assignedTo && originalAssignee) {
+                await axiosInstance.patch(`${API_ENDPOINTS.ASSETS}/${id}/return`, { condition: formData.condition || "good" });
+            }
+            showToast(isEditing ? "Updated!" : "Asset added!");
             setShowModal(false); fetchData();
         } catch (err: any) { dialogToast.error(err.response?.data?.message || err.message); }
     };
@@ -238,7 +259,12 @@ export default function AssetPage({ showNotify }: AssetPageProps) {
                                     </select></div>
                             </div>
                             <div><label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Assigned To</label>
-                                <input type="text" className="form-input" value={formData.assignedToName || ""} onChange={e => setFormData({ ...formData, assignedToName: e.target.value })} placeholder="Employee name" /></div>
+                                <select className="form-input" value={formData.assignedTo || ""} onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}>
+                                    <option value="">Not assigned</option>
+                                    {employees.map((emp: any) => (
+                                        <option key={emp._id} value={emp._id}>{`${emp.firstName || ""} ${emp.lastName || ""}`.trim()}{emp.employeeId ? ` (${emp.employeeId})` : ""}</option>
+                                    ))}
+                                </select></div>
                             <div><label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Notes</label>
                                 <textarea className="form-input" value={formData.notes || ""} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={2} style={{ resize: "none" }} /></div>
                             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>

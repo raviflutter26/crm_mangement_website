@@ -6,7 +6,11 @@ import { FiShield, FiSmartphone, FiMonitor, FiCheckCircle, FiX, FiKey, FiGlobe, 
 import { API_ENDPOINTS } from "@/config/api";
 import { useToast, useConfirm } from "@/components/common/DialogProvider";
 
-const SSO_PROVIDERS = ["none", "google", "okta", "azure", "saml"];
+const SSO_PROVIDERS: { value: string; label: string }[] = [
+    { value: "none", label: "None" },
+    { value: "google", label: "Google Workspace" },
+    { value: "microsoft", label: "Microsoft Entra ID" },
+];
 
 export default function AuthenticationPage() {
     const toast = useToast();
@@ -14,7 +18,9 @@ export default function AuthenticationPage() {
 
     const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
     const [sessions, setSessions] = useState<any[]>([]);
-    const [ssoConfig, setSsoConfig] = useState<any>({ provider: "none", enabled: false, clientId: "", domain: "", metadataUrl: "", notes: "" });
+    const [ssoConfig, setSsoConfig] = useState<any>({ provider: "none", enabled: false, enforce: false, clientId: "", clientSecret: "", tenant: "", domain: "", notes: "" });
+    // The SSO card is for admins; the API refuses everyone else.
+    const [ssoAllowed, setSsoAllowed] = useState(false);
     const [loading, setLoading] = useState(true);
 
     // MFA setup wizard state
@@ -40,7 +46,8 @@ export default function AuthenticationPage() {
         } catch (err) { console.error(err); }
         try {
             const ssoRes = await axiosInstance.get(API_ENDPOINTS.SSO_CONFIG);
-            setSsoConfig({ ...ssoConfig, ...ssoRes.data.data });
+            setSsoConfig({ ...ssoConfig, ...ssoRes.data.data, clientSecret: "" });
+            setSsoAllowed(true);
         } catch (err) { console.error(err); }
         setLoading(false);
     };
@@ -132,8 +139,10 @@ export default function AuthenticationPage() {
     const saveSsoConfig = async () => {
         setSsoSaving(true);
         try {
-            const res = await axiosInstance.put(API_ENDPOINTS.SSO_CONFIG, ssoConfig);
-            setSsoConfig({ ...ssoConfig, ...res.data.data });
+            // clientSecret is write-only: an empty field keeps the stored secret.
+            const { clientSecret, ...rest } = ssoConfig;
+            const res = await axiosInstance.put(API_ENDPOINTS.SSO_CONFIG, clientSecret ? { ...rest, clientSecret } : rest);
+            setSsoConfig({ ...ssoConfig, ...res.data.data, clientSecret: "" });
             toast.success("SSO configuration saved");
         } catch (err: any) {
             toast.error(err.response?.data?.message || "Failed to save SSO configuration");
@@ -276,42 +285,61 @@ export default function AuthenticationPage() {
             </div>
 
             {/* SSO Config */}
-            <div className="card">
+            {ssoAllowed && <div className="card">
                 <div className="card-header">
                     <h3 className="card-title" style={{ display: "flex", alignItems: "center", gap: "10px" }}><FiGlobe /> Single Sign-On (SSO)</h3>
                 </div>
                 <div className="card-body" style={{ padding: "24px" }}>
-                    <div style={{ display: "flex", gap: "10px", padding: "12px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", marginBottom: "20px" }}>
-                        <FiAlertTriangle style={{ color: "#dc2626", flexShrink: 0 }} />
-                        <div style={{ fontSize: "13px", color: "#991b1b", fontWeight: 600 }}>
-                            This saves your SSO configuration, but no live connection is established — logging in via SSO isn't possible until you register a real app with your identity provider and this is wired up to it.
+                    <div style={{ display: "flex", gap: "10px", padding: "12px 16px", background: ssoConfig.connected ? "#f0fdf4" : "#fffbeb", border: `1px solid ${ssoConfig.connected ? "#bbf7d0" : "#fde68a"}`, borderRadius: "10px", marginBottom: "20px" }}>
+                        {ssoConfig.connected ? <FiCheckCircle style={{ color: "#16a34a", flexShrink: 0 }} /> : <FiAlertTriangle style={{ color: "#d97706", flexShrink: 0 }} />}
+                        <div style={{ fontSize: "13px", color: ssoConfig.connected ? "#166534" : "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
+                            {ssoConfig.connected
+                                ? "SSO is active. Users sign in with \"Sign in with SSO\" on the login page using their work email."
+                                : "Register an OpenID Connect app with your identity provider, then enter its client ID and secret here."}
+                            {ssoConfig.redirectUri && <> Redirect URI to register: <code style={{ fontFamily: "monospace", wordBreak: "break-all" }}>{ssoConfig.redirectUri}</code></>}
                         </div>
                     </div>
                     <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                         <div>
                             <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Provider</label>
                             <select className="form-input" value={ssoConfig.provider} onChange={e => setSsoConfig({ ...ssoConfig, provider: e.target.value })}>
-                                {SSO_PROVIDERS.map(p => <option key={p} value={p}>{p === 'none' ? 'None' : p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                                {SSO_PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Domain</label>
+                            <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Email domain</label>
                             <input type="text" className="form-input" value={ssoConfig.domain || ""} onChange={e => setSsoConfig({ ...ssoConfig, domain: e.target.value })} placeholder="yourcompany.com" />
                         </div>
                     </div>
-                    <div style={{ marginBottom: "16px" }}>
-                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Client ID</label>
-                        <input type="text" className="form-input" value={ssoConfig.clientId || ""} onChange={e => setSsoConfig({ ...ssoConfig, clientId: e.target.value })} />
+                    <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                        <div>
+                            <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Client ID</label>
+                            <input type="text" className="form-input" value={ssoConfig.clientId || ""} onChange={e => setSsoConfig({ ...ssoConfig, clientId: e.target.value })} />
+                        </div>
+                        <div>
+                            <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Client secret</label>
+                            <input type="password" autoComplete="new-password" className="form-input" value={ssoConfig.clientSecret || ""} onChange={e => setSsoConfig({ ...ssoConfig, clientSecret: e.target.value })} placeholder={ssoConfig.hasClientSecret ? "Stored — leave blank to keep" : "Paste the client secret"} />
+                        </div>
                     </div>
-                    <div style={{ marginBottom: "20px" }}>
+                    {ssoConfig.provider === "microsoft" && (
+                        <div style={{ marginBottom: "16px" }}>
+                            <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700 }}>Directory (tenant) ID</label>
+                            <input type="text" className="form-input" value={ssoConfig.tenant || ""} onChange={e => setSsoConfig({ ...ssoConfig, tenant: e.target.value })} placeholder="00000000-0000-0000-0000-000000000000" />
+                        </div>
+                    )}
+                    <div style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
                         <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-                            <input type="checkbox" checked={!!ssoConfig.enabled} onChange={e => setSsoConfig({ ...ssoConfig, enabled: e.target.checked })} />
-                            Enabled (once connected)
+                            <input type="checkbox" checked={!!ssoConfig.enabled} onChange={e => setSsoConfig({ ...ssoConfig, enabled: e.target.checked, enforce: e.target.checked ? ssoConfig.enforce : false })} />
+                            Enable SSO sign-in
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 700, cursor: ssoConfig.enabled ? "pointer" : "not-allowed", opacity: ssoConfig.enabled ? 1 : 0.5 }}>
+                            <input type="checkbox" disabled={!ssoConfig.enabled} checked={!!ssoConfig.enforce} onChange={e => setSsoConfig({ ...ssoConfig, enforce: e.target.checked })} />
+                            Require SSO — disable password sign-in for everyone except the owner
                         </label>
                     </div>
                     <button className="btn btn-primary" onClick={saveSsoConfig} disabled={ssoSaving}><FiKey /> {ssoSaving ? "Saving..." : "Save Configuration"}</button>
                 </div>
-            </div>
+            </div>}
 
             {showDisableModal && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>

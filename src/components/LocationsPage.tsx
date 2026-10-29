@@ -30,7 +30,13 @@ export default function LocationsPage({ showNotify }: LocationsPageProps) {
         country: "Australia",
         pincode: "",
         type: "Site",
-        isActive: true
+        isActive: true,
+        // Attendance geofence (enforced by the API when enabled).
+        latitude: "" as string | number,
+        longitude: "" as string | number,
+        radiusMeters: 200 as string | number,
+        geofenceEnabled: false,
+        geofenceAllSources: false,
     });
 
     const getToken = async () => {
@@ -65,7 +71,7 @@ export default function LocationsPage({ showNotify }: LocationsPageProps) {
 
     const openAddModal = () => {
         setIsEditing(false);
-        setFormData({ name: "", address: "", city: "", state: "", country: "Australia", pincode: "", type: "Site", isActive: true });
+        setFormData({ name: "", address: "", city: "", state: "", country: "Australia", pincode: "", type: "Site", isActive: true, latitude: "", longitude: "", radiusMeters: 200, geofenceEnabled: false, geofenceAllSources: false });
         setShowModal(true);
     };
 
@@ -80,9 +86,27 @@ export default function LocationsPage({ showNotify }: LocationsPageProps) {
             country: loc.country || "Australia",
             pincode: loc.pincode || "",
             type: loc.type || "Site",
-            isActive: loc.isActive !== false
+            isActive: loc.isActive !== false,
+            latitude: loc.latitude ?? "",
+            longitude: loc.longitude ?? "",
+            radiusMeters: loc.radiusMeters ?? 200,
+            geofenceEnabled: Boolean(loc.geofenceEnabled),
+            geofenceAllSources: Boolean(loc.geofenceAllSources),
         });
         setShowModal(true);
+    };
+
+    /** Fill the site's coordinates from this device (stand at the site to use it). */
+    const useCurrentPosition = () => {
+        if (typeof navigator === "undefined" || !navigator.geolocation) {
+            toast.error("Location is not available in this browser");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => setFormData(f => ({ ...f, latitude: Number(pos.coords.latitude.toFixed(6)), longitude: Number(pos.coords.longitude.toFixed(6)) })),
+            () => toast.error("Could not read your location"),
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
     };
 
     const handleSubmit = async (e: any) => {
@@ -98,7 +122,7 @@ export default function LocationsPage({ showNotify }: LocationsPageProps) {
             fetchData();
         } catch (err: any) {
             console.error("Failed to save location", err);
-            toast.error("Error saving location");
+            toast.error(err.response?.data?.message || "Error saving location");
         }
     };
 
@@ -158,6 +182,12 @@ export default function LocationsPage({ showNotify }: LocationsPageProps) {
                                 <FiGlobe style={{ marginRight: "6px" }} />
                                 {loc.address}, {loc.city}, {loc.state} {loc.pincode}
                             </p>
+                            {loc.geofenceEnabled && (
+                                <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                                    <FiMapPin style={{ marginRight: "6px" }} />
+                                    Geofence: {loc.radiusMeters || 200} m around {loc.latitude}, {loc.longitude}{loc.geofenceAllSources ? " (all punches)" : " (GPS/mobile punches)"}
+                                </p>
+                            )}
 
                             <div style={{ display: "flex", gap: "10px", marginTop: "auto" }}>
                                 <button onClick={() => openEditModal(loc)} className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: "center" }}>
@@ -222,6 +252,34 @@ export default function LocationsPage({ showNotify }: LocationsPageProps) {
                                     <input required type="text" name="state" value={formData.state} onChange={handleInputChange} className="form-input" />
                                 </div>
                             </div>
+                            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                                <legend style={{ fontSize: "12px", fontWeight: 700, padding: "0 6px" }}>Attendance geofence</legend>
+                                <div className="grid-2" style={{ gap: "12px" }}>
+                                    <div>
+                                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 600 }}>Latitude</label>
+                                        <input type="number" step="any" min={-90} max={90} name="latitude" value={formData.latitude} onChange={handleInputChange} className="form-input" placeholder="e.g. 12.9716" />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 600 }}>Longitude</label>
+                                        <input type="number" step="any" min={-180} max={180} name="longitude" value={formData.longitude} onChange={handleInputChange} className="form-input" placeholder="e.g. 77.5946" />
+                                    </div>
+                                </div>
+                                <div className="grid-2" style={{ gap: "12px", alignItems: "end" }}>
+                                    <div>
+                                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 600 }}>Radius (metres)</label>
+                                        <input type="number" min={10} max={100000} name="radiusMeters" value={formData.radiusMeters} onChange={handleInputChange} className="form-input" />
+                                    </div>
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={useCurrentPosition}>Use my current position</button>
+                                </div>
+                                <label style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "13px" }}>
+                                    <input type="checkbox" name="geofenceEnabled" checked={formData.geofenceEnabled} onChange={handleInputChange} />
+                                    Require GPS/mobile check-ins to be within the radius
+                                </label>
+                                <label style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "13px" }}>
+                                    <input type="checkbox" name="geofenceAllSources" checked={formData.geofenceAllSources} onChange={handleInputChange} disabled={!formData.geofenceEnabled} />
+                                    Apply to every check-in at this site (web punches must share location too)
+                                </label>
+                            </fieldset>
                             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
                                 <button type="submit" className="btn btn-primary">{isEditing ? "Save Changes" : "Add Location"}</button>

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 
 export default function SettingsPage() {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     return (
         <div className="page-content" style={{ background: 'var(--bg-primary)' }}>
             <motion.div 
@@ -54,7 +54,7 @@ export default function SettingsPage() {
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                 <label style={{ fontSize: "11px", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Work Email</label>
                                 <div style={{ padding: "12px 16px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#f8fafc", fontSize: "14px", fontWeight: 600, color: "#64748b" }}>
-                                    employee.portal@ravizoho.com
+                                    {user?.email || "—"}
                                 </div>
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>

@@ -26,15 +26,24 @@ const CHART_TOOLTIP_STYLE = {
     fontSize: "12px",
 };
 
+/**
+ * Values are null when the server has nothing to compute them from (no
+ * sessions recorded, no organizations at the start of the period); those
+ * render as a dash rather than a number.
+ */
 type Kpi = {
     label: string;
-    val: string;
-    delta: string;
-    dir: "up" | "down";
+    val: string | null;
+    delta: string | null;
+    dir: "up" | "down" | "flat" | null;
+    /** Whether the change is good news; churn going up is "bad" though its arrow points up. */
+    tone?: "good" | "bad" | null;
     sub: string;
-    spark: number[];
+    spark: (number | null)[];
     cls: "blue" | "green" | "red";
 };
+
+const DASH = "—";
 
 type Series = { name: string; color: string; data: number[] };
 type ChartBlock = { labels: string[]; series: Series[] };
@@ -67,6 +76,37 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
             </ResponsiveContainer>
         </div>
     );
+}
+
+/** Quote a CSV cell when it contains a comma, quote or newline. */
+const csvCell = (v: unknown) => {
+    const t = v == null ? "" : String(v);
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+};
+
+/** The figures on screen as one CSV: KPIs, then each chart's rows, then the geography table. */
+function analyticsCsv(data: AnalyticsData) {
+    const lines: string[] = [];
+    const row = (...cells: unknown[]) => lines.push(cells.map(csvCell).join(","));
+    row("Platform analytics", dayjs().format("YYYY-MM-DD HH:mm"));
+    row();
+    row("Metric", "Value", "Change", "Note");
+    data.kpis.forEach((k) => row(k.label, k.val ?? DASH, k.delta ?? DASH, k.sub));
+    const block = (title: string, b?: ChartBlock) => {
+        if (!b || !b.labels.length) return;
+        row();
+        row(title);
+        row("Period", ...b.series.map((s) => s.name));
+        b.labels.forEach((label, i) => row(label, ...b.series.map((s) => s.data[i] ?? 0)));
+    };
+    block("API traffic", data.apiTraffic);
+    block("Growth", data.growthGrowth);
+    if (data.geoDistribution?.length) {
+        row();
+        row("Country", "Organizations", "Share %");
+        data.geoDistribution.forEach((g) => row(g.country, g.count, g.pct));
+    }
+    return lines.join("\n");
 }
 
 export default function AnalyticsPage() {
@@ -149,8 +189,17 @@ export default function AnalyticsPage() {
                     <button className="btn btn-secondary" onClick={handleSync} disabled={refreshing} style={{ fontWeight: 800 }}>
                         <FiRefreshCcw className={refreshing ? "rotate" : ""} /> {refreshing ? "SYNCING…" : "SYNC"}
                     </button>
-                    <button className="btn btn-primary" style={{ fontWeight: 800 }}>
-                        <FiDownload /> GEN REPORT
+                    <button className="btn btn-primary" style={{ fontWeight: 800 }} disabled={!data}
+                        onClick={() => {
+                            if (!data) return;
+                            const url = URL.createObjectURL(new Blob([analyticsCsv(data)], { type: "text/csv;charset=utf-8" }));
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `rivo-platform-analytics-${dayjs().format("YYYY-MM-DD")}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                        }}>
+                        <FiDownload /> DOWNLOAD CSV
                     </button>
                 </div>
             </motion.div>
@@ -166,21 +215,34 @@ export default function AnalyticsPage() {
                         style={{ padding: "24px", overflow: "hidden", position: "relative", border: "1px solid var(--border-light)" }}
                     >
                         <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 800, letterSpacing: "1px", marginBottom: "16px", textTransform: "uppercase" }}>{k.label}</div>
-                        <div style={{ fontSize: "36px", fontWeight: 950, color: "#0f172a", marginBottom: "8px", letterSpacing: "-1px" }}>{k.val}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-                            <span style={{
-                                color: k.dir === "up" ? "#10b981" : "#ef4444",
-                                background: k.dir === "up" ? "#f0fdf4" : "#fef2f2",
-                                padding: "4px 10px", borderRadius: "100px", fontWeight: 800,
-                                display: "flex", alignItems: "center", gap: "4px",
-                            }}>
-                                {k.dir === "up" ? <FiArrowUp /> : <FiArrowDown />} {k.delta}
-                            </span>
+                        <div style={{ fontSize: "36px", fontWeight: 950, color: "#0f172a", marginBottom: "8px", letterSpacing: "-1px" }}>{k.val ?? DASH}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", flexWrap: "wrap" }}>
+                            {(() => {
+                                const tone = k.tone ?? (k.dir === "up" ? "good" : k.dir === "down" ? "bad" : null);
+                                return (
+                                    <span
+                                        title={k.delta ? "Change vs the previous 30 days" : "No previous period to compare with"}
+                                        style={{
+                                            color: tone === "good" ? "#10b981" : tone === "bad" ? "#ef4444" : "#64748b",
+                                            background: tone === "good" ? "#f0fdf4" : tone === "bad" ? "#fef2f2" : "#f1f5f9",
+                                            padding: "4px 10px", borderRadius: "100px", fontWeight: 800,
+                                            display: "flex", alignItems: "center", gap: "4px",
+                                        }}
+                                    >
+                                        {k.delta && k.dir === "up" && <FiArrowUp aria-hidden="true" />}
+                                        {k.delta && k.dir === "down" && <FiArrowDown aria-hidden="true" />}
+                                        {k.delta ?? DASH}
+                                    </span>
+                                );
+                            })()}
                             <span style={{ color: "#94a3b8", fontWeight: 600 }}>{k.sub}</span>
                         </div>
-                        {k.spark?.length > 1 && (
-                            <Sparkline data={k.spark} color={k.cls === "blue" ? "var(--primary)" : k.cls === "green" ? "#10b981" : "#ef4444"} />
-                        )}
+                        {(() => {
+                            const spark = (k.spark || []).filter((v): v is number => typeof v === "number");
+                            return spark.length > 1 ? (
+                                <Sparkline data={spark} color={k.cls === "blue" ? "var(--primary)" : k.cls === "green" ? "#10b981" : "#ef4444"} />
+                            ) : null;
+                        })()}
                     </motion.div>
                 ))}
             </div>

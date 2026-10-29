@@ -67,6 +67,8 @@ interface StatutoryConfig {
         eligibilityLimit: number;
         paymentFrequency: string;
         minimumWage?: number;
+        // 1-12; the month a Yearly bonus is paid in (October by default).
+        payoutMonth?: number;
     };
 }
 
@@ -87,7 +89,10 @@ export default function StatutoryPage({ showNotify }: { showNotify: (type: 'succ
 
     const fetchConfig = async () => {
         try {
-            const res = await axiosInstance.get('/api/compliance');
+            // This page edits the StatutoryConfig shape (epf.epfEnabled, ...),
+            // which is what payroll reads. It used to load and save
+            // /api/compliance, a different model, so its edits were dropped.
+            const res = await axiosInstance.get('/api/statutory/config');
             setConfig(res.data.data);
         } catch (err) {
             showNotify('failure', "Failed to load statutory configuration");
@@ -99,8 +104,8 @@ export default function StatutoryPage({ showNotify }: { showNotify: (type: 'succ
     const handleUpdate = async (type: string, data: any) => {
         setSaving(true);
         try {
-            // Send the specific nested object update to the root partial PUT
-            await axiosInstance.put(`/api/compliance`, { [type]: data });
+            // Each section has its own endpoint: /config/epf, /esi, /pt, /lwf, /bonus
+            await axiosInstance.put(`/api/statutory/config/${type}`, data);
             showNotify('success', `${TAB_LIST.find(t=>t.id===type)?.label || type.toUpperCase()} settings updated successfully`);
             fetchConfig();
         } catch (err) {
@@ -127,7 +132,7 @@ export default function StatutoryPage({ showNotify }: { showNotify: (type: 'succ
             };
             
             updatedData[fieldMap[type]] = false;
-            await axiosInstance.put(`/api/compliance`, { [type]: updatedData });
+            await axiosInstance.put(`/api/statutory/config/${type}`, updatedData);
             
             showNotify('warning', `${confirmDisable.label} has been disabled`);
             setConfirmDisable(null);
@@ -598,9 +603,23 @@ const BonusSettings = ({ bonus, onUpdate, onDisable, saving }: { bonus: Statutor
             <div style={{ marginBottom: "32px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#64748B", marginBottom: "8px" }}>Payment Frequency</label>
                 <select value={data.paymentFrequency} onChange={e => setData({...data, paymentFrequency: e.target.value})} style={{ width: "100%", padding: "10px 14px", border: "1px solid #D1D5DB", borderRadius: "8px" }}>
-                    <option value="Yearly">Yearly</option>
+                    <option value="Yearly">Yearly (accrued monthly, paid once a year)</option>
+                    <option value="Monthly">Monthly (paid with each salary)</option>
                 </select>
             </div>
+            {data.paymentFrequency !== "Monthly" && (
+                <div style={{ marginBottom: "32px" }}>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#64748B", marginBottom: "8px" }}>Bonus Payout Month</label>
+                    <select value={data.payoutMonth || 10} onChange={e => setData({...data, payoutMonth: Number(e.target.value)})} style={{ width: "100%", padding: "10px 14px", border: "1px solid #D1D5DB", borderRadius: "8px" }}>
+                        {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, i) => (
+                            <option key={m} value={i + 1}>{m}{i === 9 ? " (Diwali — default)" : ""}</option>
+                        ))}
+                    </select>
+                    <p style={{ fontSize: "12px", color: "#94A3B8", marginTop: "6px" }}>
+                        Bonus accrues each month a payroll run is paid, and the previous financial year&apos;s (April–March) accrual is paid in this month&apos;s run.
+                    </p>
+                </div>
+            )}
 
             <button onClick={() => onUpdate(data)} disabled={saving} style={{ background: "#0084FF", color: "#fff", border: "none", padding: "10px 24px", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>
                 {saving ? "Saving..." : "Save Changes"}
