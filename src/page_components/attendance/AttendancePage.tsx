@@ -30,7 +30,7 @@ export default function AttendancePage({ showNotify }: AttendancePageProps) {
         setUserRole(String(user.role || "employee").toLowerCase());
         setUserId(user._id || user.id || "");
     }, []);
-    const canApprove = ["owner", "admin", "hr", "manager", "superadmin"].includes(userRole);
+    const canApprove = ["owner", "admin", "hr", "manager"].includes(userRole);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);

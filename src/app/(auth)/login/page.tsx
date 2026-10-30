@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth";
 import axiosInstance from "@/lib/axios";
 import { FiMail, FiLock, FiUser, FiArrowRight, FiEye, FiEyeOff, FiLoader, FiShield } from "react-icons/fi";
 import { API_ENDPOINTS, API_BASE_URL } from "@/config/api";
+import { isConsoleSurface, PASSWORD_SET_NOTICE } from "@/lib/surface";
+import { errorCode, errorMessage, errorStatus } from "@/lib/fetchError";
 
 export default function LoginPage() {
     const { login, completeMfaLogin } = useAuth();
@@ -32,6 +34,13 @@ export default function LoginPage() {
         if (ssoError) {
             setError(ssoError);
             setSsoMode(true);
+            window.history.replaceState(null, "", window.location.pathname);
+        }
+        // Sent here by /setup-password once a password is set (possibly from the other surface).
+        if (params.get("notice") === PASSWORD_SET_NOTICE) {
+            setMessage(isConsoleSurface
+                ? "Your password is set. RIVO team accounts sign in here, on the RIVO console, with your email and new password."
+                : "Your password is set. Sign in with your email and new password.");
             window.history.replaceState(null, "", window.location.pathname);
         }
     }, []);
@@ -71,15 +80,15 @@ export default function LoginPage() {
                     setMfaCode("");
                 }
             }
-        } catch (err: any) {
+        } catch (err) {
             // The preAuthToken lasts 10 minutes; once it is rejected the password step must be redone.
-            if (mfaToken && err.response?.status === 401) setMfaToken(null);
+            if (mfaToken && errorStatus(err) === 401) setMfaToken(null);
             // The organization enforces SSO: switch straight to it.
-            if (err.response?.data?.code === "SSO_REQUIRED") {
+            if (errorCode(err) === "SSO_REQUIRED") {
                 setSsoMode(true);
                 setSsoRef(formData.email);
             }
-            setError(err.response?.data?.message || err.message || "An error occurred");
+            setError(errorMessage(err, "An error occurred", true));
         } finally {
             setLoading(false);
         }
@@ -111,7 +120,7 @@ export default function LoginPage() {
                     </div>
 
                     <h1 style={{ fontSize: "42px", fontWeight: 800, color: "#fff", lineHeight: 1.15, marginBottom: "20px", letterSpacing: "-1px" }}>
-                        Enterprise HRMS<br />Payroll Platform
+                        {isConsoleSurface ? <>RIVO Platform<br />Console</> : <>Enterprise HRMS<br />Payroll Platform</>}
                     </h1>
                     <p style={{ fontSize: "16px", color: "rgba(255,255,255,0.85)", lineHeight: 1.7, maxWidth: "400px", marginBottom: "40px" }}>
                         Manage employees, payroll, attendance, leaves, and compliance — all in one unified platform built for Indian enterprises.

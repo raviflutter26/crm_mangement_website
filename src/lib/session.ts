@@ -4,7 +4,7 @@ import { describeError } from "./fetchError";
  * Should this failure end the user's session?
  *
  * Only a definitive answer from the server counts. A network error or a 5xx
- * means we could not ask, and the token may well still be valid — clearing it
+ * means we could not ask, and the session cookie may well still be valid — dropping it
  * then logs people out over an API restart, a sleeping laptop, or the frontend
  * simply booting a few seconds before the backend.
  *

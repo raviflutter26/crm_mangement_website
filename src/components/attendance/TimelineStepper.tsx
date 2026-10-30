@@ -52,7 +52,7 @@ export default function TimelineStepper({ events }: TimelineStepperProps) {
                 <p style={{ fontSize: "14px", color: "#64748b", maxWidth: "320px", lineHeight: "1.6", fontWeight: 500 }}>
                     Your shift timeline is currently empty. Use the <b>Check-In</b> action to begin recording your professional hours for today.
                 </p>
-                <Link href="/employee/check-in" className="btn btn-secondary" style={{ marginTop: "24px", fontWeight: 800, padding: "10px 24px", borderRadius: "12px" }}>
+                <Link href="/me/check-in" className="btn btn-secondary" style={{ marginTop: "24px", fontWeight: 800, padding: "10px 24px", borderRadius: "12px" }}>
                     Go to Punch Console
                 </Link>
             </div>

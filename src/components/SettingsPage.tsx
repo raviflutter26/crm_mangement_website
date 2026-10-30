@@ -10,7 +10,7 @@ interface SettingsPageProps {
 }
 
 /** Roles allowed to switch automatic payroll on or off (enforced by the API too). */
-const AUTO_PAYROLL_ROLES = ["owner", "admin", "superadmin"];
+const AUTO_PAYROLL_ROLES = ["owner", "admin"];
 
 const labelStyle = { display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" } as const;
 
@@ -109,9 +109,8 @@ export default function SettingsPage({ showNotify }: SettingsPageProps) {
         if (passwords.next !== passwords.confirm) return flash("error", "The new passwords do not match.");
         setSaving(true);
         try {
-            const res = await axiosInstance.put('/api/auth/change-password', { currentPassword: passwords.current, newPassword: passwords.next });
-            const token = res.data?.data?.token;
-            if (token && typeof window !== "undefined") localStorage.setItem("ravi_zoho_token", token);
+            // The API re-issues the HttpOnly session cookie itself.
+            await axiosInstance.put('/api/auth/change-password', { currentPassword: passwords.current, newPassword: passwords.next });
             setPasswords({ current: "", next: "", confirm: "" });
             flash("success", "Password changed.");
         } catch (err: any) {

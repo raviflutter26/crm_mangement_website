@@ -37,6 +37,16 @@ export default function Employees() {
     fetchLists();
   }, [fetchLists]);
 
+  // /employees?edit=<id> (from /employees/details) opens that employee's edit form.
+  useEffect(() => {
+    if (typeof window === "undefined" || !employees?.length) return;
+    const editId = new URLSearchParams(window.location.search).get("edit");
+    if (!editId) return;
+    const emp = employees.find((e: any) => String(e._id) === editId);
+    if (emp) { setSelectedEmployee(emp); setEmployeesView("edit"); }
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [employees]);
+
   const handleUpdateSuccess = async () => {
     await fetchLists();
     setEmployeesView("list");

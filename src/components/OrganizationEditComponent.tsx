@@ -112,7 +112,7 @@ export default function OrganizationEditComponent({ id }: { id: string }) {
 
             await axiosInstance.put(`/api/organizations/${id}`, payload);
             toast.success("Configuration updated successfully");
-            router.push(`/superadmin/organizations/view?id=${id}`);
+            router.push(`/organizations/view?id=${id}`);
         } catch (err: any) {
             toast.error(err.response?.data?.message || err.message || "Error updating configuration");
         } finally {

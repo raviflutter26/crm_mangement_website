@@ -1,12 +1,12 @@
 "use client";
 
-import { ReactNode } from "react";
+import type { ComponentType } from "react";
 import { FiInbox, FiPlus } from "react-icons/fi";
 
 interface EmptyStateProps {
     title: string;
     description: string;
-    icon?: any;
+    icon?: ComponentType<{ size?: number | string }>;
     actionLabel?: string;
     onAction?: () => void;
     className?: string;

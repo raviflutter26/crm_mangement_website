@@ -38,16 +38,9 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
     const [deptEmployees, setDeptEmployees] = useState<any[]>([]);
     const [loadingEmployees, setLoadingEmployees] = useState(false);
 
-    const getToken = async () => {
-        let token = localStorage.getItem('ravi_zoho_token');
-        if (!token) { window.location.reload(); throw new Error("No token"); }
-        return token;
-    };
-
     const fetchData = async () => {
         try {
             setLoading(true);
-            const token = await getToken();
             const [deptRes, empRes] = await Promise.all([
                 axiosInstance.get(API_ENDPOINTS.DEPARTMENTS, { params: { organizationId: user?.organizationId } }),
                 axiosInstance.get(API_ENDPOINTS.EMPLOYEES, { params: { organizationId: user?.organizationId } })
@@ -72,9 +65,6 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
             setEmployeeCounts(counts);
 
         } catch (err: any) {
-            if (err.response?.status === 401) {
-                localStorage.removeItem('ravi_zoho_token');
-            }
             console.error("Failed to fetch data", err);
         } finally {
             setLoading(false);
@@ -110,7 +100,6 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
     const handleSubmit = async (e: any) => {
         e.preventDefault();
         try {
-            const token = await getToken();
             const payload = { ...formData, organizationId: user?.organizationId };
             if (isEditing) {
                 await axiosInstance.put(`${API_ENDPOINTS.DEPARTMENTS}/${editId}`, payload);
@@ -121,8 +110,7 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
             fetchData();
         } catch (err: any) {
             if (err.response?.status === 401) {
-                localStorage.removeItem('ravi_zoho_token');
-                toast.error("Session expired. Please try again.");
+                toast.error("Session expired. Please sign in again.");
             } else {
                 console.error("Failed to save department", err);
                 toast.error(err.response?.data?.message || err.message || "Error saving department.");
@@ -139,13 +127,11 @@ export default function DepartmentsPage({ showNotify }: DepartmentsPageProps) {
         });
         if (!ok) return;
         try {
-            const token = await getToken();
             await axiosInstance.delete(`${API_ENDPOINTS.DEPARTMENTS}/${id}`);
             fetchData();
         } catch (err: any) {
             if (err.response?.status === 401) {
-                localStorage.removeItem('ravi_zoho_token');
-                toast.error("Session expired. Please try again.");
+                toast.error("Session expired. Please sign in again.");
             } else {
                 console.error("Failed to delete", err);
                 toast.error("Error deleting department.");

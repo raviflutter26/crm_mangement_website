@@ -40,7 +40,7 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
 
     const managersList = employees.filter(e => {
         const r = (e.role || "").toLowerCase();
-        return ["admin", "superadmin", "hr", "manager"].includes(r);
+        return ["admin", "hr", "manager"].includes(r);
     });
 
 
@@ -87,7 +87,7 @@ export default function EmployeesPage({ employees, departments, onRefresh, showN
     // The API returns only the employees the caller may see (their branches for a
     // branch HR/admin), so a branch filter is only useful to someone who sees them all.
     const role = String(currentUser?.role || "").toLowerCase();
-    const showBranchFilter = role === "owner" || role === "superadmin" || !!currentUser?.isGroupWide;
+    const showBranchFilter = role === "owner" || !!currentUser?.isGroupWide;
     const branchIdOf = (e: any): string => String(e.branchId?._id || e.branchId || "");
     const branchOptions = Array.from(
         new Map(

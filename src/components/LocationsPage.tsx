@@ -39,12 +39,6 @@ export default function LocationsPage({ showNotify }: LocationsPageProps) {
         geofenceAllSources: false,
     });
 
-    const getToken = async () => {
-        let token = localStorage.getItem('ravi_zoho_token');
-        if (!token) { window.location.reload(); throw new Error("No token"); }
-        return token;
-    };
-
     const fetchData = async () => {
         try {
             setLoading(true);

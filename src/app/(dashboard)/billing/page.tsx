@@ -8,7 +8,7 @@ import EmptyState from "@/components/common/EmptyState";
 import ErrorState from "@/components/common/ErrorState";
 import LoadingSkeleton from "@/components/common/LoadingSkeleton";
 import { describeError, type FetchError } from "@/lib/fetchError";
-import { PageHeader, Stat, StatGrid, StatusPill, fmtDate, inr } from "@/page_components/superadmin/ui";
+import { PageHeader, Stat, StatGrid, StatusPill, fmtDate, inr } from "@/components/common/ui";
 
 /**
  * The organization's own plan, seat usage and invoices. Read-only: plan and

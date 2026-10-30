@@ -102,12 +102,6 @@ a {
 }
 
 /* Layout */
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
 .page-wrapper {
   display: flex;
   min-height: 100vh;
@@ -227,27 +221,6 @@ a {
 }
 
 /* Redesigned Sidebar Styles */
-.sidebar-status-banner {
-  margin: 0 12px 16px;
-  padding: 10px 14px;
-  background: rgba(139, 0, 0, 0.15);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: #fff;
-}
-
-.sidebar-status-dot {
-  width: 8px;
-  height: 8px;
-  background: #ff4d4f;
-  border-radius: 50%;
-  box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.7);
-  animation: pulse-red 2s infinite;
-}
-
 @keyframes pulse-red {
   0% {
     transform: scale(0.95);
@@ -261,12 +234,6 @@ a {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
   }
-}
-
-.sidebar-version {
-  margin-left: auto;
-  color: var(--text-muted);
-  font-size: 11px;
 }
 
 .sidebar-item-chevron {
@@ -907,14 +874,6 @@ input[type="radio"]:checked::after {
 }
 
 /* Error styles */
-.form-input.error-border {
-  border-color: #ff4d4f !important;
-}
-
-.form-input.error-border:focus {
-  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.2) !important;
-}
-
 .error-text {
   color: #ff4d4f;
   font-size: 12px;
@@ -1033,28 +992,6 @@ input[type="radio"]:checked::after {
   .topbar-search input {
     width: 200px;
   }
-}
-
-/* Empty State */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.empty-state-icon {
-  font-size: 64px;
-  color: var(--text-muted);
-  margin-bottom: 16px;
-}
-
-.empty-state h3 {
-  font-size: 18px;
-  margin-bottom: 8px;
-}
-
-.empty-state p {
-  color: var(--text-secondary);
-  margin-bottom: 20px;
 }
 
 /* ═══════════════════════════════════════════════════════════

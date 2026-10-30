@@ -4,12 +4,19 @@ import { useState, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import {
     FiBriefcase, FiUsers, FiPlus, FiEdit2, FiTrash2,
-    FiSearch, FiFilter, FiCalendar, FiCheckCircle, FiXCircle, FiUserPlus
+    FiSearch, FiCalendar, FiCheckCircle, FiUserPlus
 } from "react-icons/fi";
 import { API_ENDPOINTS } from "@/config/api";
 import EmptyState from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 import { useConfirm, useToast } from "@/components/common/DialogProvider";
+import { errorMessage } from "@/lib/fetchError";
+import { populated, refId, type Branch, type Department } from "@/types/api";
+import InterviewsModal from "@/components/recruitment/InterviewsModal";
+import ConvertModal from "@/components/recruitment/ConvertModal";
+import {
+    type Candidate, type ConvertForm, type JobPosting, type RecruitmentForm, type ConvertResult, type FeedbackForm, type Interview, type InterviewForm, type Person,
+} from "@/components/recruitment/types";
 
 /** Candidate pipeline, mirrored from the backend's canMove (recruitmentController). */
 const STAGES = ["applied", "screening", "interview", "offered", "hired"];
@@ -20,15 +27,9 @@ const nextStages = (from: string): string[] => {
     const forward = STAGES.filter((s, j) => j > i && (s !== "hired" || from === "offered"));
     return [...forward, "rejected"];
 };
-const errMsg = (err: any) => err?.response?.data?.message || err?.message || "Something went wrong";
-const LABEL_STYLE: any = { display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" };
-const MODAL_BG: any = {
-    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "var(--overlay-bg)", zIndex: 1000,
-    display: "flex", alignItems: "center", justifyContent: "center"
-};
+const errMsg = (err: unknown) => errorMessage(err, "Something went wrong", true);
 
-const STATUS_COLORS: any = {
+const STATUS_COLORS: Record<string, string> = {
     draft: "pending", open: "active", "on-hold": "leave", closed: "inactive",
     applied: "pending", screening: "processing", interview: "leave",
     offered: "active", hired: "active", rejected: "inactive",
@@ -42,31 +43,31 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     const confirmDialog = useConfirm();
     const toast = useToast();
     const [activeView, setActiveView] = useState<"postings" | "candidates">("postings");
-    const [postings, setPostings] = useState<any[]>([]);
-    const [candidates, setCandidates] = useState<any[]>([]);
+    const [postings, setPostings] = useState<JobPosting[]>([]);
+    const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState("");
-    const [formData, setFormData] = useState<any>({});
+    const [formData, setFormData] = useState<RecruitmentForm>({});
     const [successToast, setSuccessToast] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
 
     // Interviews (per candidate)
-    const [interviewCandidate, setInterviewCandidate] = useState<any>(null);
-    const [interviews, setInterviews] = useState<any[]>([]);
-    const [interviewForm, setInterviewForm] = useState<any>({});
+    const [interviewCandidate, setInterviewCandidate] = useState<Candidate | null>(null);
+    const [interviews, setInterviews] = useState<Interview[]>([]);
+    const [interviewForm, setInterviewForm] = useState<InterviewForm>({});
     const [feedbackFor, setFeedbackFor] = useState<string>("");
-    const [feedbackForm, setFeedbackForm] = useState<any>({});
-    const [people, setPeople] = useState<any[]>([]);
+    const [feedbackForm, setFeedbackForm] = useState<FeedbackForm>({});
+    const [people, setPeople] = useState<Person[]>([]);
 
     // Conversion of a hired candidate into an employee
-    const [convertCandidate, setConvertCandidate] = useState<any>(null);
-    const [convertForm, setConvertForm] = useState<any>({});
+    const [convertCandidate, setConvertCandidate] = useState<Candidate | null>(null);
+    const [convertForm, setConvertForm] = useState<ConvertForm>({});
     const [convertMissing, setConvertMissing] = useState<string[]>([]);
-    const [convertResult, setConvertResult] = useState<any>(null);
-    const [departments, setDepartments] = useState<any[]>([]);
-    const [branches, setBranches] = useState<any[]>([]);
+    const [convertResult, setConvertResult] = useState<ConvertResult | null>(null);
+    const [departments, setDepartments] = useState<Department[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -100,7 +101,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
     };
 
     // ========== PIPELINE ==========
-    const moveCandidate = async (c: any, status: string) => {
+    const moveCandidate = async (c: Candidate, status: string) => {
         if (!status) return;
         if (status === "rejected") {
             const ok = await confirmDialog({ title: `Reject ${c.firstName}?`, confirmLabel: "Reject", danger: true });
@@ -110,7 +111,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
             await axiosInstance.patch(API_ENDPOINTS.CANDIDATE_STATUS(c._id), { status });
             showToast(`Moved to ${status}`);
             fetchData();
-        } catch (err: any) {
+        } catch (err) {
             toast.error(errMsg(err));
             fetchData();
         }
@@ -124,7 +125,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
         } catch (err) { toast.error(errMsg(err)); }
     };
 
-    const openInterviews = async (c: any) => {
+    const openInterviews = async (c: Candidate) => {
         setInterviewCandidate(c);
         setInterviews([]);
         setFeedbackFor("");
@@ -133,8 +134,9 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
         loadInterviews(c._id);
     };
 
-    const scheduleInterview = async (e: any) => {
+    const scheduleInterview = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!interviewCandidate) return;
         try {
             await axiosInstance.post(API_ENDPOINTS.INTERVIEWS, {
                 ...interviewForm,
@@ -145,16 +147,17 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
             setInterviewForm({ round: `Round ${interviews.length + 2}`, mode: "video", durationMinutes: 60 });
             loadInterviews(interviewCandidate._id);
             fetchData();
-        } catch (err: any) { toast.error(errMsg(err)); }
+        } catch (err) { toast.error(errMsg(err)); }
     };
 
-    const openFeedback = (iv: any) => {
+    const openFeedback = (iv: Interview) => {
         setFeedbackFor(iv._id);
         setFeedbackForm({ feedback: iv.feedback || "", rating: iv.rating || "", result: iv.result || "pending" });
     };
 
-    const submitFeedback = async (e: any) => {
+    const submitFeedback = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!interviewCandidate) return;
         try {
             await axiosInstance.patch(API_ENDPOINTS.INTERVIEW_FEEDBACK(feedbackFor), {
                 ...feedbackForm,
@@ -163,27 +166,28 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
             showToast("Feedback saved");
             setFeedbackFor("");
             loadInterviews(interviewCandidate._id);
-        } catch (err: any) { toast.error(errMsg(err)); }
+        } catch (err) { toast.error(errMsg(err)); }
     };
 
-    const cancelInterview = async (iv: any) => {
+    const cancelInterview = async (iv: Interview) => {
+        if (!interviewCandidate) return;
         const ok = await confirmDialog({ title: "Delete this interview?", confirmLabel: "Delete", danger: true });
         if (!ok) return;
         try {
             await axiosInstance.delete(`${API_ENDPOINTS.INTERVIEWS}/${iv._id}`);
             loadInterviews(interviewCandidate._id);
-        } catch (err: any) { toast.error(errMsg(err)); }
+        } catch (err) { toast.error(errMsg(err)); }
     };
 
     // ========== CONVERSION ==========
-    const openConvert = (c: any) => {
+    const openConvert = (c: Candidate) => {
         setConvertCandidate(c);
         setConvertMissing([]);
         setConvertResult(null);
         setConvertForm({
             lastName: c.lastName || "",
             phone: (c.phone || "").replace(/\D/g, "").slice(-10),
-            designation: c.jobPosting?.designation || "",
+            designation: populated(c.jobPosting)?.designation || "",
             ctc: c.expectedCTC || "",
             dateOfJoining: new Date().toISOString().split("T")[0],
             panNumber: "",
@@ -191,26 +195,25 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
         loadPickers();
     };
 
-    const submitConvert = async (e: any) => {
+    const submitConvert = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!convertCandidate) return;
         const missing = ["panNumber", "lastName"].filter(f => !String(convertForm[f] || "").trim());
         if (missing.length) { setConvertMissing(missing); return; }
         try {
-            const payload: any = {};
+            const payload: ConvertForm = {};
             for (const [k, v] of Object.entries(convertForm)) if (v !== "" && v != null) payload[k] = v;
             if (payload.panNumber) payload.panNumber = String(payload.panNumber).toUpperCase();
             if (payload.ctc) payload.ctc = Number(payload.ctc);
             const res = await axiosInstance.post(API_ENDPOINTS.CANDIDATE_CONVERT(convertCandidate._id), payload);
             setConvertResult(res.data.data);
             fetchData();
-        } catch (err: any) {
-            const missingFields = err?.response?.data?.missing;
+        } catch (err) {
+            const missingFields = (err as { response?: { data?: { missing?: unknown } } })?.response?.data?.missing;
             if (Array.isArray(missingFields)) setConvertMissing(missingFields);
             toast.error(errMsg(err));
         }
     };
-
-    const missingStyle = (field: string) => convertMissing.includes(field) ? { borderColor: "var(--error)", boxShadow: "0 0 0 1px var(--error)" } : {};
 
     const showToast = (msg: string) => {
         setSuccessToast(msg);
@@ -225,7 +228,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
         setShowModal(true);
     };
 
-    const openEditPosting = (item: any) => {
+    const openEditPosting = (item: JobPosting) => {
         setIsEditing(true);
         setEditId(item._id);
         setFormData({
@@ -248,14 +251,14 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
         setShowModal(true);
     };
 
-    const openEditCandidate = (item: any) => {
+    const openEditCandidate = (item: Candidate) => {
         setActiveView("candidates");
         setIsEditing(true);
         setEditId(item._id);
         setFormData({
             firstName: item.firstName || "", lastName: item.lastName || "",
             email: item.email || "", phone: item.phone || "",
-            jobPosting: item.jobPosting?._id || item.jobPosting || "",
+            jobPosting: refId(item.jobPosting),
             experience: item.experience || 0, currentCompany: item.currentCompany || "",
             currentCTC: item.currentCTC || 0, expectedCTC: item.expectedCTC || 0,
             noticePeriod: item.noticePeriod || 0,
@@ -264,7 +267,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
         setShowModal(true);
     };
 
-    const handleSubmit = async (e: any) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const endpoint = activeView === "postings" ? API_ENDPOINTS.JOB_POSTINGS : API_ENDPOINTS.CANDIDATES;
@@ -277,8 +280,8 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
             }
             setShowModal(false);
             fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || err.message);
+        } catch (err) {
+            toast.error(errMsg(err));
         }
     };
 
@@ -294,8 +297,8 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
             await axiosInstance.delete(`${endpoint}/${id}`);
             showToast("Deleted!");
             fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || err.message);
+        } catch (err) {
+            toast.error(errMsg(err));
         }
     };
 
@@ -404,7 +407,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                                     <tr key={c._id}>
                                         <td style={{ fontWeight: 600 }}>{c.firstName} {c.lastName}</td>
                                         <td>{c.email}</td>
-                                        <td>{c.jobPosting?.title || "-"}</td>
+                                        <td>{populated(c.jobPosting)?.title || "-"}</td>
                                         <td>{c.experience} yrs</td>
                                         <td>{c.source}</td>
                                         <td>
@@ -538,7 +541,7 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
                                         <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "var(--text-secondary)" }}>Applying For</label>
                                         <select className="form-input" value={formData.jobPosting || ""} onChange={e => setFormData({ ...formData, jobPosting: e.target.value || undefined })}>
                                             <option value="">— No specific position —</option>
-                                            {postings.map((p: any) => (
+                                            {postings.map((p) => (
                                                 <option key={p._id} value={p._id}>{p.title}{p.department ? ` (${p.department})` : ""}</option>
                                             ))}
                                         </select>
@@ -581,206 +584,37 @@ export default function RecruitmentPage({ showNotify }: RecruitmentPageProps) {
 
             {/* Interviews */}
             {interviewCandidate && (
-                <div style={MODAL_BG}>
-                    <div className="card animate-in" style={{ width: "720px", maxHeight: "88vh", overflow: "auto", padding: "24px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                            <h2 style={{ margin: 0 }}>Interviews — {interviewCandidate.firstName} {interviewCandidate.lastName}</h2>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setInterviewCandidate(null)}><FiXCircle /> Close</button>
-                        </div>
-                        {interviews.length === 0 ? (
-                            <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>No interviews scheduled yet.</p>
-                        ) : (
-                            <div className="table-wrapper" style={{ marginBottom: "16px" }}>
-                                <table>
-                                    <thead><tr><th>Round</th><th>When</th><th>Interviewer</th><th>Mode</th><th>Rating</th><th>Result</th><th></th></tr></thead>
-                                    <tbody>
-                                        {interviews.map(iv => (
-                                            <tr key={iv._id}>
-                                                <td style={{ fontWeight: 600 }}>{iv.round}</td>
-                                                <td>{new Date(iv.scheduledAt).toLocaleString()}</td>
-                                                <td>{iv.interviewer ? `${iv.interviewer.firstName} ${iv.interviewer.lastName}` : "-"}</td>
-                                                <td>{iv.mode}{iv.location ? ` · ${iv.location}` : ""}</td>
-                                                <td>{iv.rating ? `${iv.rating}/5` : "-"}</td>
-                                                <td><span className={`badge ${iv.result === "passed" ? "active" : iv.result === "failed" || iv.result === "no-show" ? "inactive" : "pending"}`}>{iv.result}</span></td>
-                                                <td>
-                                                    <div style={{ display: "flex", gap: "6px" }}>
-                                                        <button className="btn btn-secondary btn-sm" onClick={() => openFeedback(iv)}><FiEdit2 /> Feedback</button>
-                                                        <button className="btn btn-secondary btn-sm" onClick={() => cancelInterview(iv)} style={{ color: "var(--error)" }}><FiTrash2 /></button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {feedbackFor && (
-                            <form onSubmit={submitFeedback} style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "16px", border: "1px solid var(--border)", borderRadius: "10px", marginBottom: "16px" }}>
-                                <h3 style={{ margin: 0, fontSize: "15px" }}>Record feedback</h3>
-                                <div className="grid-2">
-                                    <div>
-                                        <label style={LABEL_STYLE}>Rating (1–5)</label>
-                                        <select className="form-input" value={feedbackForm.rating} onChange={e => setFeedbackForm({ ...feedbackForm, rating: e.target.value })}>
-                                            <option value="">—</option>
-                                            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style={LABEL_STYLE}>Result</label>
-                                        <select className="form-input" value={feedbackForm.result} onChange={e => setFeedbackForm({ ...feedbackForm, result: e.target.value })}>
-                                            {["pending", "passed", "failed", "on-hold", "no-show"].map(r => <option key={r} value={r}>{r}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label style={LABEL_STYLE}>Feedback</label>
-                                    <textarea className="form-input" rows={3} style={{ resize: "none" }} value={feedbackForm.feedback} onChange={e => setFeedbackForm({ ...feedbackForm, feedback: e.target.value })} />
-                                </div>
-                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                                    <button type="button" className="btn btn-secondary" onClick={() => setFeedbackFor("")}>Cancel</button>
-                                    <button type="submit" className="btn btn-primary">Save Feedback</button>
-                                </div>
-                            </form>
-                        )}
-
-                        {!["hired", "rejected"].includes(interviewCandidate.status) && (
-                            <form onSubmit={scheduleInterview} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                                <h3 style={{ margin: 0, fontSize: "15px" }}>Schedule an interview</h3>
-                                <div className="grid-2">
-                                    <div>
-                                        <label style={LABEL_STYLE}>Round</label>
-                                        <input className="form-input" value={interviewForm.round || ""} onChange={e => setInterviewForm({ ...interviewForm, round: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label style={LABEL_STYLE}>Interviewer *</label>
-                                        <select required className="form-input" value={interviewForm.interviewer || ""} onChange={e => setInterviewForm({ ...interviewForm, interviewer: e.target.value })}>
-                                            <option value="">Select interviewer…</option>
-                                            {people.map(p => <option key={p._id} value={p._id}>{p.firstName} {p.lastName}{p.designation ? ` — ${p.designation}` : ""}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="grid-2">
-                                    <div>
-                                        <label style={LABEL_STYLE}>Date &amp; time *</label>
-                                        <input required type="datetime-local" className="form-input" value={interviewForm.scheduledAt || ""} onChange={e => setInterviewForm({ ...interviewForm, scheduledAt: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label style={LABEL_STYLE}>Duration (minutes)</label>
-                                        <input type="number" min={5} className="form-input" value={interviewForm.durationMinutes || 60} onChange={e => setInterviewForm({ ...interviewForm, durationMinutes: parseInt(e.target.value) || 60 })} />
-                                    </div>
-                                </div>
-                                <div className="grid-2">
-                                    <div>
-                                        <label style={LABEL_STYLE}>Mode</label>
-                                        <select className="form-input" value={interviewForm.mode} onChange={e => setInterviewForm({ ...interviewForm, mode: e.target.value })}>
-                                            <option value="video">Video</option>
-                                            <option value="phone">Phone</option>
-                                            <option value="in-person">In person</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style={LABEL_STYLE}>{interviewForm.mode === "in-person" ? "Location" : "Meeting link / number"}</label>
-                                        <input className="form-input" value={interviewForm.location || ""} onChange={e => setInterviewForm({ ...interviewForm, location: e.target.value })} />
-                                    </div>
-                                </div>
-                                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                                    <button type="submit" className="btn btn-primary"><FiCalendar /> Schedule</button>
-                                </div>
-                            </form>
-                        )}
-                    </div>
-                </div>
+                <InterviewsModal
+                    candidate={interviewCandidate}
+                    interviews={interviews}
+                    people={people}
+                    interviewForm={interviewForm}
+                    setInterviewForm={setInterviewForm}
+                    feedbackFor={feedbackFor}
+                    setFeedbackFor={setFeedbackFor}
+                    feedbackForm={feedbackForm}
+                    setFeedbackForm={setFeedbackForm}
+                    onOpenFeedback={openFeedback}
+                    onCancelInterview={cancelInterview}
+                    onSubmitFeedback={submitFeedback}
+                    onSchedule={scheduleInterview}
+                    onClose={() => setInterviewCandidate(null)}
+                />
             )}
 
             {/* Convert to employee */}
             {convertCandidate && (
-                <div style={MODAL_BG}>
-                    <div className="card animate-in" style={{ width: "600px", maxHeight: "88vh", overflow: "auto", padding: "24px" }}>
-                        <h2 style={{ marginBottom: "6px" }}>Convert to employee</h2>
-                        <p style={{ color: "var(--text-muted)", fontSize: "13px", marginBottom: "18px" }}>
-                            {convertCandidate.firstName} {convertCandidate.lastName} · {convertCandidate.email}. The employee gets a welcome email and a link to set their password.
-                        </p>
-                        {convertResult ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 600 }}>
-                                    <FiCheckCircle color="var(--secondary)" size={20} />
-                                    Employee created{convertResult.employee?.employeeId ? ` (${convertResult.employee.employeeId})` : ""}.
-                                </div>
-                                <div style={{ fontSize: "14px", color: convertResult.setupLinkSent ? "var(--text-secondary)" : "var(--warning, #b45309)" }}>
-                                    {convertResult.setupLinkSent
-                                        ? "The password set-up link was emailed."
-                                        : "The password set-up link could not be emailed. Ask them to use “Forgot password” on the login page, or resend it later."}
-                                </div>
-                                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                                    <button className="btn btn-primary" onClick={() => setConvertCandidate(null)}>Done</button>
-                                </div>
-                            </div>
-                        ) : (
-                            <form onSubmit={submitConvert} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                                <div className="grid-2">
-                                    <div>
-                                        <label style={LABEL_STYLE}>PAN *</label>
-                                        <input className="form-input" style={missingStyle("panNumber")} placeholder="ABCDE1234F" maxLength={10}
-                                            value={convertForm.panNumber || ""} onChange={e => setConvertForm({ ...convertForm, panNumber: e.target.value.toUpperCase() })} />
-                                    </div>
-                                    <div>
-                                        <label style={LABEL_STYLE}>Last name *</label>
-                                        <input className="form-input" style={missingStyle("lastName")} value={convertForm.lastName || ""} onChange={e => setConvertForm({ ...convertForm, lastName: e.target.value })} />
-                                    </div>
-                                </div>
-                                <div className="grid-2">
-                                    <div>
-                                        <label style={LABEL_STYLE}>Phone</label>
-                                        <input className="form-input" style={missingStyle("phone")} value={convertForm.phone || ""} onChange={e => setConvertForm({ ...convertForm, phone: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label style={LABEL_STYLE}>Designation</label>
-                                        <input className="form-input" value={convertForm.designation || ""} onChange={e => setConvertForm({ ...convertForm, designation: e.target.value })} />
-                                    </div>
-                                </div>
-                                <div className="grid-2">
-                                    <div>
-                                        <label style={LABEL_STYLE}>Branch</label>
-                                        <select className="form-input" style={missingStyle("branchId")} value={convertForm.branchId || ""} onChange={e => setConvertForm({ ...convertForm, branchId: e.target.value, departmentId: "" })}>
-                                            <option value="">Select branch…</option>
-                                            {branches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style={LABEL_STYLE}>Department</label>
-                                        <select className="form-input" style={missingStyle("departmentId")} value={convertForm.departmentId || ""} onChange={e => {
-                                            const d = departments.find(x => x._id === e.target.value);
-                                            setConvertForm({ ...convertForm, departmentId: e.target.value, department: d?.name || "" });
-                                        }}>
-                                            <option value="">Select department…</option>
-                                            {departments
-                                                .filter(d => !convertForm.branchId || !d.branchId || String(d.branchId?._id || d.branchId) === convertForm.branchId)
-                                                .map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="grid-2">
-                                    <div>
-                                        <label style={LABEL_STYLE}>Date of joining</label>
-                                        <input type="date" className="form-input" value={convertForm.dateOfJoining || ""} onChange={e => setConvertForm({ ...convertForm, dateOfJoining: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label style={LABEL_STYLE}>Annual CTC (₹)</label>
-                                        <input type="number" min={0} className="form-input" value={convertForm.ctc || ""} onChange={e => setConvertForm({ ...convertForm, ctc: e.target.value })} />
-                                    </div>
-                                </div>
-                                {convertMissing.length > 0 && (
-                                    <div style={{ color: "var(--error)", fontSize: "13px" }}>Please fill in the highlighted fields.</div>
-                                )}
-                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                                    <button type="button" className="btn btn-secondary" onClick={() => setConvertCandidate(null)}>Cancel</button>
-                                    <button type="submit" className="btn btn-primary"><FiUserPlus /> Create Employee</button>
-                                </div>
-                            </form>
-                        )}
-                    </div>
-                </div>
+                <ConvertModal
+                    candidate={convertCandidate}
+                    convertForm={convertForm}
+                    setConvertForm={setConvertForm}
+                    convertMissing={convertMissing}
+                    convertResult={convertResult}
+                    branches={branches}
+                    departments={departments}
+                    onSubmit={submitConvert}
+                    onClose={() => setConvertCandidate(null)}
+                />
             )}
 
             {successToast && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_URL } from "@/lib/surface";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios";
@@ -56,7 +57,7 @@ export default function OrganizationViewComponent({ id }: { id: string }) {
         if (!ok) return;
         try {
             await axiosInstance.delete(`/api/organizations/${id}`);
-            router.push('/superadmin/organizations');
+            router.push('/organizations');
         } catch (err: any) { toast.error(err.response?.data?.message || err.message); }
     };
 
@@ -68,9 +69,9 @@ export default function OrganizationViewComponent({ id }: { id: string }) {
         });
         if (!ok) return;
         try {
-            const res = await axiosInstance.post(`/api/organizations/${id}/impersonate`);
-            localStorage.setItem('ravi_zoho_token', res.data.data.token);
-            window.location.href = '/dashboard';
+            // The API sets the company-app session cookie (rivo_session) for the admin.
+            await axiosInstance.post(`/api/organizations/${id}/impersonate`);
+            window.location.href = `${APP_URL}/dashboard/`; // the company app; the API set its session cookie
         } catch (err: any) { toast.error(err.response?.data?.message || err.message || "Impersonation failed."); }
     };
 
@@ -88,7 +89,7 @@ export default function OrganizationViewComponent({ id }: { id: string }) {
         <div className="p-6 bg-[#F8FAFC] min-h-screen">
             <div className="max-w-6xl mx-auto flex flex-col gap-16">
                 {/* Top Nav */}
-                <button onClick={() => router.push('/superadmin/organizations')} className="flex items-center gap-2 group text-sm font-bold text-[#64748B] hover:text-[#FF7A00] mb-8 transition-all">
+                <button onClick={() => router.push('/organizations')} className="flex items-center gap-2 group text-sm font-bold text-[#64748B] hover:text-[#FF7A00] mb-8 transition-all">
                     <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" /> Back to Organization List
                 </button>
 
@@ -129,7 +130,7 @@ export default function OrganizationViewComponent({ id }: { id: string }) {
                             <button onClick={handleImpersonate} className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#FF7A00] hover:bg-slate-50 rounded-xl shadow-xl transition-all font-black text-[10px] uppercase tracking-widest active:scale-95 group">
                                 <FiKey className="group-hover:rotate-45 transition-transform" /> LOGIN AS ADMIN
                             </button>
-                            <button onClick={() => router.push(`/superadmin/organizations/edit?id=${org._id}`)} className="flex items-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl border border-white/35 backdrop-blur-md transition-all font-black text-[10px] uppercase tracking-widest active:scale-95">
+                            <button onClick={() => router.push(`/organizations/edit?id=${org._id}`)} className="flex items-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl border border-white/35 backdrop-blur-md transition-all font-black text-[10px] uppercase tracking-widest active:scale-95">
                                 <FiEdit2 /> EDIT SETTINGS
                             </button>
                             <button onClick={handleToggleStatus} className="flex items-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl border border-white/35 backdrop-blur-md transition-all font-black text-[10px] uppercase tracking-widest active:scale-95">

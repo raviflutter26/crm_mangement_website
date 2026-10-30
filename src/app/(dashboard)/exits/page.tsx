@@ -13,7 +13,7 @@ import { useConfirm, useToast } from "@/components/common/DialogProvider";
 const STATUS_BADGE: Record<string, string> = {
     pending: "pending", approved: "processing", settled: "active", rejected: "inactive", withdrawn: "inactive",
 };
-const HR_ROLES = ["owner", "admin", "hr", "superadmin"];
+const HR_ROLES = ["owner", "admin", "hr"];
 
 const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }) : "—");
 const inr = (n?: number) => `₹${Math.round(n || 0).toLocaleString("en-IN")}`;

@@ -32,7 +32,7 @@ export default function PerformancePage({ showNotify }: PerformancePageProps) {
     const dialogToast = useToast();
     const { user } = useAuth();
     const role = String(user?.role || "").toLowerCase();
-    const isHR = ["owner", "admin", "hr", "superadmin"].includes(role);
+    const isHR = ["owner", "admin", "hr"].includes(role);
     const [activeView, setActiveView] = useState<"goals" | "appraisals" | "reviews" | "cycles">("goals");
     const [cycles, setCycles] = useState<any[]>([]);
     const [cycleModal, setCycleModal] = useState<any>(null); // form data, with _id when editing

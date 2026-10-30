@@ -5,10 +5,10 @@ import { useAuth } from "@/lib/auth";
 import { FiLoader } from "react-icons/fi";
 
 /**
- * Landing page for SSO. The API's /api/auth/sso/callback redirects here with
- * the session token in the URL fragment (#token=...), which never reaches a
- * server log or a Referer header. The fragment is wiped from the address bar
- * before anything else happens.
+ * Landing page for SSO. The API's /api/auth/sso/callback has already set the
+ * HttpOnly session cookie and redirects here; this page loads the profile from
+ * /api/auth/me and moves on. Any fragment (an old build's #token=...) is wiped
+ * from the address bar and ignored.
  */
 export default function SsoCompletePage() {
     const { completeSsoLogin } = useAuth();
@@ -19,14 +19,9 @@ export default function SsoCompletePage() {
         if (started.current || typeof window === "undefined") return;
         started.current = true;
 
-        const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
-        window.history.replaceState(null, "", window.location.pathname);
+        if (window.location.hash) window.history.replaceState(null, "", window.location.pathname);
 
-        if (!token) {
-            setError("Sign-in did not return a session. Please try again.");
-            return;
-        }
-        completeSsoLogin(token).catch((err: any) => {
+        completeSsoLogin().catch((err: any) => {
             setError(err?.response?.data?.message || "Could not complete sign-in. Please try again.");
         });
     }, [completeSsoLogin]);

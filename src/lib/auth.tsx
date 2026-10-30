@@ -1,9 +1,10 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import axiosInstance from './axios';
+import axiosInstance, { USER_CACHE_KEY } from './axios';
 import { isSessionRejected } from './session';
 import { useRouter } from 'next/navigation';
+import { roleAllowedOnSurface } from './surface';
 
 interface User {
     _id: string;
@@ -19,15 +20,17 @@ interface User {
     avatar?: string;
 }
 
+export interface LoginCredentials { email: string; password: string }
+
 /** What login() resolves to: done, or waiting on an MFA code for this preAuthToken. */
 export type LoginResult = { mfaRequired: false } | { mfaRequired: true; preAuthToken: string };
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
-    login: (credentials: any) => Promise<LoginResult>;
+    login: (credentials: LoginCredentials) => Promise<LoginResult>;
     completeMfaLogin: (preAuthToken: string, code: string) => Promise<void>;
-    completeSsoLogin: (token: string) => Promise<void>;
+    completeSsoLogin: () => Promise<void>;
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
 }
@@ -35,19 +38,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
- * The landing page for a role. The one place this mapping lives: login and
- * RoleGuard both send people here. An owner is the tenant's top administrator
- * and uses the admin area.
+ * The landing page after sign-in. The one place this mapping lives: login and
+ * the route guards send people here. Both surfaces use the neutral /dashboard
+ * (the page itself is role-aware); a role that belongs on the other surface
+ * (the RIVO team on the company app, a company user on the console) lands on
+ * /wrong-app, which points them to the right address.
  */
 export function dashboardPathFor(role?: string | null): string {
-    switch (String(role || '').toLowerCase()) {
-        case 'superadmin': return '/superadmin/dashboard';
-        case 'owner':
-        case 'admin': return '/admin/dashboard';
-        case 'hr': return '/hr/dashboard';
-        case 'manager': return '/manager/dashboard';
-        default: return '/employee/dashboard';
-    }
+    return roleAllowedOnSurface(role) ? '/dashboard' : '/wrong-app';
 }
 
 /**
@@ -59,10 +57,11 @@ export function dashboardPathFor(role?: string | null): string {
  * and left their screens spinning forever. It cleared on refresh — checkAuth()
  * populates the other shape — which is why it read as intermittent.
  */
-function normalizeUser(raw: any) {
-    if (!raw) return raw;
-    const id = raw._id ?? raw.id;
-    return { ...raw, _id: id, id };
+function normalizeUser(raw: unknown): User | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const r = raw as Partial<User> & { id?: string };
+    const id = r._id ?? r.id;
+    return { ...r, _id: id, id } as User;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -80,22 +79,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const userData = normalizeUser(res.data.data);
             setUser(userData);
             if (typeof window !== 'undefined') {
-                localStorage.setItem('ravi_zoho_user', JSON.stringify(userData));
+                localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
             }
         } catch (err) {
             if (isSessionRejected(err)) {
                 setUser(null);
                 if (typeof window !== 'undefined') {
-                    localStorage.removeItem('ravi_zoho_token');
-                    localStorage.removeItem('ravi_zoho_user');
+                    localStorage.removeItem(USER_CACHE_KEY);
                 }
             } else if (typeof window !== 'undefined') {
-                // Keep the credentials and fall back to the cached user so the
+                // Keep the session cookie and fall back to the cached user so the
                 // app stays usable. This is not a security decision: every
                 // request is re-authorised server-side, and the cached user only
                 // controls which screens are offered.
                 try {
-                    const cached = localStorage.getItem('ravi_zoho_user');
+                    const cached = localStorage.getItem(USER_CACHE_KEY);
                     setUser(cached ? normalizeUser(JSON.parse(cached)) : null);
                 } catch {
                     setUser(null);   // corrupt cache — treat as signed out
@@ -108,22 +106,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    /** Store the session from a login or MFA-challenge response and go to the user's dashboard. */
-    const finishLogin = (data: any) => {
-        const { user: rawUser, token: userToken } = data;
-        const userData = normalizeUser(rawUser);
+    /**
+     * Finish a login and go to the user's dashboard. The session itself is the
+     * HttpOnly cookie the API just set; only the display profile is cached.
+     */
+    const finishLogin = (data: { user?: unknown }) => {
+        const userData = normalizeUser(data.user);
 
-        // Persist to localStorage
         if (typeof window !== 'undefined') {
-            localStorage.setItem('ravi_zoho_token', userToken);
-            localStorage.setItem('ravi_zoho_user', JSON.stringify(userData));
+            localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
         }
 
         setUser(userData);
-        router.push(dashboardPathFor(userData.role));
+        router.push(dashboardPathFor(userData?.role));
     };
 
-    const login = async (credentials: any): Promise<LoginResult> => {
+    const login = async (credentials: LoginCredentials): Promise<LoginResult> => {
         const res = await axiosInstance.post('/api/auth/login', credentials);
         const data = res.data.data;
         // With MFA on, the password step only yields a short-lived preAuthToken;
@@ -141,19 +139,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     /**
-     * Finish an SSO login: the API's callback redirected to /sso-complete with
-     * the session token in the URL fragment. Store it, load the profile, and go
-     * to the user's dashboard — the same end state as a password login.
+     * Finish an SSO login: the API's callback set the session cookie and
+     * redirected to /sso-complete. Load the profile and go to the user's
+     * dashboard — the same end state as a password login.
      */
-    const completeSsoLogin = async (ssoToken: string) => {
-        if (typeof window !== 'undefined') localStorage.setItem('ravi_zoho_token', ssoToken);
-        try {
-            const res = await axiosInstance.get('/api/auth/me');
-            finishLogin({ user: res.data.data, token: ssoToken });
-        } catch (err) {
-            if (typeof window !== 'undefined') localStorage.removeItem('ravi_zoho_token');
-            throw err;
-        }
+    const completeSsoLogin = async () => {
+        const res = await axiosInstance.get('/api/auth/me');
+        finishLogin({ user: res.data.data });
     };
 
     const logout = async () => {
@@ -163,9 +155,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // console.error('Logout error:', err); // Removed error logging as per instruction
         } finally {
             setUser(null);
+            // The API cleared the cookie and revoked the session.
             if (typeof window !== 'undefined') {
-                localStorage.removeItem('ravi_zoho_token');
-                localStorage.removeItem('ravi_zoho_user'); // Added this line as per instruction
+                localStorage.removeItem(USER_CACHE_KEY);
             }
             router.push('/login');
         }

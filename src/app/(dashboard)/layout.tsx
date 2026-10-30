@@ -1,35 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
+import { useState } from "react";
 import Sidebar from "@/components/common/Sidebar";
 import Topbar from "@/components/common/Topbar";
+import RouteGuard from "@/components/guards/RouteGuard";
+import { ModuleGrantsProvider } from "@/components/guards/ModuleGrants";
+import { useAuth } from "@/lib/auth";
+import { roleAllowedOnSurface } from "@/lib/surface";
 import { FiCheckCircle, FiXCircle, FiAlertCircle, FiX } from "react-icons/fi";
 
+/**
+ * The company app's shell for every signed-in page (tenant surface). The
+ * RouteGuard checks each path against the route registry and the user's role;
+ * signed-out visitors are sent to /login by it.
+ */
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const { user, loading } = useAuth();
   const [notify, setNotify] = useState<{type: 'success' | 'failure' | 'warning' | null, message: string}>({ type: null, message: "" });
-
-  useEffect(() => {
-    // Only redirect if explicitly not loading and no user found
-    if (!loading && !user) {
-      const storedToken = localStorage.getItem("ravi_zoho_token");
-      if (!storedToken) {
-        router.push("/login");
-      }
-    }
-  }, [user, loading, router]);
-
-  const showNotify = (type: 'success' | 'failure' | 'warning', message: string) => {
-    setNotify({ type, message });
-    setTimeout(() => setNotify({ type: null, message: "" }), 5000);
-  };
 
   if (loading) {
     return (
@@ -43,8 +34,8 @@ export default function DashboardLayout({
     );
   }
 
-  // Final safety check
-  if (!user) return null;
+  // Signed out, or a role that belongs on the other surface: the guard redirects.
+  if (!user || !roleAllowedOnSurface(user.role)) return <RouteGuard>{null}</RouteGuard>;
 
   return (
     <div className="page-wrapper">
@@ -62,15 +53,15 @@ export default function DashboardLayout({
         </div>
       )}
 
-      {/* Sidebar and Topbar now part of the persistent layout */}
-      <Sidebar /> 
-      <div className="main-content">
-        <Topbar />
-        <div className="page-content animate-in">
-          {/* Inject showNotify as a prop or through context if needed in the future */}
-          {children}
+      <ModuleGrantsProvider>
+        <Sidebar />
+        <div className="main-content">
+          <Topbar />
+          <div className="page-content animate-in">
+            <RouteGuard>{children}</RouteGuard>
+          </div>
         </div>
-      </div>
+      </ModuleGrantsProvider>
 
       <style jsx global>{`
         .snackbar {

@@ -14,7 +14,7 @@ const PRIORITY_COLORS: Record<string, string> = { Low: "active", Medium: "pendin
 const EMPTY_FORM = { title: "", body: "", category: "General", priority: "Medium", expiresAt: "" };
 
 // Admin/HR view: publish announcements that every employee sees on
-// /employee/announcements. The poster is stamped server-side from the token.
+// /me/announcements. The poster is stamped server-side from the token.
 export default function AnnouncementsAdminPage() {
     const toast = useToast();
     const confirmDialog = useConfirm();

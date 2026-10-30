@@ -7,7 +7,7 @@
  *   type=relieving  relieving letter, once the F&F is settled
  *
  * Used by both the HR view (/exits/letter) and the employee's own view
- * (/employee/resignation/letter); the API decides who may read which record.
+ * (/me/resignation/letter); the API decides who may read which record.
  */
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";

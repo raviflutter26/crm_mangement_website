@@ -13,13 +13,56 @@ export interface FetchError {
     retryable: boolean;
 }
 
-export function describeError(err: any): FetchError {
-    const status: number | undefined = err?.response?.status;
-    const serverMessage: string | undefined = err?.response?.data?.message;
+/** The parts of an axios-style rejection these helpers read. */
+interface ErrorLike {
+    message?: unknown;
+    response?: { status?: number; data?: { message?: unknown; code?: unknown } };
+}
+
+const asErrorLike = (err: unknown): ErrorLike | undefined =>
+    err && typeof err === 'object' ? (err as ErrorLike) : undefined;
+
+/** The API's own `message` for a failed request, if it sent one. */
+export function apiMessage(err: unknown): string | undefined {
+    const m = asErrorLike(err)?.response?.data?.message;
+    return typeof m === 'string' && m ? m : undefined;
+}
+
+/** HTTP status of a failed request (undefined when there was no response). */
+export function errorStatus(err: unknown): number | undefined {
+    return asErrorLike(err)?.response?.status;
+}
+
+/** The API's machine-readable `code` (e.g. "SSO_REQUIRED"), if any. */
+export function errorCode(err: unknown): string | undefined {
+    const c = asErrorLike(err)?.response?.data?.code;
+    return typeof c === 'string' ? c : undefined;
+}
+
+/**
+ * Text for a caught error: the API's message, else (when `useRaw` is set) the
+ * Error's own message, else `fallback`. Replaces the old
+ * `catch (err: any) { err.response?.data?.message || "…" }` pattern without
+ * changing what the user sees.
+ */
+export function errorMessage(err: unknown, fallback = 'Something went wrong.', useRaw = false): string {
+    const server = apiMessage(err);
+    if (server) return server;
+    if (useRaw) {
+        const raw = asErrorLike(err)?.message;
+        if (typeof raw === 'string' && raw) return raw;
+    }
+    return fallback;
+}
+
+export function describeError(err: unknown): FetchError {
+    const e = asErrorLike(err);
+    const status = e?.response?.status;
+    const serverMessage = apiMessage(err);
 
     // No response at all — the API is unreachable. In this project that is very
     // often the dev tunnel in NEXT_PUBLIC_API_BASE_URL having expired.
-    if (!err?.response) {
+    if (!e?.response) {
         return {
             message: 'Could not reach the server. Check that the API is running and that NEXT_PUBLIC_API_BASE_URL is still valid.',
             retryable: true,
@@ -47,7 +90,11 @@ export function describeError(err: any): FetchError {
             if (status && status >= 500) {
                 return { message: serverMessage || 'The server ran into an error.', status, retryable: true };
             }
-            return { message: serverMessage || err?.message || 'Something went wrong.', status, retryable: true };
+            return {
+                message: serverMessage || (typeof e?.message === 'string' && e.message) || 'Something went wrong.',
+                status,
+                retryable: true,
+            };
     }
 }
 
@@ -57,11 +104,11 @@ export function describeError(err: any): FetchError {
  * Returns each settled value alongside the errors that occurred, so a page can
  * render the parts that loaded and still tell the user what didn't.
  */
-export async function settleAll<T extends readonly Promise<any>[]>(
+export async function settleAll<T extends readonly Promise<unknown>[]>(
     promises: T
-): Promise<{ results: any[]; errors: FetchError[] }> {
+): Promise<{ results: unknown[]; errors: FetchError[] }> {
     const settled = await Promise.allSettled(promises);
-    const results: any[] = [];
+    const results: unknown[] = [];
     const errors: FetchError[] = [];
 
     for (const s of settled) {
@@ -76,6 +123,7 @@ export async function settleAll<T extends readonly Promise<any>[]>(
 }
 
 /** Convenience for the common `res.data.data` shape, tolerant of a null result. */
-export function unwrap<T = any>(res: any, fallback: T): T {
-    return (res?.data?.data ?? fallback) as T;
+export function unwrap<T = unknown>(res: unknown, fallback: T): T {
+    const data = (res as { data?: { data?: T } } | null | undefined)?.data?.data;
+    return (data ?? fallback) as T;
 }
